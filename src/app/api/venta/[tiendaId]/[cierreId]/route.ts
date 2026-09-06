@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
-import { IVenta } from "@/schemas/venta";
+import { IVenta, IFaltanteExistencia } from "@/schemas/venta";
+import { formatQuantity } from "@/utils/formatters";
 import type { IPagoLinea, IVueltoLinea } from "@/schemas/pago";
 import { applyDiscountsForSale } from "@/lib/discounts";
 import { calcularEfectivoDisponiblePorMoneda } from "@/lib/movimiento/caja";
@@ -28,6 +29,27 @@ class InsufficientCashForChangeError extends Error {
     public readonly available: number,
   ) {
     super("INSUFFICIENT_CASH_FOR_CHANGE");
+  }
+}
+
+/**
+ * La tienda no tiene con qué cubrir la venta.
+ *
+ * Lleva la lista completa, no la primera línea que falló: al cajero le sirve
+ * de poco saber que un producto no alcanza si al reponerlo se encuentra con
+ * que tampoco alcanzaba el siguiente. El mensaje se arma aquí para que sea
+ * legible incluso donde solo llega el texto.
+ */
+class InsufficientStockError extends Error {
+  constructor(public readonly faltantes: IFaltanteExistencia[]) {
+    super(
+      `Existencia insuficiente para registrar la venta: ${faltantes
+        .map(
+          (f) =>
+            `${f.nombre} (pide ${formatQuantity(f.solicitada)}, hay ${formatQuantity(f.disponible)})`,
+        )
+        .join("; ")}`,
+    );
   }
 }
 
@@ -543,6 +565,17 @@ export async function POST(
             itemsDesagregaciónBaja.push({
               cantidad: paquetes,
               productoId: prodFracc.producto.fraccionDeId,
+              // Con qué nombrar el rechazo si el padre no da para abrir: al
+              // cajero le importa la línea que vendió —«Cigarro suelto»— y no
+              // el envase del que salía.
+              origen: {
+                productoTiendaId: prodFracc.id,
+                nombre: prod.name || prodFracc.id,
+                solicitada: prod.cantidad,
+                sueltas: prodFracc.existencia,
+                unidadesPorFraccion:
+                  prodFracc.producto.unidadesPorFraccion ?? 0,
+              },
             });
           }
 
@@ -595,7 +628,17 @@ export async function POST(
               [];
 
             const aplicar = (
-              items: { cantidad: number; productoId: string }[],
+              items: {
+                cantidad: number;
+                productoId: string;
+                origen?: {
+                  productoTiendaId: string;
+                  nombre: string;
+                  solicitada: number;
+                  sueltas: number;
+                  unidadesPorFraccion: number;
+                };
+              }[],
               tipo: "DESAGREGACION_BAJA" | "DESAGREGACION_ALTA",
             ) => {
               const signo = tipo === "DESAGREGACION_BAJA" ? -1 : 1;
@@ -605,9 +648,24 @@ export async function POST(
 
                 const existenciaAnterior = existenciaSimulada.get(fila.id) ?? 0;
                 if (signo < 0 && existenciaAnterior < item.cantidad) {
-                  throw new Error(
-                    `Existencia insuficiente, no hay suficiente existencia para desagregar. Existencia: ${existenciaAnterior}, Cantidad a desagregar: ${item.cantidad}`,
-                  );
+                  // Se informa en unidades de lo que se vende, no en paquetes:
+                  // «pide 25, hay 8» dice algo; «faltan 2 cajas» obliga a
+                  // multiplicar mentalmente para saber si se puede cobrar.
+                  const origen = item.origen;
+                  throw origen
+                    ? new InsufficientStockError([
+                        {
+                          productoTiendaId: origen.productoTiendaId,
+                          nombre: origen.nombre,
+                          solicitada: origen.solicitada,
+                          disponible:
+                            origen.sueltas +
+                            existenciaAnterior * origen.unidadesPorFraccion,
+                        },
+                      ])
+                    : new Error(
+                        `Existencia insuficiente, no hay suficiente existencia para desagregar. Existencia: ${existenciaAnterior}, Cantidad a desagregar: ${item.cantidad}`,
+                      );
                 }
 
                 existenciaSimulada.set(
@@ -681,6 +739,10 @@ export async function POST(
 
         const movimientosVenta: Prisma.MovimientoStockCreateManyInput[] = [];
         const decrementoPorId = new Map<string, number>();
+        // Se recorren todas las líneas antes de rechazar: cortar en la primera
+        // obligaba al cajero a descubrir las que faltaban de una en una,
+        // reponiendo y reintentando por cada producto.
+        const faltantes: IFaltanteExistencia[] = [];
         for (const producto of productos) {
           const productoTienda = productosExistentes.find(
             (p) => p.id === producto.productoTiendaId,
@@ -693,9 +755,13 @@ export async function POST(
           if (existenciaAnterior === undefined) continue;
 
           if (existenciaAnterior < producto.cantidad) {
-            throw new Error(
-              `Existencia insuficiente para realizar la venta de productoTiendaId: ${producto.productoTiendaId}. Existencia: ${existenciaAnterior}, Cantidad a vender: ${producto.cantidad}`,
-            );
+            faltantes.push({
+              productoTiendaId: producto.productoTiendaId,
+              nombre: producto.name || producto.productoTiendaId,
+              solicitada: producto.cantidad,
+              disponible: existenciaAnterior,
+            });
+            continue;
           }
 
           // El mapa se va descontando línea a línea para reproducir exactamente
@@ -725,6 +791,13 @@ export async function POST(
               proveedorId: productoTienda.proveedorId,
             }),
           });
+        }
+
+        // Tras revisar todas las líneas y antes de descontar ninguna. Lo que la
+        // transacción haya escrito hasta aquí —las desagregaciones— se deshace
+        // con ella.
+        if (faltantes.length > 0) {
+          throw new InsufficientStockError(faltantes);
         }
 
         // Un solo UPDATE para todas las líneas. Prisma no sabe descontar una
@@ -761,6 +834,16 @@ export async function POST(
 
     return NextResponse.json(result, { status: 201 });
   } catch (error: unknown) {
+    // 409, no 500: la venta es correcta, es la tienda la que no la cubre. Un
+    // 5xx la habría hecho pasar por un fallo pasajero y la cola la habría
+    // reenviado sola una y otra vez.
+    if (error instanceof InsufficientStockError) {
+      return NextResponse.json(
+        { error: error.message, faltantes: error.faltantes },
+        { status: 409 },
+      );
+    }
+
     if (error instanceof InsufficientCashForChangeError) {
       return NextResponse.json(
         {

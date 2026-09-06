@@ -1,6 +1,7 @@
 import { IProductoVenta } from "@/schemas/producto";
 import { IPagoLinea, IVueltoLinea } from "@/schemas/pago";
 import { ITasaSnapshot } from "@/schemas/tasaCambio";
+import { IFaltanteExistencia } from "@/schemas/venta";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
@@ -41,6 +42,16 @@ export interface Sale {
   // sync offline. El servidor no la puede recalcular.
   tipTotal?: number;
   tipDetail?: IPagoLinea[];
+  /**
+   * Las líneas que el servidor no pudo cubrir la última vez que se intentó
+   * enviar esta venta.
+   *
+   * Se guarda lo que dijo el servidor en vez de recalcularlo contra el
+   * catálogo local: al registrar la venta el POS ya descontó su stock, así que
+   * comparar ahora marcaría como problemáticas justo las líneas que sí
+   * estaban bien.
+   */
+  stockShortages?: IFaltanteExistencia[];
 }
 
 export interface Products {
@@ -54,7 +65,12 @@ interface SalesState {
   productos: Products[];
   addSale: (sale: Omit<Sale, "synced">) => void;
   markSynced: (id: string, idDb: string) => void;
+  /** Aparca la venta: no se reintenta sola, solo a mano. */
   markSyncError: (id: string) => void;
+  /** Devuelve la venta a la cola automática tras un fallo pasajero. */
+  markSyncRetry: (id: string) => void;
+  /** Anota qué líneas rechazó el servidor por existencias. */
+  setStockShortages: (id: string, shortages: IFaltanteExistencia[]) => void;
   markSyncing: (id: string) => void;
   deleteSale: (id: string) => void;
   removeProductFromSale: (
@@ -134,12 +150,44 @@ export const useSalesStore = create<SalesState>()(
               return {
                 ...sale,
                 synced: false,
-                syncState: "not_synced",
+                // `sync_err`, no `not_synced`: esta acción es la que usan los
+                // rechazos que el servidor no va a cambiar de opinión (sin
+                // existencias, período ajeno, 4xx), y `not_synced` es
+                // justamente la cola automática. Devolverla ahí era un bucle:
+                // el barrido la recogía, fallaba, la volvía a marcar y vuelta
+                // a empezar cada dos segundos, sin tope de intentos posible.
+                // Aparcada sigue contando como pendiente y el cajón de ventas
+                // la reenvía a mano.
+                syncState: "sync_err",
                 syncStartedAt: undefined, // Limpiar timestamp
               };
             }
             return sale;
           }),
+        })),
+      markSyncRetry: (id: string) =>
+        set((state) => ({
+          sales: state.sales.map((sale) => {
+            if (sale.identifier === id) {
+              return {
+                ...sale,
+                synced: false,
+                // De vuelta a la cola automática: el fallo fue pasajero (red,
+                // timeout, 5xx) y todavía queda margen de intentos.
+                syncState: "not_synced",
+                syncStartedAt: undefined,
+              };
+            }
+            return sale;
+          }),
+        })),
+      setStockShortages: (id: string, shortages: IFaltanteExistencia[]) =>
+        set((state) => ({
+          sales: state.sales.map((sale) =>
+            sale.identifier === id
+              ? { ...sale, stockShortages: shortages }
+              : sale,
+          ),
         })),
       markSyncing: (id: string) =>
         set((state) => ({
@@ -151,6 +199,9 @@ export const useSalesStore = create<SalesState>()(
                 syncState: "syncing",
                 syncStartedAt: Date.now(), // Registrar cuando comenzó la sincronización
                 syncAttempts: sale.syncAttempts + 1, // 🆕 Incrementar contador de intentos
+                // El veredicto anterior deja de valer en cuanto se vuelve a
+                // preguntar: puede que ya hayan repuesto.
+                stockShortages: undefined,
               };
             }
             return sale;

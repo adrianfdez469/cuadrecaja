@@ -30,9 +30,13 @@ export const DISCOUNT_PREVIEW_DEBOUNCE_MS = 400;
  * permanent error for the cashier to resolve by hand.
  *
  * A sale rejected for a reason the client does not recognize used to retry
- * forever: the sync-timeout sweep returns it to "not synced" after a minute,
- * and every attempt can spend up to ~94s in axios retries. Five attempts is
- * comfortably past any transient outage.
+ * forever, and every attempt can spend up to ~94s in axios retries. Five
+ * attempts is comfortably past any transient outage.
+ *
+ * Only transient failures spend attempts: what the server has already ruled on
+ * — no stock, a period that is not the open one, any other 4xx — is parked at
+ * the first refusal, because the answer will not change on its own. See
+ * `shouldRetrySyncFailure`.
  */
 export const MAX_SYNC_ATTEMPTS = 5;
 

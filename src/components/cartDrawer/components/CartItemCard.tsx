@@ -19,6 +19,10 @@ import { ICartItem } from "@/store/cartStore";
 import { MultiCurrencyAmount } from "@/components/MultiCurrencyAmount";
 import { useShowAlternativeCurrencies } from "@/hooks/useShowAlternativeCurrencies";
 import { formatQuantity } from "@/utils/formatters";
+import {
+  faltanteDeLinea,
+  useDisponibleLocal,
+} from "@/store/stockSnapshotStore";
 import { shape, touch } from "@/theme";
 import { POS_CATALOG_ROW_HEIGHT } from "@/constants/pos";
 
@@ -211,6 +215,12 @@ function CartItemCardComponent({
   const unitPrice = item.priceBase ?? item.price;
   const lineTotal = unitPrice * item.quantity;
   const { show: showAlternativeCurrencies } = useShowAlternativeCurrencies();
+  // Lo que la tienda no cubre se dice en la propia línea. Se vende igual —el
+  // POS lo permite sin conexión o con el ajuste puesto—, pero el cajero tiene
+  // que poder ver de un vistazo cuál de los productos del carrito es el que
+  // más tarde puede tumbar la venta entera.
+  const disponible = useDisponibleLocal(item.id);
+  const faltan = faltanteDeLinea(item.quantity, disponible);
 
   const openDetail = (event: MouseEvent<HTMLElement>) =>
     setDetailAnchor(event.currentTarget);
@@ -237,6 +247,19 @@ function CartItemCardComponent({
         >
           {item.name}
         </Typography>
+        {faltan > 0 && (
+          <Tooltip
+            title={`Hay ${formatQuantity(disponible)} y esta venta pide ${formatQuantity(item.quantity)}. El servidor puede rechazarla.`}
+          >
+            <Chip
+              label="Sin stock"
+              color="warning"
+              size="small"
+              variant="outlined"
+              sx={CHIP_SX}
+            />
+          </Tooltip>
+        )}
         {item.fechaVencimiento && (
           <ExpiryChip fechaVencimiento={item.fechaVencimiento} />
         )}

@@ -7,6 +7,7 @@ import { useMessageContext } from "@/context/MessageContext";
 import { useMonedasAlternativas } from "@/components/MultiCurrencyAmount/useMonedasAlternativas";
 import { useShowAlternativeCurrencies } from "@/hooks/useShowAlternativeCurrencies";
 import { useShowSaleReceipt } from "@/hooks/useShowSaleReceipt";
+import { useSellWithoutStock } from "@/hooks/useSellWithoutStock";
 
 const REFRESH_MSG_ID = "pos-refresh-msg";
 
@@ -27,6 +28,8 @@ export function usePosActionsController(onRefresh: () => Promise<void>) {
     useShowAlternativeCurrencies();
   const { show: showSaleReceipt, toggle: toggleShowSaleReceipt } =
     useShowSaleReceipt();
+  const { enabled: sellWithoutStock, toggle: toggleSellWithoutStock } =
+    useSellWithoutStock();
 
   const pending = sales.filter((s) => !s.synced).length;
 
@@ -60,5 +63,7 @@ export function usePosActionsController(onRefresh: () => Promise<void>) {
     toggleCurrencies,
     showSaleReceipt,
     toggleShowSaleReceipt,
+    sellWithoutStock,
+    toggleSellWithoutStock,
   };
 }

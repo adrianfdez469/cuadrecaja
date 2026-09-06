@@ -6,8 +6,10 @@ import { IProductoTiendaPos } from "@/schemas/producto";
 import { SaleExtrasSummary } from "@/components/SaleExtrasSummary";
 import { formatQuantity } from "@/utils/formatters";
 import { Close, Delete } from "@mui/icons-material";
+import { IFaltanteExistencia } from "@/schemas/venta";
 import {
   Box,
+  Chip,
   Drawer,
   IconButton,
   Table,
@@ -24,6 +26,50 @@ import {
 
 const TOOLTIP_MULTIPLES_PAGOS =
   "No se puede eliminar un producto de una venta con más de un pago registrado (varias monedas, o efectivo y transferencia combinados)";
+
+const SHORTAGE_CHIP_SX = { height: 18, fontSize: "0.65rem" } as const;
+const PRODUCT_CELL_SX = {
+  display: "flex",
+  alignItems: "center",
+  gap: 0.75,
+  flexWrap: "wrap",
+} as const;
+
+/**
+ * El nombre del producto, con el aviso de las líneas que el servidor rechazó
+ * por existencias.
+ *
+ * El aviso sale de lo que respondió el servidor —anotado en la venta al
+ * fallar la sincronización—, no de comparar con el catálogo: al registrar la
+ * venta el POS ya descontó su stock, así que esa comparación marcaría
+ * precisamente las líneas que sí estaban bien.
+ */
+function ProductoCell({
+  nombre,
+  faltante,
+}: {
+  nombre: string;
+  faltante?: IFaltanteExistencia;
+}) {
+  return (
+    <Box sx={PRODUCT_CELL_SX}>
+      <span>{nombre}</span>
+      {faltante && (
+        <Tooltip
+          title={`El servidor rechazó esta línea: pedía ${formatQuantity(faltante.solicitada)} y había ${formatQuantity(faltante.disponible)}`}
+        >
+          <Chip
+            label={`Faltan ${formatQuantity(faltante.solicitada - faltante.disponible)}`}
+            color="warning"
+            size="small"
+            variant="outlined"
+            sx={SHORTAGE_CHIP_SX}
+          />
+        </Tooltip>
+      )}
+    </Box>
+  );
+}
 
 interface SaleProductsDetailDrawerProps {
   open: boolean;
@@ -51,6 +97,17 @@ export const SaleProductsDetailDrawer: React.FC<
   const { tasasVigentes, monedaBase } = useAppContext();
   const [deletingId, setDeletingId] = React.useState<string | null>(null);
   const [deletingSale, setDeletingSale] = React.useState(false);
+
+  const faltantePorProducto = React.useMemo(
+    () =>
+      new Map(
+        (sale.stockShortages ?? []).map((faltante) => [
+          faltante.productoTiendaId,
+          faltante,
+        ]),
+      ),
+    [sale.stockShortages],
+  );
 
   const isLastProduct = sale.productos.length <= 1;
   const blockedByMultiplesPagos =
@@ -157,7 +214,14 @@ export const SaleProductsDetailDrawer: React.FC<
                 const isDeleting = deletingId === key;
                 return (
                   <TableRow key={key} hover>
-                    <TableCell>{product.name}</TableCell>
+                    <TableCell>
+                      <ProductoCell
+                        nombre={product.name}
+                        faltante={faltantePorProducto.get(
+                          product.productoTiendaId,
+                        )}
+                      />
+                    </TableCell>
                     <TableCell align="center">
                       {formatQuantity(product.cantidad)}
                     </TableCell>

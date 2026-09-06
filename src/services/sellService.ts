@@ -9,6 +9,29 @@ import type { IMultimonedaExtras } from "@/schemas/pago";
 const API_URL = (tiendaId: string, cierreId: string) =>
   `/api/venta/${tiendaId}/${cierreId}`;
 
+/**
+ * Un `createSell` fallido, con el motivo intacto.
+ *
+ * Quien lo recibe tiene que decidir si vale la pena reintentar, y para eso
+ * necesita las dos cosas que este error conserva: el estado HTTP y el mensaje
+ * del servidor. Lanzar un `new Error("SERVER_ERROR")` pelado perdía ambas, y
+ * dejaba sin efecto las ramas que las miraban — las de «Existencia
+ * insuficiente», «fuera del período actual» y `isPermanentSyncError`, que
+ * nunca llegaban a cumplirse.
+ */
+export class CreateSellError extends Error {
+  readonly response?: { status?: number; data?: { error?: string } };
+
+  constructor(
+    message: string,
+    response?: { status?: number; data?: { error?: string } },
+  ) {
+    super(message);
+    this.name = "CreateSellError";
+    this.response = response;
+  }
+}
+
 export const createSell = async (
   tiendaId: string,
   cierreId: string,
@@ -74,16 +97,30 @@ export const createSell = async (
     );
 
     if (error.code === "ECONNABORTED") {
-      throw new Error(
+      throw new CreateSellError(
         "TIMEOUT_ERROR: La petición tardó demasiado en responder",
+        error.response,
       );
     } else if (error.code === "ERR_NETWORK") {
-      throw new Error("NETWORK_ERROR: Error de conexión de red");
+      throw new CreateSellError(
+        "NETWORK_ERROR: Error de conexión de red",
+        error.response,
+      );
     } else if (error.response?.status >= 500) {
-      throw new Error("SERVER_ERROR: Error interno del servidor");
+      // El motivo del servidor viaja en el mensaje, no se descarta. Las
+      // validaciones de negocio de `POST /api/venta` —«Existencia
+      // insuficiente» entre ellas— se lanzan dentro de la transacción y salen
+      // como 500: sin su texto, quien lo recibe no puede distinguir una venta
+      // que el servidor nunca aceptará de un fallo pasajero que sí conviene
+      // reintentar.
+      throw new CreateSellError(
+        `SERVER_ERROR: ${error.response?.data?.error || "Error interno del servidor"}`,
+        error.response,
+      );
     } else if (error.response?.status >= 400) {
-      throw new Error(
+      throw new CreateSellError(
         `CLIENT_ERROR: ${error.response?.data?.error || "Error en los datos enviados"}`,
+        error.response,
       );
     }
 

@@ -23,6 +23,10 @@ import {
 } from "@/utils/quantityInput";
 import { QuantityKeypad, type QuantityKey } from "./QuantityKeypad";
 import { QuantityValueField } from "./QuantityValueField";
+import {
+  UNLIMITED_QUANTITY,
+  getMaxSellableQuantity,
+} from "../utils/sellWithoutStock";
 import { shape, touch } from "@/theme";
 
 /**
@@ -108,6 +112,14 @@ interface QuantitySheetProps {
    * cannot know on its own.
    */
   maxDisponibleOverride?: number;
+  /**
+   * The figure may go past what the catalog holds — offline, or with the
+   * cashier's own setting on. The sheet then stops capping and says who
+   * decides instead.
+   */
+  allowWithoutStock?: boolean;
+  /** Only to name when that decision lands: on charging, or on sync. */
+  isOnline?: boolean;
 }
 
 /** The internal draft uses "." so the parsing helpers can read it; the cashier sees ",". */
@@ -120,6 +132,8 @@ export const QuantitySheet = ({
   onConfirm,
   onAddToCart,
   maxDisponibleOverride,
+  allowWithoutStock = false,
+  isOnline = true,
 }: QuantitySheetProps) => {
   const { tasasVigentes, monedaBase } = useAppContext();
   const items = useCartStore((state) => state.items);
@@ -134,18 +148,29 @@ export const QuantitySheet = ({
   const allowDecimal = productoTienda?.producto?.permiteDecimal ?? false;
   const minQuantity = allowDecimal ? 0.01 : 1;
 
-  const maxQuantity = useMemo(() => {
-    if (!productoTienda) return 0;
+  // `remaining` is what the catalog actually backs and `maxQuantity` what may
+  // be typed: the same figure until selling without stock is allowed, and then
+  // the first is what the subtitle reports while the second stops capping.
+  const { maxQuantity, remaining } = useMemo(() => {
+    if (!productoTienda) return { maxQuantity: 0, remaining: 0 };
     const inCart =
       items.find((item) => item.id === productoTienda.id)?.quantity ?? 0;
     const disponible =
       typeof maxDisponibleOverride === "number" && maxDisponibleOverride >= 0
         ? maxDisponibleOverride
         : Math.max(0, productoTienda.existencia || 0);
-    return Math.max(0, disponible - inCart);
-  }, [productoTienda, items, maxDisponibleOverride]);
+    return {
+      maxQuantity: getMaxSellableQuantity(
+        disponible,
+        inCart,
+        allowWithoutStock,
+      ),
+      remaining: Math.max(0, disponible - inCart),
+    };
+  }, [productoTienda, items, maxDisponibleOverride, allowWithoutStock]);
 
   const hasStock = maxQuantity >= minQuantity;
+  const unlimited = maxQuantity === UNLIMITED_QUANTITY;
 
   useEffect(() => {
     if (!productoTienda) return;
@@ -219,8 +244,9 @@ export const QuantitySheet = ({
       allowDecimal,
       maxQuantity,
       productoTienda.producto.unidadesPorFraccion,
-    ).slice(0, 3);
-  }, [productoTienda, allowDecimal, maxQuantity]);
+      // Without a ceiling there is no «Máx» chip to leave room for.
+    ).slice(0, unlimited ? 4 : 3);
+  }, [productoTienda, allowDecimal, maxQuantity, unlimited]);
 
   const canCommit =
     Boolean(productoTienda) &&
@@ -257,9 +283,16 @@ export const QuantitySheet = ({
   };
 
   const isFraction = Boolean(productoTienda?.producto?.fraccionDeId);
-  const subtitle = hasStock
-    ? `${formatQuantity(maxQuantity)} disponibles${isFraction ? " · unidad suelta" : ""}`
-    : "Sin stock disponible";
+  // Says who decides, and when. Offline the sale is queued, so the answer only
+  // comes back on sync; online the server answers as it is charged.
+  const subtitle =
+    remaining >= minQuantity
+      ? `${formatQuantity(remaining)} disponibles${isFraction ? " · unidad suelta" : ""}`
+      : allowWithoutStock
+        ? isOnline
+          ? "Sin existencias — el servidor puede rechazar la venta"
+          : "Sin existencias — se validará al sincronizar"
+        : "Sin stock disponible";
 
   return (
     <Drawer
@@ -277,7 +310,14 @@ export const QuantitySheet = ({
               </Typography>
               <Typography
                 variant="caption"
-                color={hasStock ? "text.secondary" : "error.main"}
+                // A warning, not an error, when the sale may go ahead anyway.
+                color={
+                  remaining >= minQuantity
+                    ? "text.secondary"
+                    : allowWithoutStock
+                      ? "warning.main"
+                      : "error.main"
+                }
               >
                 {subtitle}
               </Typography>
@@ -316,12 +356,14 @@ export const QuantitySheet = ({
                   {chip.label}
                 </ButtonBase>
               ))}
-              <ButtonBase
-                sx={QUICK_CHIP_SX}
-                onClick={() => setQuantity(maxQuantity)}
-              >
-                Máx {formatQuantity(maxQuantity)}
-              </ButtonBase>
+              {!unlimited && (
+                <ButtonBase
+                  sx={QUICK_CHIP_SX}
+                  onClick={() => setQuantity(maxQuantity)}
+                >
+                  Máx {formatQuantity(maxQuantity)}
+                </ButtonBase>
+              )}
             </Box>
           )}
 

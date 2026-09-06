@@ -40,13 +40,26 @@ import { PosBottomBar } from "./components/PosBottomBar";
 import PosPayBar from "./components/PosPayBar";
 import { calcularDisponibilidadReal } from "./utils/calcularDisponibilidadReal";
 import { buildProductIndex, withBasePrices } from "./utils/buildProductIndex";
-import { isPermanentSyncError } from "./utils/syncErrors";
+import {
+  classifySyncFailure,
+  describeInsufficientStock,
+  getInsufficientStockItems,
+  isPermanentSyncError,
+  shouldRetrySyncFailure,
+} from "./utils/syncErrors";
 import { useDiscountRulesStore } from "@/store/discountRulesStore";
 import { useCashBalanceStore } from "@/store/cashBalanceStore";
+import { useStockSnapshotStore } from "@/store/stockSnapshotStore";
 import { readCatalog, writeCatalog } from "@/lib/catalogCache";
 import { MAX_SYNC_ATTEMPTS } from "@/constants/pos";
 import { packsToOpen, unitsFromPacks } from "@/lib/fractionStock";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
+import { useSellWithoutStock } from "@/hooks/useSellWithoutStock";
+import {
+  allowsSellingWithoutStock,
+  getMaxSellableQuantity,
+  isVisibleInPos,
+} from "./utils/sellWithoutStock";
 import { useOnScreenKeyboard } from "@/hooks/useOnScreenKeyboard";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { POS_SEARCH_DEBOUNCE_MS } from "@/constants/pos";
@@ -143,8 +156,15 @@ export default function POSInterface() {
     useAppContext();
   const { showMessage, removeMessage } = useMessageContext();
   const { confirmDialog, ConfirmDialogComponent } = useConfirmDialog();
-  const { addSale, markSynced, markSyncing, checkSyncTimeouts, markSyncError } =
-    useSalesStore();
+  const {
+    addSale,
+    markSynced,
+    markSyncing,
+    checkSyncTimeouts,
+    markSyncError,
+    markSyncRetry,
+    setStockShortages,
+  } = useSalesStore();
   // A number, not the array: this drives the sync effect, and subscribing to
   // `sales` re-ran it on every mark the sync itself performed.
   const pendingSalesCount = useSalesStore(
@@ -203,6 +223,14 @@ export default function POSInterface() {
   /** Which store the loaded catalog belongs to, to catch a store switch. */
   const catalogTiendaRef = useRef<string | null>(null);
   const { isOnline } = useNetworkStatus();
+  const { enabled: sellWithoutStockEnabled } = useSellWithoutStock();
+  // Resolved once for the whole screen and handed down: the rule needs the
+  // connection, and `useNetworkStatus` opens an interval plus two listeners
+  // per call site — one per catalog row would be hundreds of them.
+  const allowWithoutStock = allowsSellingWithoutStock(
+    isOnline,
+    sellWithoutStockEnabled,
+  );
   useBlockBackNavigation();
   const [transferDestinations, setTransferDestinations] = useState<
     ITransferDestination[]
@@ -440,6 +468,29 @@ export default function POSInterface() {
     if (data?.code) {
       const product = findProductByCode(data.code);
       if (product) {
+        // El catálogo ya no llega filtrado por existencia, así que el tope se
+        // comprueba aquí: la pistola agrega sin abrir la hoja de cantidad, que
+        // es donde vivía la única comprobación.
+        const { disponible } = calcularDisponibilidadReal(
+          product,
+          productosTienda,
+        );
+        const enCarrito =
+          useCartStore
+            .getState()
+            .items.find((item) => item.productoTiendaId === product.id)
+            ?.quantity || 0;
+        if (
+          getMaxSellableQuantity(disponible, enCarrito, allowWithoutStock) < 1
+        ) {
+          audioService.playErrorSound();
+          showMessage(
+            `Sin existencias de ${product.producto.nombre}`,
+            "warning",
+          );
+          return;
+        }
+
         // Agregar directamente al carrito con cantidad 1
         const { addToCart } = useCartStore.getState();
         addToCart(
@@ -622,54 +673,43 @@ export default function POSInterface() {
           error,
         );
 
-        // Manejo mejorado de errores
-        if (error.message?.includes("TIMEOUT_ERROR")) {
-          console.warn(
-            `⚠️ Timeout en venta ${sale.identifier} - se reintentará más tarde`,
-          );
-        } else if (error.message?.includes("NETWORK_ERROR")) {
-          console.warn(
-            `⚠️ Error de red en venta ${sale.identifier} - se reintentará cuando haya conexión`,
-          );
-        } else if (error.message?.includes("SERVER_ERROR")) {
-          console.warn(
-            `⚠️ Error del servidor en venta ${sale.identifier} - se reintentará más tarde`,
-          );
-        } else if (error.message?.includes("CLIENT_ERROR")) {
+        // Toda venta que falla sale de `syncing`: o vuelve a la cola, o queda
+        // aparcada. Antes, media docena de ramas decidían por su cuenta y
+        // varias no tocaban el estado, así que la venta se quedaba en
+        // «sincronizando» hasta que el barrido de timeouts la rescataba un
+        // minuto después.
+        // `sale` viene de antes de `markSyncing`, así que su contador todavía
+        // no incluye el intento que acaba de fallar.
+        const intentos = sale.syncAttempts + 1;
+        const kind = classifySyncFailure(error);
+        const reintentar = shouldRetrySyncFailure(error, intentos);
+
+        if (kind === "insufficient_stock") {
           console.error(
-            `❌ Error de datos en venta ${sale.identifier}:`,
+            `❌ Existencia insuficiente en venta ${sale.identifier} - se aparca para reenviarla a mano:`,
             error.message,
           );
-        } else if (error.message?.includes("Existencia insuficiente")) {
+        } else if (kind === "wrong_period") {
           console.error(
-            `❌ Error crítico: Existencia insuficiente en venta ${sale.identifier}:`,
-            error.message,
+            `❌ Venta ${sale.identifier} fuera del período actual - no se puede sincronizar`,
           );
-          // Marcar como error permanente para evitar reintentos
-          markSyncError(sale.identifier);
-        } else if (
-          error.response?.status === 400 &&
-          error.response?.data?.error?.includes("fuera del período actual")
-        ) {
-          console.error(
-            `❌ Error crítico: Venta ${sale.identifier} fuera del período actual - no se puede sincronizar`,
-          );
-          // Marcar como error permanente para evitar reintentos
-          markSyncError(sale.identifier);
-        } else if (isPermanentSyncError(error)) {
-          // Any other 4xx the server will keep rejecting. Without this, an
-          // unclassified rejection retried forever: `checkSyncTimeouts` puts
-          // the sale back to `not_synced` after 60s, and each attempt can cost
-          // up to ~94s of hanging requests through the axios retry.
+        } else if (!reintentar && isPermanentSyncError(error)) {
           console.error(
             `❌ Error permanente en venta ${sale.identifier} (HTTP ${error.response?.status}) - no se reintentará`,
           );
-          markSyncError(sale.identifier);
-        } else if (sale.syncAttempts >= MAX_SYNC_ATTEMPTS) {
-          // Last resort for errors that look transient but never clear.
+        } else if (!reintentar) {
           console.error(
             `❌ Venta ${sale.identifier} agotó ${MAX_SYNC_ATTEMPTS} intentos - no se reintentará`,
           );
+        } else {
+          console.warn(
+            `⚠️ Fallo pasajero (${kind}) en venta ${sale.identifier} - intento ${intentos}/${MAX_SYNC_ATTEMPTS}`,
+          );
+        }
+
+        if (reintentar) {
+          markSyncRetry(sale.identifier);
+        } else {
           markSyncError(sale.identifier);
         }
 
@@ -745,43 +785,23 @@ export default function POSInterface() {
       // mayor parte de los bytes que antes viajaban por la red y había que
       // parsear en el teléfono antes de pintar la primera tarjeta.
       const rawProductos = await getCatalogoPos(user.localActual.id);
-      // Existencia por productoId, resuelta una vez. El filtro de abajo hacía
-      // un `find` sobre `rawProductos` por cada producto sin existencia: con
-      // un catálogo de 800 eso son cientos de miles de iteraciones en cada
-      // carga, y esta función corre también tras cada sincronización.
-      const existenciaByProductoId = new Map<string, number>();
-      for (const p of rawProductos) {
-        existenciaByProductoId.set(p.productoId, p.existencia);
-      }
 
-      const prods = rawProductos
-        // Agregar el nombre del proveedor al producto
-        .map((prod) => ({
-          ...prod,
-          producto: {
-            ...prod.producto,
-            nombre: prod.proveedor
-              ? `${prod.producto.nombre} - ${prod.proveedor.nombre}`
-              : prod.producto.nombre,
-          },
-        }))
-        // El filtro de `precio > 0` ya lo aplica el servidor.
-        // Filtrar productos con existencia positiva
-        .filter((p) => {
-          if (p.existencia <= 0) {
-            // Si el producto tiene unidades por fracción, se debe verificar que el producto padre tenga existencia
-            if (p.producto.fraccionDeId !== null) {
-              const existenciaPadre = existenciaByProductoId.get(
-                p.producto.fraccionDeId,
-              );
-              if (existenciaPadre !== undefined && existenciaPadre > 0) {
-                return true;
-              }
-            }
-            return false;
-          }
-          return true;
-        });
+      // Se guarda el catálogo entero, agotados incluidos. Filtrarlos aquí —
+      // como se hacía— los borraba también de la caché, y sin conexión la
+      // caché es todo lo que hay: el producto que se acababa de agotar
+      // desaparecía justo cuando vender sin existencias es lo único posible.
+      // Qué se muestra lo decide ahora `isVisibleInPos` al pintar, así que el
+      // ajuste se aplica al instante y sin volver a bajar el catálogo.
+      // El filtro de `precio > 0` ya lo aplica el servidor.
+      const prods = rawProductos.map((prod) => ({
+        ...prod,
+        producto: {
+          ...prod.producto,
+          nombre: prod.proveedor
+            ? `${prod.producto.nombre} - ${prod.proveedor.nombre}`
+            : prod.producto.nombre,
+        },
+      }));
 
       const productosTienda = prods.sort((a, b) => {
         return a.producto.nombre.localeCompare(b.producto.nombre);
@@ -1109,51 +1129,68 @@ export default function POSInterface() {
             console.error(syncError);
             removeMessage(SALE_PROCESSING_MSG_ID);
 
-            // Manejo mejorado de errores de sincronización
-            if (syncError.message?.includes("TIMEOUT_ERROR")) {
+            // El intento en curso ya lo contó `markSyncing`.
+            const intentos =
+              useSalesStore
+                .getState()
+                .sales.find((s) => s.identifier === identifier)?.syncAttempts ??
+              1;
+            const kind = classifySyncFailure(syncError);
+            const reintentar = shouldRetrySyncFailure(syncError, intentos);
+
+            if (kind === "insufficient_stock") {
+              // Advertencia, no error: vender sin existencias es una decisión
+              // deliberada del cajero, y que el servidor no la cubra es el
+              // desenlace previsto de esa decisión, no un fallo del sistema.
+              const faltantes = getInsufficientStockItems(syncError);
+              // Anotado en la venta para que el detalle de sus productos pueda
+              // señalar exactamente las líneas que el servidor rechazó.
+              setStockShortages(identifier, faltantes);
+              const detalle = describeInsufficientStock(faltantes);
               showMessage(
-                "📱 Venta guardada localmente. Timeout en sincronización - se reintentará automáticamente.",
+                `⚠️ Sin existencias suficientes${detalle ? ` — ${detalle}` : ""}. La venta quedó pendiente: reponga y reenvíela desde «Sincronizar».`,
                 "warning",
               );
-            } else if (syncError.message?.includes("NETWORK_ERROR")) {
-              showMessage(
-                "📱 Venta guardada localmente. Error de red - se sincronizará cuando haya conexión.",
-                "warning",
-              );
-            } else if (syncError.message?.includes("SERVER_ERROR")) {
-              showMessage(
-                "📱 Venta guardada localmente. Error del servidor - se reintentará automáticamente.",
-                "warning",
-              );
-            } else if (syncError.message?.includes("CLIENT_ERROR")) {
-              showMessage(
-                "📱 Venta guardada localmente. Error en los datos - contacte al administrador.",
-                "error",
-              );
-            } else if (syncError.message?.includes("Existencia insuficiente")) {
-              showMessage(
-                "❌ Error: No hay suficiente stock para completar la venta. Verifique el inventario.",
-                "error",
-              );
-              // Marcar como error permanente para evitar reintentos
-              markSyncError(identifier);
-            } else if (
-              syncError.response?.status === 400 &&
-              syncError.response?.data?.error?.includes(
-                "fuera del período actual",
-              )
-            ) {
+            } else if (kind === "wrong_period") {
               showMessage(
                 "❌ Error crítico: La venta no se puede sincronizar porque pertenece a un período anterior. Contacte al administrador.",
                 "error",
               );
-              // Marcar como error permanente para evitar reintentos
-              markSyncError(identifier);
-            } else {
+            } else if (kind === "timeout") {
+              showMessage(
+                "📱 Venta guardada localmente. Timeout en sincronización - se reintentará automáticamente.",
+                "warning",
+              );
+            } else if (kind === "network") {
+              showMessage(
+                "📱 Venta guardada localmente. Error de red - se sincronizará cuando haya conexión.",
+                "warning",
+              );
+            } else if (kind === "client") {
+              showMessage(
+                "📱 Venta guardada localmente. Error en los datos - contacte al administrador.",
+                "error",
+              );
+            } else if (reintentar) {
               showMessage(
                 "📱 Venta guardada localmente. Se sincronizará automáticamente.",
                 "info",
               );
+            } else {
+              showMessage(
+                "📱 Venta guardada localmente. No se pudo enviar - reenvíela desde «Sincronizar».",
+                "warning",
+              );
+            }
+
+            // Sin esto la venta se quedaba en «sincronizando»: la cola
+            // automática solo mira las `not_synced`, así que nadie la
+            // reintentaba hasta que el barrido de timeouts la aparcaba un
+            // minuto después.
+            if (reintentar) {
+              markSyncRetry(identifier);
+            } else {
+              markSyncError(identifier);
             }
           }
         } else {
@@ -1191,20 +1228,23 @@ export default function POSInterface() {
 
         // El tope es lo que realmente se puede vender: la existencia del
         // producto y, si es fracción, lo que haya dentro de los padres sin
-        // abrir (la venta los desagrega sola). Ya no se limita a una caja.
+        // abrir (la venta los desagrega sola). Ya no se limita a una caja, y
+        // desaparece del todo cuando se vende sin existencias.
         const { disponible } = calcularDisponibilidadReal(
           productoTienda,
           productosTienda,
         );
 
-        if (quantity > disponible) {
+        if (
+          quantity > getMaxSellableQuantity(disponible, 0, allowWithoutStock)
+        ) {
           return;
         }
       }
 
       updateQuantity(id, quantity);
     },
-    [productosTienda, updateQuantity],
+    [productosTienda, updateQuantity, allowWithoutStock],
   );
 
   const handleShowSyncView = () => {
@@ -1238,6 +1278,32 @@ export default function POSInterface() {
     [productIndex, tasasVigentes, monedaBase],
   );
 
+  // Publicado para que el carrito y el detalle de una venta puedan señalar sus
+  // líneas sin recibir el catálogo por props. Va sobre `productIndex` y no
+  // sobre `productosTienda` porque `disponible` ya incluye lo que hay dentro
+  // de los paquetes sin abrir, que es lo que de verdad se puede vender.
+  useEffect(() => {
+    useStockSnapshotStore
+      .getState()
+      .setSnapshot(
+        Object.fromEntries(
+          productIndex.map((entry) => [
+            entry.productoTienda.id,
+            entry.disponible,
+          ]),
+        ),
+      );
+  }, [productIndex]);
+
+  // Lo agotado sale del catálogo salvo que se pueda vender igual. Es un paso
+  // aparte del filtro de abajo porque cambia con otro reloj: con la conexión y
+  // con el ajuste del cajero, no con lo que se teclea en el buscador.
+  const visibleCards = useMemo(
+    () =>
+      productCards.filter((card) => isVisibleInPos(card, allowWithoutStock)),
+    [productCards, allowWithoutStock],
+  );
+
   // Category and search combine as AND: with a category marked, the
   // search box filters within it rather than across the whole catalog.
   const filteredProducts = useMemo(() => {
@@ -1245,13 +1311,33 @@ export default function POSInterface() {
     // product: `normalizeSearch` runs an NFD normalization plus two regex
     // passes, and the term is the same for the whole catalog.
     const term = normalizeSearch(debouncedSearchQuery);
-    return productCards.filter(
+    return visibleCards.filter(
       (card) =>
         (selectedCategoryId === null ||
           card.categoriaId === selectedCategoryId) &&
         card.normalizedName.includes(term),
     );
-  }, [productCards, selectedCategoryId, debouncedSearchQuery]);
+  }, [visibleCards, selectedCategoryId, debouncedSearchQuery]);
+
+  // Una categoría cuyos productos están todos agotados no tiene nada que
+  // mostrar: se cae de la barra mientras no se pueda vender sin existencias, y
+  // vuelve en cuanto se pueda.
+  const visibleCategories = useMemo(() => {
+    const conProductos = new Set(visibleCards.map((card) => card.categoriaId));
+    return categories.filter((categoria) => conProductos.has(categoria.id));
+  }, [categories, visibleCards]);
+
+  // Apagar «Vender sin existencias» puede llevarse por delante la categoría
+  // marcada. Sin esto la grilla queda vacía filtrando por una pastilla que ya
+  // no está en la barra, así que no hay dónde tocar para deshacerlo.
+  useEffect(() => {
+    if (
+      selectedCategoryId !== null &&
+      !visibleCategories.some((c) => c.id === selectedCategoryId)
+    ) {
+      setSelectedCategoryId(null);
+    }
+  }, [selectedCategoryId, visibleCategories]);
 
   const selectedCategoryName = useMemo(
     () => categories.find((c) => c.id === selectedCategoryId)?.nombre,
@@ -1710,7 +1796,7 @@ export default function POSInterface() {
         <Box sx={{ flexShrink: 0 }}>
           <Box>
             <CategoryPillsBar
-              categories={categories}
+              categories={visibleCategories}
               selectedCategoryId={selectedCategoryId}
               onSelectCategory={setSelectedCategoryId}
             />
@@ -1746,6 +1832,8 @@ export default function POSInterface() {
             searchQuery={debouncedSearchQuery}
             scrollElement={posScrollEl}
             onProductClick={handleProductRowClick}
+            allowWithoutStock={allowWithoutStock}
+            isOnline={isOnline}
           />
         </Box>
 
@@ -1856,6 +1944,8 @@ export default function POSInterface() {
                   .disponible
               : undefined
           }
+          allowWithoutStock={allowWithoutStock}
+          isOnline={isOnline}
         />
         {ConfirmDialogComponent}
 

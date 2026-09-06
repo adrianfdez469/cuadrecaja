@@ -63,6 +63,23 @@ export const ventaSchema = z.object({
   tipDetail: tipDetalleSchema.optional(),
 });
 
+/**
+ * Una línea de venta que la tienda no puede cubrir, tal como la devuelve el
+ * servidor al rechazarla.
+ *
+ * El rechazo se daba antes en una sola frase con el `productoTiendaId` dentro,
+ * que no le dice nada a quien está en la caja. Aquí viaja lo que hace falta
+ * para actuar: qué producto, cuánto pedía la venta y cuánto había.
+ */
+export const faltanteExistenciaSchema = z.object({
+  productoTiendaId: z.string(),
+  nombre: z.string(),
+  solicitada: z.number(),
+  disponible: z.number(),
+});
+
+export type IFaltanteExistencia = z.infer<typeof faltanteExistenciaSchema>;
+
 export type IVenta = z.infer<typeof ventaSchema>;
 export type VentaProducto = z.infer<typeof ventaProductoSchema>;
 export type AppliedDiscount = z.infer<typeof appliedDiscountSchema>;

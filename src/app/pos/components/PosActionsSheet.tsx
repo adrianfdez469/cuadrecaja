@@ -19,6 +19,7 @@ import PrintIcon from "@mui/icons-material/Print";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import CurrencyExchangeIcon from "@mui/icons-material/CurrencyExchange";
 import FactCheckOutlinedIcon from "@mui/icons-material/FactCheckOutlined";
+import ProductionQuantityLimitsIcon from "@mui/icons-material/ProductionQuantityLimits";
 import { usePosActionsController } from "@/hooks/usePosActionsController";
 import { shape, touch } from "@/theme";
 
@@ -133,6 +134,8 @@ function PosActionsSheet({
     toggleCurrencies,
     showSaleReceipt,
     toggleShowSaleReceipt,
+    sellWithoutStock,
+    toggleSellWithoutStock,
   } = usePosActionsController(onRefresh);
 
   const run = (action?: () => void) => () => {
@@ -233,6 +236,24 @@ function PosActionsSheet({
           onClick={toggleCurrencies}
         />
       )}
+
+      <Row
+        icon={<ProductionQuantityLimitsIcon />}
+        title="Vender sin existencias"
+        detail={
+          sellWithoutStock
+            ? "Activado — el servidor puede rechazar la venta"
+            : "Solo sin conexión"
+        }
+        right={
+          <Switch
+            checked={sellWithoutStock}
+            onChange={toggleSellWithoutStock}
+            inputProps={{ "aria-label": "Vender sin existencias" }}
+          />
+        }
+        onClick={toggleSellWithoutStock}
+      />
 
       <Row
         icon={<FactCheckOutlinedIcon />}
