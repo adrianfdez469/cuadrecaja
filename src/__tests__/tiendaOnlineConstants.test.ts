@@ -46,7 +46,6 @@ describe("TIENDA_ONLINE_API_ERRORS", () => {
       forbidden: "FORBIDDEN",
       invalidBody: "INVALID_BODY",
       pedidoNotFound: "PEDIDO_NOT_FOUND",
-      notImplemented: "NOT_IMPLEMENTED",
       internal: "TIENDA_ONLINE_UNAVAILABLE",
     });
   });
@@ -58,5 +57,14 @@ describe("TIENDA_ONLINE_API_ERRORS", () => {
       openingHoursInvalid: "OPENING_HOURS_INVALID",
       slugUpstream: "QAB_SLUG_UPSTREAM",
     });
+  });
+
+  // F-012 (contract § 1.2, § 0.2, ADR 0064)
+  it("should export qabStatusUpstream verbatim — the ONE code every QAB-side outcome of the status report leaves under", () => {
+    expect(TIENDA_ONLINE_API_ERRORS.qabStatusUpstream).toBe("QAB_STATUS_UPSTREAM");
+  });
+
+  it("should no longer export notImplemented — the 501 disappears from the project once this PATCH writes for real", () => {
+    expect(TIENDA_ONLINE_API_ERRORS).not.toHaveProperty("notImplemented");
   });
 });

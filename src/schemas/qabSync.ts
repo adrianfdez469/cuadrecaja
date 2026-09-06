@@ -1,10 +1,14 @@
 import { z } from "zod";
 import {
+  QAB_BUSINESS_OUTCOMES,
+  QAB_ORDER_POLL_LOCK_STATES,
+  QAB_ORDER_PULL_OUTCOMES,
   QAB_OUTBOX_BATCH_SIZE,
   QAB_OUTBOX_PERMANENT_ERROR_CODES,
   QAB_SLUG_LEARN_OUTCOMES,
 } from "@/constants/qab";
 import { qabOutboxEntitySchema, qabOutboxOperationSchema } from "@/schemas/qabOutbox";
+import { qabAvailabilityPhaseReportSchema } from "@/schemas/qabAvailability";
 
 /** One event as it travels over the wire (§ ① «Formato»). Names in English. */
 export const qabCatalogEventSchema = z.object({
@@ -97,7 +101,12 @@ export const qabSlugLearnPhaseReportSchema = z.object({
 });
 export type IQabSlugLearnPhaseReport = z.infer<typeof qabSlugLearnPhaseReportSchema>;
 
-export const QAB_BUSINESS_OUTCOMES = ["ok", "error", "skipped_no_token", "skipped_deadline"] as const;
+/**
+ * Re-exported so this module stays the import site every consumer already uses.
+ * Its declaration lives in `@/constants/qab` to keep this module and
+ * `@/schemas/qabAvailability` acyclic: see the comment there.
+ */
+export { QAB_BUSINESS_OUTCOMES };
 
 export const qabOutboxDrainReportSchema = z.object({
   claimed: z.number().int().min(0),
@@ -123,17 +132,39 @@ export const qabOutboxDrainReportSchema = z.object({
 });
 export type IQabOutboxDrainReport = z.infer<typeof qabOutboxDrainReportSchema>;
 
+/**
+ * The pull's phase report stays HERE, where F-002 put it, and takes its two
+ * vocabularies from `@/constants/qab` and never from another schema module: this
+ * module already imports the availability phase report, and a value edge back
+ * from `@/schemas/qabOrderPull` would close a cycle that breaks at LOAD time
+ * while `tsc --noEmit` stays green (E-028).
+ */
+export const qabOrderPollBusinessReportSchema = z.object({
+  negocioId: z.string(),
+  lock: z.enum(QAB_ORDER_POLL_LOCK_STATES),
+  outcome: z.enum(QAB_ORDER_PULL_OUTCOMES),
+  pages: z.number().int().min(0),
+  received: z.number().int().min(0),
+  pulled: z.number().int().min(0),
+  duplicates: z.number().int().min(0),
+  rejected: z.number().int().min(0),
+  inconsistentTotals: z.number().int().min(0),
+  cursorJumps: z.number().int().min(0),
+  moreAvailable: z.boolean(),
+});
+export type IQabOrderPollBusinessReport = z.infer<typeof qabOrderPollBusinessReportSchema>;
+
 export const qabOrderPollPhaseReportSchema = z.object({
   attempted: z.number().int().min(0),
   acquired: z.number().int().min(0),
   skippedLocked: z.number().int().min(0),
-  businesses: z.array(
-    z.object({
-      negocioId: z.string(),
-      lock: z.enum(["acquired", "skipped_locked"]),
-      pulled: z.number().int().min(0),
-    }),
-  ),
+  skippedDeadline: z.number().int().min(0),
+  /** Businesses whose slot threw. Counted, never allowed to end the run. */
+  failed: z.number().int().min(0),
+  received: z.number().int().min(0),
+  pulled: z.number().int().min(0),
+  rejected: z.number().int().min(0),
+  businesses: z.array(qabOrderPollBusinessReportSchema).default([]),
 });
 export type IQabOrderPollPhaseReport = z.infer<typeof qabOrderPollPhaseReportSchema>;
 
@@ -143,6 +174,7 @@ export const qabSyncRunReportSchema = z.object({
   skipped: z.literal("QAB_API_BASE_URL_NOT_SET").nullable(),
   outbox: qabOutboxDrainReportSchema,
   slugLearn: qabSlugLearnPhaseReportSchema,
+  availability: qabAvailabilityPhaseReportSchema, // F-007
   poll: qabOrderPollPhaseReportSchema,
 });
 export type IQabSyncRunReport = z.infer<typeof qabSyncRunReportSchema>;

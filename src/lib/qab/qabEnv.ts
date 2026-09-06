@@ -1,4 +1,9 @@
-import { QAB_CATALOG_SYNC_PATH } from "@/constants/qab";
+import {
+  QAB_AVAILABILITY_SYNC_PATH,
+  QAB_CATALOG_SYNC_PATH,
+  QAB_ORDERS_PULL_PATH,
+  QAB_ORDER_STATUS_PATH,
+} from "@/constants/qab";
 
 /** Thrown when QAB_API_BASE_URL is present but is not an absolute http(s) origin. */
 export class QabConfigError extends Error {
@@ -13,6 +18,8 @@ const HTTPS_PROTOCOL = "https:";
 const PRODUCTION_NODE_ENV = "production";
 const ROOT_PATHNAME = "/";
 const TRAILING_SLASHES = /\/+$/;
+const SINCE_PARAM = "since";
+const LIMIT_PARAM = "limit";
 
 /**
  * The QAB origin, without a trailing slash, or `null` when the variable is unset
@@ -62,4 +69,34 @@ export function resolveQabBaseUrl(env?: NodeJS.ProcessEnv): string | null {
 /** Pure. `resolveQabBaseUrl` output + QAB_CATALOG_SYNC_PATH. */
 export function qabCatalogSyncUrl(baseUrl: string): string {
   return `${baseUrl}${QAB_CATALOG_SYNC_PATH}`;
+}
+
+/** Pure. `resolveQabBaseUrl` output + QAB_AVAILABILITY_SYNC_PATH. */
+export function qabAvailabilitySyncUrl(baseUrl: string): string {
+  return `${baseUrl}${QAB_AVAILABILITY_SYNC_PATH}`;
+}
+
+/**
+ * Pure. `resolveQabBaseUrl` output + QAB_ORDERS_PULL_PATH + the incremental
+ * pull's query. `since` is omitted entirely when the business has no cursor yet.
+ * Values go through URLSearchParams: nothing is concatenated by hand.
+ *
+ * Never `since=` empty and never `since=null`: the contract answers 500 to a
+ * `since` out of range and does not document the empty one.
+ */
+export function qabOrdersPullUrl(
+  baseUrl: string,
+  params: { since: string | null; limit: number },
+): string {
+  const query = new URLSearchParams();
+  if (params.since !== null && params.since.length > 0) {
+    query.set(SINCE_PARAM, params.since);
+  }
+  query.set(LIMIT_PARAM, String(params.limit));
+  return `${baseUrl}${QAB_ORDERS_PULL_PATH}?${query.toString()}`;
+}
+
+/** Pure. `resolveQabBaseUrl` output + QAB_ORDER_STATUS_PATH. No query. */
+export function qabOrderStatusUrl(baseUrl: string): string {
+  return `${baseUrl}${QAB_ORDER_STATUS_PATH}`;
 }

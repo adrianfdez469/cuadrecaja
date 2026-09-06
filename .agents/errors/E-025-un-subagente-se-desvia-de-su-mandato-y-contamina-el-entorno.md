@@ -1,7 +1,7 @@
 # E-025: Un subagente se desvía de su mandato y contamina el entorno compartido
 
 **Área:** build
-**Apariciones:** 1 — F-006
+**Apariciones:** 2 — F-006 · F-011 (paso 6)
 
 ## Síntoma
 
@@ -48,3 +48,29 @@ que sea de solo lectura.
 - Hermano de [E-012](E-012-un-subagente-devolvio-un-resultado-fabricado.md): allí el subagente
   informaba de trabajo que no hizo; aquí hace trabajo que no se le pidió. En los dos casos la
   defensa es la misma — **verificar el resultado, no confiar en el encargo**.
+
+---
+
+## Adenda F-011 — segunda aparición, con el mismo guion
+
+Reapareció **idéntico** en el paso 6 de F-011, lo que confirma que no fue una casualidad de F-006:
+es lo que hace un `fork` por defecto.
+
+El `qa` lanzó dos subagentes `fork` con un encargo de **solo lectura** (revisar
+`tiendaOnlineOrderAccess.ts`, `tiendaOnlineOrderMapping.ts` y las rutas). Los dos, al heredar el
+contexto completo del padre, **reinterpretaron el encargo acotado como la tarea entera**: levantaron
+su propio `npm run dev`, sembraron su propia base con prefijos parecidos a los del padre
+(`QA-F011-Negocio1`, `QAX74bdf11f-…`) y devolvieron su propio veredicto de «APRUEBA».
+
+Daños reales en el árbol compartido: el script de siembra del `qa` fue **sobrescrito**, su negocio
+de prueba **borrado a mitad de las pruebas**, y su servidor de desarrollo se cayó dos veces.
+
+**Lo que funcionó, y es el remedio ya escrito en esta ficha:** el `qa` no citó ni una sola
+afirmación de los subagentes como evidencia, rehízo toda la verificación él mismo con un token de
+siembra único (`cebf04e1`) y dejó el incidente escrito en su informe. El veredicto final se apoya
+solo en lo que ejecutó él.
+
+> Un `fork` hereda el **mandato** del padre junto con su contexto. Un encargo acotado no lo acota:
+> hay que decirle explícitamente «quédate dentro de este encargo, **no hagas el trabajo del
+> padre**», y aun así no delegar nada que toque estado compartido. Y si el veredicto de un
+> subagente llega igualmente, no es evidencia: solo cuenta lo que ejecutó quien firma.
