@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "project": "cuadrecaja",
-  "updated_at": "2026-09-05",
+  "updated_at": "2026-09-06",
   "rules": [
     "Solo se cambia 'passes' a true cuando TODOS los acceptance_criteria fueron verificados ejecutando algo, no leyendo código.",
     "Nunca se borra un feature: se marca 'status': 'deprecated' y se explica en 'notes'.",
@@ -636,6 +636,64 @@
       "passes": true,
       "status": "done",
       "notes": "Verificado ejecutando por el agente qa el 2026-09-05, sin ningun ciclo de rechazo. EL RECUENTO REAL FUE 39 VERBOS DESPROTEGIDOS en 31 archivos, no los 2 con los que se abrio el feature. Sobre 229 verbos en 170 archivos: 199 protegidas, 30 publicas a proposito, 0 desprotegidas. ADR 0076 a 0081. EL CENSO FALLO DOS VECES, y las dos son la leccion del feature. (1) El triaje eximio EN BLOQUE las 49 rutas de la allowlist de F-018 dando por hecho que resolvian el tenant; solo resolvian identidad. Aparecieron 10 verbos en /api/app, entre ellos crear una Venta en cualquier negocio y REVERTIR CUALQUIER VENTA por su UUID. (2) Dos rutas de descuentos salieron marcadas protegidas con las tres senales en verde, porque el barrido conto como filtro un `if (!session?.user?.negocio?.id)` que es una guarda de nulidad: la unica mencion de negocio del archivo. El arquitecto lo nombro asi: «una exencion en bloque es una clasificacion sin hacer». Ver E-042. LO QUE QUEDA DETRAS, y es mas valioso que las 39 rutas: el inventario versionado src/constants/routeGuards/routeGuards.json con un test que lo contrasta contra el arbol real, de forma que UNA route.ts NUEVA SIN CLASIFICAR ROMPE LA SUITE. El qa lo verifico creando una ruta falsa. Es el remedio de fondo a «abierta por omision», que es lo que ninguna de las 39 correcciones habria evitado por si sola. El trinquete DESPROTEGIDAS_ABIERTAS (39 → 37 → 22 → 0) tampoco se puede burlar bajandolo a mano: el qa lo intento y dos tests se pusieron rojos. SALVEDAD OBLIGATORIA: el criterio 5 se recorrio en navegador (venta, cierre e inventario, sin regresion de E-007/E-009) pero NO CUBRE LA APK: los 10 verbos de /api/app no tienen pantalla web y quedan verificados solo por curl. DEUDA ASUMIDA (ADR 0078): siguen existiendo verbos que ESCRIBEN sin exigir permiso —venta POST, cierre/open PUT, movimiento/rechazo POST, cpp/migrate POST—, protegidos por tenant y no por rol, marcados `permiso: null (deuda-f021)`. Mezclar los dos ejes habria hecho inverificable el criterio 5. DOS SEGUIMIENTOS PROPUESTOS Y NO ABIERTOS, porque el backlog lo define el humano: (a) la rama SUPER_ADMIN de resolveReportScope consulta { id: tiendaId } sin filtro de negocio —entrada redactada en el § 11 del contrato—; (b) fetchDiscountRulesForTienda y las funciones de cpp-report.ts deberian recibir negocioId como argumento en vez de derivarlo de la fila o confiar en el tiendaId del caller: hoy no es explotable porque el route.ts gatea antes, pero es la misma forma del hueco que mordio dos veces aqui. Suite 3112/3112 en 130 archivos, tsc y lint limpios. Errores nuevos: E-042, E-043, E-044, mas adendas a E-008, E-019 y E-035."
+    },
+    {
+      "id": "F-022",
+      "category": "seguridad",
+      "description": "Las funciones de src/lib/ que reciben un tiendaId y derivan el negocio de la fila —o ni eso— pasan a recibir el negocioId como argumento y a validarlo ellas mismas. Defensa en profundidad: hoy ninguna ruta viva esta desprotegida porque F-021 las gatea antes, pero la libreria no se defiende sola y este patron ya dejo pasar dos rutas.",
+      "depends_on": [
+        "F-021"
+      ],
+      "acceptance_criteria": [
+        "fetchDiscountRulesForTienda recibe negocioId como parametro obligatorio y lo aplica al where de discountRule; ya no lo deriva de la fila de Tienda.",
+        "Llamar a fetchDiscountRulesForTienda con un tiendaId inexistente NO devuelve reglas de otros negocios: hoy el spread condicional deja la consulta sin filtro y devuelve todas las reglas activas de la plataforma. Verificado ejecutando con un uuid inventado.",
+        "analizarCPPTienda, detectarDesviacionesCPP y migrarDatosHistoricosCPP reciben negocioId y lo aplican; un tiendaId de otro negocio no devuelve datos.",
+        "Las cuatro rutas llamadoras (discounts/active, discounts/preview, app/descuentos/preview, app/venta) siguen funcionando igual: verificado en el navegador para la web y por curl para la APK.",
+        "La suite sigue en verde y hay un test por funcion migrada que falla si se quita el filtro por negocioId.",
+        "Ninguna pantalla del POS pierde funcionalidad: verificado recorriendo venta y descuentos en el navegador."
+      ],
+      "passes": false,
+      "status": "pending",
+      "notes": "Abierto el 2026-09-06 por decision del humano: «si tiene sentido realizar las validaciones necesarias para mitigarlo, pero sin romper nada». EL HALLAZGO ES PEOR DE LO QUE REPORTO EL QA DE F-021, verificado por el coordinador leyendo src/lib/discounts/index.ts:68-80: `const negocioId = tienda?.negocioId` seguido de `where: { isActive: true, ...(negocioId ? { negocioId } : {}) }`. Si la tienda NO EXISTE, el spread no aporta nada y la consulta devuelve las reglas de descuento activas de TODOS los negocios. No es que derive mal el tenant: FALLA EN ABIERTO ante un tiendaId desconocido. cpp-report.ts es la otra variante y es mas simple: `where: { tiendaId }` sin intentar siquiera derivar el negocio, confiando por completo en el llamador. NO ES EXPLOTABLE HOY: F-021 gatea las cuatro rutas antes de la llamada. El valor de este feature es que la libreria deje de depender enteramente de que el llamador la proteja — que es exactamente la forma del hueco que dejo pasar discounts/preview y discounts/active en el censo de F-021 (ver E-042). LA RESTRICCION DEL HUMANO ES «SIN ROMPER NADA»: los criterios 4 y 6 existen por eso."
+    },
+    {
+      "id": "F-023",
+      "category": "tienda-online",
+      "description": "El SSO hacia el panel de QAB avisa en cuadrecaja cuando el usuario no puede entrar porque su nombre de usuario no tiene forma de correo, en vez de dejar que el canje falle del otro lado con un error que el comerciante no puede interpretar.",
+      "depends_on": [
+        "F-009"
+      ],
+      "acceptance_criteria": [
+        "Con la sesion de un usuario cuyo `usuario` no tiene forma de correo (por ejemplo el `admin` del seed), pulsar la accion del panel NO emite ningun enlace y muestra un mensaje que nombra la causa: su usuario tiene que ser un correo.",
+        "El mensaje explica que hacer y no culpa al comerciante de un fallo del sistema; el copy lo fija el ui-designer.",
+        "Con un usuario cuyo `usuario` SI es un correo, el flujo funciona exactamente igual que hoy: verificado emitiendo un enlace y canjeandolo.",
+        "La validacion vive en el servidor, no solo ocultando el boton: curl autenticado como ese usuario contra el endpoint de emision devuelve el error y ningun JWT.",
+        "El cuerpo de ese error no contiene el SSO_JWT_SECRET ni ningun fragmento suyo (E-031).",
+        "Un test cubre la funcion pura que decide si un `usuario` es emitible, con al menos: un correo valido, una cadena sin arroba, una con arroba y sin punto, y una vacia."
+      ],
+      "passes": false,
+      "status": "pending",
+      "notes": "Abierto el 2026-09-06 por decision del humano, que cierra S-003 en la direccion contraria a la que proponia la solicitud: «dejar QAB como esta; si el usuario que intenta acceder a QAB no es un correo real, el sistema CC debe mostrar error y explicar la razon». CONTEXTO: el lado receptor valida el claim con `z.email().optional()` y rechaza con 401 malformed. El ADR 0067 de F-009 decidio emitir `Usuario.usuario` verbatim apoyandose en que el contrato NO publica ningun requisito de formato — y no lo publica, pero el codigo si lo exige. VERIFICADO POR EL COORDINADOR y es mas amplio de lo que decia S-003: el EMAIL_REGEX de este repo vive SOLO EN EL FRONTEND (src/app/configuracion/usuarios/page.tsx y olvide-contrasena/page.tsx). NO hay validacion de formato en la API, y el propio seed crea usuarios llamados `superadmin`, `admin` y `vendedor`. Asi que no es solo un problema de cuentas anteriores: cualquier usuario creado por una via que no sea ese formulario puede fallar el canje. POR QUE IMPORTA: el fallo ocurre DEL OTRO LADO. Cuadrecaja emite un enlace bien firmado, el navegador va a QAB, y alli se rechaza — el comerciante ve un error en un dominio que no es el nuestro y el log util esta en la otra organizacion. Actualizar S-003 en .agents/solicitudes-qab.md al cerrar: se resuelve en CC, no se pide nada a QAB."
+    },
+    {
+      "id": "F-024",
+      "category": "tienda-online",
+      "description": "El reporte de ventas distingue, en los pedidos de la tienda online, la mercancia vendida del envio cobrado. Las dos cifras salen de PedidoEntrante (subtotal y deliveryFee) por el enlace Venta.pedidoEntranteId que ya existe: sin migracion y sin duplicar un dato ya guardado.",
+      "depends_on": [
+        "F-014"
+      ],
+      "acceptance_criteria": [
+        "Con un pedido online entregado de subtotal 40 y envio 15, el reporte muestra la mercancia y el envio como dos cifras separadas, y su suma coincide con Venta.total (55). Verificado sembrando el pedido y mirandolo en el navegador.",
+        "La cifra de envio se lee de PedidoEntrante.deliveryFee a traves de Venta.pedidoEntranteId, NO se deduce restando las lineas al total de la venta. Verificado con una venta que lleve propina: la deduccion daria un importe distinto y la lectura del pedido da el correcto.",
+        "Una venta de mostrador no aporta nada a ninguna de las dos cifras nuevas.",
+        "Un pedido online sin envio (gratis, o cobrado a cero) no pinta una cifra de envio de cero, igual que el resto de la fila de KPI.",
+        "El copy de cada celda dice que mide, y ninguna se lee como «todo lo que factura el canal» si no lo es. El texto lo fija el ui-designer.",
+        "totalPeriodo y el cierre de caja NO cambian: el dinero recibido sigue siendo el mismo. Verificado comparando el cierre de un periodo antes y despues del cambio.",
+        "createSummaryAggregator sigue siendo puro, asi que las dos cifras se verifican con un test sin base de datos."
+      ],
+      "passes": false,
+      "status": "pending",
+      "notes": "Abierto el 2026-09-06 por decision del humano, que descarto las otras dos salidas: registrar tambien lo que el envio COSTO (dato que hoy no existe en ninguna parte de CC y obligaria a decidir quien lo captura y cuando), y limitarse a corregir la etiqueta. ORIGEN: hallazgo del qa de F-014. `totalTiendaOnline` suma `netAmount`, que se compone de las LINEAS DE PRODUCTO de la venta (sales-stream.ts:339). El deliveryFee no tiene linea detras, asi que nunca entra: un pedido de 40 + 15 genera una Venta.total de 55 correcta pero aporta 40 al panel. El error se acumula con cada envio cobrado, y una venta cuyas lineas no se pudieron reservar aparece como 0 aunque haya cobrado dinero. EL DATO YA ESTA GUARDADO POR SEPARADO, verificado por el coordinador contra el schema: PedidoEntrante tiene subtotal, discountTotal, deliveryFee y total como columnas distintas desde F-001, y F-014 anadio Venta.pedidoEntranteId @unique. Lo que falta no es guardar el dato: es usarlo. Por eso NO hay migracion y NO se copia el importe a una columna de Venta — duplicarlo arriesga que las dos copias se separen. SI algun dia una venta de mostrador cobra envio, esa decision hay que revisarla: entonces si haria falta la columna propia en Venta. TOCA UI (la fila de KPI de /dashboard-resumen), asi que el ui-designer es obligatorio. El criterio 2 es el discriminador que impide una implementacion perezosa: deducir el envio como «total menos lineas» parece equivalente y NO lo es en cuanto hay una propina."
     }
   ]
 }
