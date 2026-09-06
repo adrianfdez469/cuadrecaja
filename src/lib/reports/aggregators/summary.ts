@@ -15,10 +15,25 @@ export type SalesSummary = {
   gananciaTotal: number;
   cantidadVentas: number;
   costoMercanciaVendida: number;
-  /** How many sales of the range landed from an online order. */
+  /** How many sales of the range landed from an online order. Unchanged. */
   cantidadVentasTiendaOnline: number;
-  /** Their net amount, in base currency. Part of `totalPeriodo`, not on top of it. */
-  totalTiendaOnline: number;
+  /**
+   * Merchandise of those sales, net of discounts, in base currency. RENAMED
+   * from `totalTiendaOnline`, same computation (ADR 0090): the old name read as
+   * "everything the channel billed" and never included delivery.
+   *
+   * PART of `totalPeriodo`, not a sum on top of it.
+   */
+  totalMercanciaTiendaOnline: number;
+  /**
+   * Delivery charged by those sales, in base currency (ADR 0089).
+   *
+   * OUTSIDE `totalPeriodo`: `netAmount` never carried it. Surfacing it changes
+   * no existing figure, so the closing is untouched.
+   */
+  totalEnvioTiendaOnline: number;
+  /** How many of those sales charged for delivery at all. */
+  cantidadVentasTiendaOnlineConEnvio: number;
 };
 
 /** Headline totals of a range — the numbers behind the dashboard KPI row. */
@@ -32,7 +47,9 @@ export function createSummaryAggregator(): SalesAggregator<SalesSummary> {
     cantidadVentas: 0,
     costoMercanciaVendida: 0,
     cantidadVentasTiendaOnline: 0,
-    totalTiendaOnline: 0,
+    totalMercanciaTiendaOnline: 0,
+    totalEnvioTiendaOnline: 0,
+    cantidadVentasTiendaOnlineConEnvio: 0,
   };
 
   return {
@@ -44,7 +61,11 @@ export function createSummaryAggregator(): SalesAggregator<SalesSummary> {
 
       if (sale.origen === TIENDA_ONLINE_ORIGIN) {
         summary.cantidadVentasTiendaOnline += 1;
-        summary.totalTiendaOnline += sale.netAmount;
+        summary.totalMercanciaTiendaOnline += sale.netAmount;
+        summary.totalEnvioTiendaOnline += sale.deliveryFeeBase;
+        if (sale.deliveryFeeBase > 0) {
+          summary.cantidadVentasTiendaOnlineConEnvio += 1;
+        }
       }
 
       for (const line of sale.lines) {

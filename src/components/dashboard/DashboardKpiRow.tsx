@@ -1,9 +1,18 @@
 "use client";
 
 import { StatStrip } from "@/components/StatStrip";
+import {
+  ENVIO_TIENDA_ONLINE_LABEL,
+  ENVIO_TIENDA_ONLINE_NOTE,
+  MERCANCIA_TIENDA_ONLINE_LABEL,
+  tiendaOnlineNote,
+} from "@/components/dashboard/dashboardKpiCopy";
 import { formatNumber } from "@/utils/formatters";
 import type { IDashboardSummary } from "@/schemas/reports/dashboardSummary";
 import type { IReportPeriod } from "@/schemas/reports/common";
+
+/** Names the KPI row as a region, so anything measuring it has a stable anchor. */
+const KPI_REGION_LABEL = "Indicadores del período";
 
 type DashboardKpiRowProps = {
   ventas: IDashboardSummary["ventas"];
@@ -11,19 +20,7 @@ type DashboardKpiRowProps = {
   format: (amountInBase: number) => string;
 };
 
-/**
- * The note under the online-store figure, in its two written forms.
- *
- * It is not decoration: `totalTiendaOnline` is PART of `totalPeriodo`, and a
- * figure sitting next to another figure in a KPI row reads as summable. The
- * note is what stops somebody from counting it twice (ADR 0075).
- */
-function tiendaOnlineNote(cantidad: number): string {
-  if (cantidad === 1) return "1 venta, ya contada en el total de ventas";
-  return `${formatNumber(cantidad)} ventas, ya contadas en el total de ventas`;
-}
-
-/** One cell of the row. `note` is optional, and only one card carries it. */
+/** One cell of the row. `note` is optional, and only some cards carry it. */
 type KpiCard = {
   title: string;
   value: string;
@@ -55,10 +52,20 @@ export function DashboardKpiRow({
     // Right after the sales of the period, because it qualifies that figure:
     // «part of this» has to sit next to «this».
     {
-      title: "Ventas de tienda online",
-      value: format(ventas.totalTiendaOnline),
+      title: MERCANCIA_TIENDA_ONLINE_LABEL,
+      value: format(ventas.totalMercanciaTiendaOnline),
       note: tiendaOnlineNote(ventas.cantidadVentasTiendaOnline),
+      // By COUNT, not by amount (ADR 0075): an online sale of zero is still a
+      // sale the merchant wants to see counted.
       show: (ventas.cantidadVentasTiendaOnline || 0) > 0,
+    },
+    // By AMOUNT, and the difference with the cell above is deliberate: "zero
+    // delivery" and "no delivery charged" are the same thing (ADR 0090).
+    {
+      title: ENVIO_TIENDA_ONLINE_LABEL,
+      value: format(ventas.totalEnvioTiendaOnline),
+      note: ENVIO_TIENDA_ONLINE_NOTE,
+      show: (ventas.totalEnvioTiendaOnline || 0) > 0,
     },
     {
       title: "Ganancia estimada",
@@ -88,17 +95,22 @@ export function DashboardKpiRow({
   ];
 
   return (
-    <StatStrip
-      variant="card"
-      stats={cards
-        .filter((card) => card.show)
-        .map((card) => ({
-          label: card.title,
-          value: card.value,
-          // `note` has to travel: it is where the online-store count lives, and
-          // the map used to drop it. `StatStrip` already renders it.
-          ...(card.note !== undefined && { note: card.note }),
-        }))}
-    />
+    // A named region and nothing else: no padding, no border, no background,
+    // no margin. It exists so every measurement of this row can be scoped to
+    // it instead of located by nesting or by computed style (E-011).
+    <section aria-label={KPI_REGION_LABEL}>
+      <StatStrip
+        variant="card"
+        stats={cards
+          .filter((card) => card.show)
+          .map((card) => ({
+            label: card.title,
+            value: card.value,
+            // `note` has to travel: it is where the online-store count lives,
+            // and the map used to drop it. `StatStrip` already renders it.
+            ...(card.note !== undefined && { note: card.note }),
+          }))}
+      />
+    </section>
   );
 }

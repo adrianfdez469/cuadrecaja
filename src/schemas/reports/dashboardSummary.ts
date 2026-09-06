@@ -16,12 +16,16 @@ export const dashboardSummarySchema = z.object({
     gananciaFinal: z.number(),
     productosActivos: z.number(),
     /**
-     * Sales of the range that landed from an online order, and their net amount
-     * in base currency (ADR 0075). The amount is PART of `totalPeriodo`, never a
-     * sum on top of it, and the KPI row says so under the figure.
+     * Sales of the range that landed from an online order (ADR 0075), split
+     * into what they sold and what they charged for delivery (F-024, ADR 0090).
+     *
+     * `totalMercanciaTiendaOnline` is PART of `totalPeriodo`.
+     * `totalEnvioTiendaOnline` is OUTSIDE it: it was never in `netAmount`.
      */
     cantidadVentasTiendaOnline: z.number(),
-    totalTiendaOnline: z.number(),
+    totalMercanciaTiendaOnline: z.number(),
+    totalEnvioTiendaOnline: z.number(),
+    cantidadVentasTiendaOnlineConEnvio: z.number(),
   }),
   topProductos: z.array(z.object({ nombre: z.string(), unidades: z.number() })),
   topGanancias: z.array(z.object({ nombre: z.string(), ganancia: z.number() })),

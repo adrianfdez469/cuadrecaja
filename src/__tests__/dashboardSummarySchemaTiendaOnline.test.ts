@@ -7,8 +7,15 @@ import { dashboardSummarySchema } from "@/schemas/reports/dashboardSummary";
  * `DashboardKpiRow` reads `IDashboardSummary["ventas"]`, not `SalesSummary`
  * directly. This schema is what closes that gap — see
  * `salesSummaryTiendaOnline.test.ts` for the aggregator half.
+ *
+ * F-024 (contract § 4.1, ADR 0090) renames `totalTiendaOnline` to
+ * `totalMercanciaTiendaOnline` and adds two required fields:
+ * `totalEnvioTiendaOnline` and `cantidadVentasTiendaOnlineConEnvio`. All
+ * three are `z.number()`, required, no `.optional()` / `.nullable()`
+ * (contract § 4.1): the absence of online-store activity is a `0`, resolved
+ * in the view (`DashboardKpiRow`), never an absent key here.
  */
-describe("dashboardSummarySchema.ventas — cantidadVentasTiendaOnline / totalTiendaOnline", () => {
+describe("dashboardSummarySchema.ventas — totalMercanciaTiendaOnline / totalEnvioTiendaOnline / cantidadVentasTiendaOnlineConEnvio", () => {
   const validVentas = {
     totalPeriodo: 1000,
     unidadesVendidas: 20,
@@ -19,7 +26,9 @@ describe("dashboardSummarySchema.ventas — cantidadVentasTiendaOnline / totalTi
     gananciaFinal: 235,
     productosActivos: 12,
     cantidadVentasTiendaOnline: 3,
-    totalTiendaOnline: 250,
+    totalMercanciaTiendaOnline: 250,
+    totalEnvioTiendaOnline: 40,
+    cantidadVentasTiendaOnlineConEnvio: 2,
   };
   const validSummary = {
     ventas: validVentas,
@@ -29,15 +38,21 @@ describe("dashboardSummarySchema.ventas — cantidadVentasTiendaOnline / totalTi
     productosMenosRentables: [],
   };
 
-  it("accepts a well formed summary carrying both new fields", () => {
+  it("accepts a well formed summary carrying all four online-store fields", () => {
     expect(dashboardSummarySchema.safeParse(validSummary).success).toBe(true);
   });
 
-  it("accepts cantidadVentasTiendaOnline: 0 and totalTiendaOnline: 0 — a business with no online sales in the range", () => {
+  it("accepts every online-store field at 0 — a business with no online sales, and none with delivery, in the range", () => {
     expect(
       dashboardSummarySchema.safeParse({
         ...validSummary,
-        ventas: { ...validVentas, cantidadVentasTiendaOnline: 0, totalTiendaOnline: 0 },
+        ventas: {
+          ...validVentas,
+          cantidadVentasTiendaOnline: 0,
+          totalMercanciaTiendaOnline: 0,
+          totalEnvioTiendaOnline: 0,
+          cantidadVentasTiendaOnlineConEnvio: 0,
+        },
       }).success,
     ).toBe(true);
   });
@@ -51,12 +66,40 @@ describe("dashboardSummarySchema.ventas — cantidadVentasTiendaOnline / totalTi
     ).toBe(false);
   });
 
-  it("rejects a summary missing totalTiendaOnline — required, not optional", () => {
-    const { totalTiendaOnline: _omitted, ...withoutTotal } = validVentas;
+  it("rejects a summary missing totalMercanciaTiendaOnline — required, not optional", () => {
+    const { totalMercanciaTiendaOnline: _omitted, ...withoutMercancia } = validVentas;
 
     expect(
-      dashboardSummarySchema.safeParse({ ...validSummary, ventas: withoutTotal })
+      dashboardSummarySchema.safeParse({ ...validSummary, ventas: withoutMercancia })
         .success,
     ).toBe(false);
+  });
+
+  it("rejects a summary missing totalEnvioTiendaOnline — required, not optional (F-024)", () => {
+    const { totalEnvioTiendaOnline: _omitted, ...withoutEnvio } = validVentas;
+
+    expect(
+      dashboardSummarySchema.safeParse({ ...validSummary, ventas: withoutEnvio })
+        .success,
+    ).toBe(false);
+  });
+
+  it("rejects a summary missing cantidadVentasTiendaOnlineConEnvio — required, not optional (F-024)", () => {
+    const { cantidadVentasTiendaOnlineConEnvio: _omitted, ...withoutConEnvio } =
+      validVentas;
+
+    expect(
+      dashboardSummarySchema.safeParse({ ...validSummary, ventas: withoutConEnvio })
+        .success,
+    ).toBe(false);
+  });
+
+  it("accepts a ventas object that ALSO carries the retired totalTiendaOnline key — z.object is not strict, so 'sobra el viejo' is not a valid failure mode (contract § 9.4). The only correct assertion is that the NEW field is missing, never that the OLD one is present", () => {
+    expect(
+      dashboardSummarySchema.safeParse({
+        ...validSummary,
+        ventas: { ...validVentas, totalTiendaOnline: 250 },
+      }).success,
+    ).toBe(true);
   });
 });
