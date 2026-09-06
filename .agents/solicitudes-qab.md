@@ -11,19 +11,28 @@ afectados y borrar la entrada de la tabla de abiertas.
 
 | # | Qué falta | Bloquea | Desde |
 |---|-----------|---------|-------|
-| S-002 | Qué hace el SQL espejo con un producto borrado en blando | F-008 | contrato v7 · 2026-09-01 |
-| S-004 | `EXCHANGE_RATE` no invalida la caché del catálogo público | nada; degrada F-006 | contrato v10.1 · 2026-09-06 |
-| S-005 | `EXCHANGE_RATE` no tiene guarda anti-rancio: una tasa vieja reintentada se vuelve la vigente | nada; degrada F-006 | contrato v10.1 · 2026-09-06 |
-| S-006 | Un fallo por evento no arrastra a los que dependían de él en el mismo lote | nada; degrada F-006 | contrato v10.1 · 2026-09-06 |
-| S-007 | **v11** · Envío por zonas: `ZONE_BASED`, tarifario por zona y `contact.zoneCode` | F-013, F-016 | contrato v10.1 · 2026-09-06 |
-| S-008 | **v11** · El escaparate no sabe qué monedas mostrar (`displayCurrencies`) | — (feature por definir) | contrato v10.1 · 2026-09-06 |
+| S-007 | Envío por zonas: `ZONE_BASED`, tarifario por zona y `contact.zoneCode` | F-013, F-016, F-026 | contrato v10.1 · 2026-09-06 |
+| S-008 | El escaparate no sabe qué monedas mostrar (`displayCurrencies`) | F-027 | contrato v10.1 · 2026-09-06 |
+
+Las dos se pidieron para la v11 y la **v11 se publicó sin ellas**, a propósito y por escrito
+(§ «Lo que NO entra en la v11, y está en conversación»). No hay campo, ni enum, ni entidad, ni
+ruta: nada de las dos es implementable todavía. Lo que sí hay es la postura de queandabuscando
+sobre cada punto, recogida abajo en cada solicitud.
 
 ## Resueltas
 
 | # | Qué faltaba | Resuelta en | Cuándo |
 |---|-------------|-------------|--------|
 | S-001 | Releer un pedido concreto sin depender del cursor | contrato v8 (F-033 de QAB) | 2026-09-03 |
+| S-002 | Qué hace el SQL espejo con un producto borrado en blando | contrato v11 (§ ⑤, quinta decisión) | 2026-09-06 |
 | S-003 | El claim `email` del SSO exige forma de correo y el contrato no lo dice | **en cuadrecaja: F-023**. No se pidió nada a QAB | 2026-09-06 |
+| S-004 | `EXCHANGE_RATE` no invalida la caché del catálogo público | contrato v11 ① | 2026-09-06 |
+| S-005 | `EXCHANGE_RATE` no tiene guarda anti-rancio | contrato v11 ② | 2026-09-06 |
+| S-006 | Un fallo por evento no arrastra a sus dependientes del mismo lote | contrato v11 ③ | 2026-09-06 |
+
+Las cuatro de la v11 se concedieron **enteras y en una sola versión**, y la v11 se publicó
+**antes de estar construida** del lado de queandabuscando: está acordada, no en pie. QAB avisa
+feature a feature. Ver `estado_del_lado_receptor` en `features.json`.
 
 ---
 
@@ -68,7 +77,23 @@ que era la condición que se puso.
 
 ---
 
-### S-002 · El SQL espejo no dice qué hacer con un borrado en blando
+### S-002 · El SQL espejo no dice qué hacer con un borrado en blando — RESUELTA en la v11
+
+> **Cerrada el 2026-09-06.** Confirmado en la dirección que esta solicitud proponía: **el espejo
+> del § ⑤ no cuenta las filas dadas de baja**, y la exclusión es responsabilidad del lado que
+> tiene la columna. El SQL publicado ya lleva `AND p."deletedAt" IS NULL AND pt."deletedAt" IS
+> NULL`, y la razón queda escrita como la **quinta decisión** de esa sección, con las mismas
+> palabras que se pidieron: un espejo que cada lado ajusta por su cuenta para que le cuadre deja
+> de detectar lo que existe para detectar.
+>
+> Es la única de las cuatro de la v11 que por su letra habría sido una menor —no cambia lo que el
+> POS envía ni recibe—; va en la mayor porque la v11 se abría igualmente.
+>
+> **Desbloquea F-008**, que estaba de hecho detenido por esto aunque su `status` fuera `pending`.
+> Lo demás del § ⑤ no se movió: el vector de prueba sigue dando `products = 4` y
+> `hash = 62e399684e3a8eafadaae58391537955`, el orden sigue siendo `COLLATE "C"` y el
+> `coalesce(pt."dispPublicada", 'AVAILABLE')` sigue en su sitio. **El SQL a copiar es el de la
+> v11, no el que se copiara antes: son dos condiciones más en el `WHERE`.**
 
 **El problema.** El SQL espejo de reconciliación que publica el contrato (§ ⑤) selecciona de
 `ProductoTienda` filtrando por tienda, por `publicarEnTienda`, por `precio` no nulo y por
@@ -166,7 +191,27 @@ producción**, no antes de seguir programando.
 
 ---
 
-### S-004 · `EXCHANGE_RATE` no invalida la caché del catálogo público
+### S-004 · `EXCHANGE_RATE` no invalida la caché del catálogo público — RESUELTA en la v11
+
+> **Cerrada el 2026-09-06, con las dos condiciones que se pusieron.** Aplicar un `EXCHANGE_RATE`
+> expira las páginas cacheadas de las sucursales del negocio dueño de la tasa; un `CURRENCY`
+> expira las del negocio que lo emite —su tabla es global y el evento no lleva `businessId`, así
+> que el emisor es lo único que hay— y basta, porque hoy ninguna página pública lee esa tabla.
+>
+> - **Coalescido por lote y por sucursal**: las tres o cuatro monedas de un mismo drenaje
+>   producen UNA invalidación por sucursal, no una por moneda.
+> - **Alcance por negocio, nunca global.**
+>
+> **Lo que no promete, y conviene no prometerlo aguas abajo: instantaneidad.** Invalidar es
+> expirar la marca, no repintar: la vitrina se rehace en la primera visita posterior. La ventana
+> deja de ser de hasta una hora y pasa a ser la de una petición, que es lo que se pedía.
+>
+> El checkout no cambia: seguía y sigue leyendo tasas frescas en cada pedido.
+>
+> **Consecuencia sobre S-008**, que esta solicitud dejaba anotada: con ① concedida, los
+> equivalentes multi-moneda se pueden pintar **en el servidor** sin quedarse viejos. Decae el
+> apaño de convertir en el cliente contra un endpoint de tasas de TTL corto, y con él la
+> necesidad de publicar ese endpoint. No hay nada que hacer de este lado.
 
 **Cómo apareció.** Repasando el comportamiento de un negocio con varias monedas habilitadas cuyas
 tasas se mueven a diario, que en Cuba es el caso normal y no el raro.
@@ -209,7 +254,37 @@ queandabuscando, no un feature detenido aquí.
 
 ---
 
-### S-005 · `EXCHANGE_RATE` no tiene guarda anti-rancio: una tasa vieja reintentada se vuelve la vigente
+### S-005 · `EXCHANGE_RATE` no tiene guarda anti-rancio — RESUELTA en la v11
+
+> **Cerrada el 2026-09-06, y en la variante que se prefería**, no en la del rechazo. La tasa
+> vigente de un par `(negocio, moneda)` pasa a ser **la de `updatedAt` mayor**; en un empate
+> exacto gana la última que llegó.
+>
+> Lo que NO cambia, y es la mitad de la decisión:
+>
+> - **Sigue siendo append-only.** Cada evento inserta su fila, no se borra nada, el histórico
+>   queda completo y no hay hueco — la tercera pregunta de esta solicitud queda sin objeto.
+> - **No hay vocabulario nuevo.** Una tasa rancia se inserta igual y responde `processed`: no
+>   vuelve en `failed[]` y **no gasta ninguno de los seis intentos del outbox**, que era
+>   exactamente lo que la variante de rechazo habría costado (ADR 0011 de cuadrecaja).
+> - **Corregir una tasa sigue siendo enviar otra**, ahora con un `updatedAt` mayor.
+>
+> **LO QUE ATA A CUADRECAJA, y es lo único que la v11 pide de código en esta parte:
+> `updatedAt` deja de ser decorativo en `EXCHANGE_RATE`.** Tiene que ser el instante real en que
+> el comercio registró la tasa — no el del reenvío, no el `now()` del drenaje. Un evento
+> reintentado con la marca refrescada resucitaría la tasa vieja, que es justo el fallo que la v11
+> cierra. **Verificado el 2026-09-06: cuadrecaja ya lo cumple** — `POST
+> /api/negocio/[id]/tasas-cambio` fija `occurredAt = new Date()` antes de la transacción y lo pasa
+> tal cual a `emitQabExchangeRateEvent`, y el drenaje no reescribe ningún `payload`. No hay nada
+> que cambiar; sí algo que no romper.
+>
+> `CURRENCY` **no cambia**: gana el último que llegue, y se convive con ello porque el nombre de
+> una moneda no cambia casi nunca.
+>
+> **La mitigación local de esta solicitud sigue en pie** —cancelar los `EXCHANGE_RATE` pendientes
+> del mismo par al encolar uno nuevo—: el propio contrato dice que la guarda de la v11 no la
+> sustituye, que cubren cosas distintas y que son dos capas y no dos candidatas. Es la parte A de
+> **F-028**.
 
 **Cómo apareció.** Recorriendo qué pasa cuando un evento de tasa falla por fila y se reintenta,
 cruzando el § «`payload` de `EXCHANGE_RATE`» con nuestro [ADR 0011](../docs/adr/0011-reintentos-del-outbox-sin-backoff.md)
@@ -271,7 +346,44 @@ de que haya muchos negocios multi-moneda.
 
 ---
 
-### S-006 · Un fallo por evento no arrastra a los que dependían de él en el mismo lote
+### S-006 · Un fallo por evento no arrastra a los que dependían de él en el mismo lote — RESUELTA en la v11
+
+> **Cerrada el 2026-09-06.** Si un evento falla, los eventos **posteriores del mismo lote** que
+> dependen de él no se aplican: vuelven en `failed[]` con `error: "DEPENDENCY_FAILED_IN_BATCH"`.
+> No se aplican a medias, no se aplican con la referencia a `NULL` y no dejan ninguna fila
+> provisional.
+>
+> Las dependencias reconocidas son **dos, y solo dos**:
+>
+> | Falla | Arrastra, dentro del mismo lote y solo hacia adelante |
+> |---|---|
+> | `CATEGORY` | los `PRODUCT` cuyo `localCategoryId` es el `categoryId` de esa categoría |
+> | `CURRENCY` | las `EXCHANGE_RATE` cuyo `currency` es el `code` de esa moneda |
+>
+> **`CURRENCY` NO arrastra a `PRODUCT`, y no es un olvido**: esta solicitud pedía las tres
+> parejas y se concedieron dos. Un `PRODUCT` guarda el código de moneda tal cual, sin clave ajena
+> y sin comprobación, así que un producto en una moneda que nadie declaró se publica igual y
+> correctamente. La fila provisional `USD / USD` la crea **solo** una `EXCHANGE_RATE`.
+>
+> Tres límites que hay que leer antes de contar con esto:
+>
+> 1. **Solo dentro del lote y solo hacia adelante.** Una categoría que **nunca llegó** sigue
+>    dejando el producto publicado con `localCategoryId: NULL`, igual que en la v10.1. La cascada
+>    evita aplicar mal; no repara lo ya aplicado mal.
+> 2. **El arrastrado nunca llegó a aplicarse, así que se reintenta TAL CUAL, con su `updatedAt`
+>    original.** La trampa de la marca nueva que esta solicitud dejaba anotada es de la reparación
+>    *a posteriori*, no de esto — y **aquí fabricar una marca nueva es el error**.
+> 3. **Mientras la dependencia siga fallando, el dependiente deja de existir en vez de existir
+>    mal.** Si un `CATEGORY` agota los reintentos, sus `PRODUCT` los agotan detrás y el
+>    comerciante no ve el producto en absoluto, donde antes lo veía sin categoría. Es el precio de
+>    la regla, y el contrato lo dice entero.
+>
+> **LO QUE ATA A CUADRECAJA:** tratar `DEPENDENCY_FAILED_IN_BATCH` como «todavía no» y no como
+> «mal» — reintentarlo tal cual y **que no gaste el contador de intentos como un fallo propio**,
+> porque si el corte del outbox lo trata como los demás, un `CATEGORY` que tarde varias corridas
+> se lleva por delante a sus productos. **Hoy no se cumple**: `planOutboxAck` mete toda entrada de
+> `failed[]` en `failedAcks` con su `intentos++`, sin distinguir códigos. Es trabajo nuevo, y
+> **cambia la forma de la parte B de F-028** — ver la nota de ese feature.
 
 **Cómo apareció.** Es el caso residual que nuestro
 [ADR 0043](../docs/adr/0043-el-orden-de-emision-se-sostiene-por-el-orden-de-insercion-en-el-outbox.md)
@@ -321,10 +433,51 @@ que es lo que sí depende de nosotros.
 
 ---
 
-### S-007 · v11 · Envío por zonas: `ZONE_BASED`, tarifario por zona y `contact.zoneCode`
+### S-007 · Envío por zonas: `ZONE_BASED`, tarifario por zona y `contact.zoneCode` — SIGUE ABIERTA
 
-> Decisión del humano el 2026-09-06: **se abre la conversación de la v11.** F-013 y F-016 quedan
-> `blocked` mientras tanto — ver la nota de secuenciación al final.
+> **Revisada el 2026-09-06 contra la v11: NO entra en la v11**, y el contrato lo dice por escrito
+> en § «Lo que NO entra en la v11, y está en conversación». No hay campo, ni enum, ni entidad, ni
+> ruta: **nada de esta solicitud es implementable todavía**. F-013, F-016 y F-026 siguen
+> `blocked`, y por el mismo motivo que antes.
+>
+> Lo que sí cambió es que ya hay respuesta punto por punto, y es favorable en todo lo
+> estructural. Lo que queandabuscando **ya afirma**:
+>
+> - **`ZONE_BASED` como tercer valor de `deliveryFeeMode` es el camino previsto**, no una
+>   excepción: su ADR 0028 dice que un modo de envío nuevo es una versión del contrato, y su
+>   § «Reabrir cuando» nombra exactamente esto.
+> - **`ZONE_TARIFF` como sexta entidad del outbox, de acuerdo**, y no un array anidado en el
+>   `payload` de `STORE`. Suman un argumento que esta solicitud no había dado: el `payload` de
+>   `STORE` es un upsert de la fila entera con guarda anti-rancio, así que cambiar una tarifa
+>   reenviaría la configuración del local y **competiría con la guarda** por quién escribió el
+>   último.
+> - **`contact.zoneCode` y `contact.lat`/`lng` opcionales, de acuerdo**, con el `zoneCode`
+>   decidiendo el precio y las coordenadas nunca. Es contrato mayor porque cambia la forma del
+>   pedido en el pull.
+> - **Esto no arrastra PostGIS**: `Store.latitude`/`longitude` ya viajan y ya se guardan, y para
+>   el `zoneCode` no hace falta geometría.
+>
+> **Las cuatro preguntas abiertas, contestadas como propuesta de su lado:** una zona sin tarifa
+> es «no entregamos ahí» y la tienda declara las que sirve; los modos son **excluyentes**, que es
+> lo único consistente con lo anterior; un `zoneCode` que ellos no conozcan es un `400` con
+> nombre propio y nunca una tarifa que nadie puede seleccionar; y la versión del catálogo se
+> publica **en el propio `sync-contract.md`**, que es donde los dos lados ya miran. De acuerdo
+> también con sembrar desde OpenStreetMap y con no meter Google Maps. **Las cuatro coinciden con
+> las decisiones del humano ya anotadas en F-026**, así que no hay nada que renegociar ahí.
+>
+> **Discrepancia que sí queda abierta, y es de pantalla, no de cable:** esta solicitud propone que
+> la persona toque su municipio **sobre un mapa**; queandabuscando responde que el mapa lo pinta
+> su checkout, no el POS, y que servir un GeoJSON municipal de Cuba —aun simplificado, cientos de
+> KB— en la página cuyo peso importa y para un público con conexión limitada no sale a cuenta. Su
+> propuesta es un **selector jerárquico provincia → municipio** como camino primario, con el mapa
+> detrás de una carga diferida solo si se demuestra que hace falta. Es el mismo argumento con el
+> que esta solicitud descarta el GPS: la zona la elige la persona.
+>
+> **Lee esto antes de tocar F-026**, cuya decisión (4) del humano dice «la zona LA ELIGE LA
+> PERSONA sobre el mapa». Sigue siendo cierta la parte que importa —la elige la persona— y la que
+> está en discusión es solo con qué widget. Del lado del comprador la pantalla es de QAB, así que
+> esa discusión no es nuestra; del nuestro solo lo es si el encargado elige zonas para armar el
+> tarifario, y ahí el mismo argumento del peso no aplica igual.
 
 **Cómo apareció.** Necesidad de producto, no un hueco del contrato: los comercios cubanos cobran el
 envío por municipio, y hoy el contrato solo permite una tarifa plana única por sucursal o cotizar a
@@ -397,9 +550,37 @@ libre**. Cerrar cualquiera de los dos antes de esta conversación obliga a reabr
 
 ---
 
-### S-008 · v11 · El escaparate no sabe qué monedas mostrar (`displayCurrencies`)
+### S-008 · El escaparate no sabe qué monedas mostrar (`displayCurrencies`) — SIGUE ABIERTA
 
-> Decisión del humano el 2026-09-06: se pide junto con S-007, en la misma v11.
+> **Revisada el 2026-09-06 contra la v11: NO entra en la v11**, junto con S-007 y por escrito en
+> § «Lo que NO entra en la v11, y está en conversación». **F-027 sigue `blocked`.**
+>
+> Respuesta de queandabuscando, que concede el fondo y deja abierto el sitio:
+>
+> - **Sí a la señal explícita.** Descartan derivarla de las tasas por lo que decía esta solicitud
+>   —no hay forma de borrar una tasa— y por algo peor que ellos mismos señalan: la v10.1
+>   recomienda `active: false` para retirar una moneda sobre una tabla que **es global a la
+>   plataforma**, así que un negocio que retire el euro se lo retiraría a todos.
+> - **El problema abierto es DÓNDE.** El dato es del negocio y en el cable no hay entidad de
+>   negocio: `STORE` es el único evento que lleva `businessId` y todo lo del negocio viaja de
+>   rebote ahí (`businessName`, `baseCurrency`). Las dos salidas son repetir ese patrón —con su
+>   coste conocido: N sucursales repiten la lista y la escribe la que llegue la última— o abrir
+>   una entidad `BUSINESS`. **Con `ZONE_TARIFF` entrando en la misma conversación, su propuesta
+>   es repetir el patrón de `STORE`.**
+> - **El redondeo ya cumple lo que se pedía.** Su conversión va del importe al ancla CUP y de ahí
+>   al destino en una sola división, half-up alejándose del cero sobre enteros escalados, y es la
+>   misma función que usa el checkout. Coincide con ADR 0060 de cuadrecaja.
+> - **La segunda condición decae con S-004.** Concedida ①, los equivalentes se pueden pintar en el
+>   servidor sin quedarse viejos: **no hace falta convertir en el cliente ni publicar un endpoint
+>   de tasas**. La sugerencia de esta solicitud queda superada por una salida mejor.
+>
+> **Qué significa para F-027:** sus criterios están escritos a nivel de comportamiento y **no
+> nombran el cable**, a propósito, así que sobreviven a que la señal acabe viajando en `STORE` o
+> en una entidad nueva. Lo que hay que revisar cuando la v12 cierre es el contrato de interfaces,
+> no los criterios. Si acaba siendo el patrón de `STORE`, aparece un efecto que hoy F-027 no
+> contempla: la lista viaja **repetida por sucursal**, así que habilitar una moneda emite N
+> eventos `STORE` y no uno — y eso convive con la regla «omitir no es apagar» de F-016 y con el
+> rechazo por evento de `openingHours` de la v9.
 
 **Cómo apareció.** Necesidad de producto: un negocio que tiene varias monedas habilitadas quiere que
 el comprador vea el precio **en todas ellas**, igual que ya lo ve el vendedor en el POS de
