@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
     if (!scope) return response;
 
     const result = await applyDiscountsForSale({
-      tiendaId,
+      ...scope,
       products: products.map((p) => ({
         productoTiendaId: String(p?.productoTiendaId ?? ""),
         cantidad: Number(p?.cantidad ?? 0) || 0,

@@ -1,4 +1,7 @@
-import { prisma } from '../prisma';
+import { prisma } from "@/lib/prisma";
+import type { ITenantScope } from "@/lib/tenantScope";
+import { withTenantScope } from "@/lib/tenantScope";
+import { CPP_ENTRY_MOVEMENT_TYPES } from "@/constants/movimientos";
 
 export interface CPPHistoryItem {
   id: string;
@@ -36,6 +39,53 @@ export interface CPPAnalysis {
   ultimoCostoUnitario: number | null;
 }
 
+/** The report `migrarDatosHistoricosCPP` returns. Same shape it already built inline. */
+export interface ICPPMigrationReport {
+  movimientosEncontrados: number;
+  movimientosProcesados: number;
+  errores: number;
+  detalles: string[];
+}
+
+/** One row of `detectarDesviacionesCPP`: the analysis plus its two deviation figures. */
+export interface ICPPDeviation extends CPPAnalysis {
+  diferenciaPorcentaje: number;
+  diferenciaMonto: number;
+}
+
+/** PURE. `{ tiendaId, existencia: { gt: 0 }, tienda: { negocioId } }` */
+export function cppProductosWhere(params: ITenantScope) {
+  return withTenantScope(
+    "productoTienda",
+    { tiendaId: params.tiendaId, existencia: { gt: 0 } },
+    params.negocioId,
+  );
+}
+
+/** PURE. `{ tiendaId, tipo: { in: CPP_ENTRY_MOVEMENT_TYPES }, costoUnitario: null, tienda: { negocioId } }` */
+export function cppMovimientosSinCostoWhere(params: ITenantScope) {
+  return withTenantScope(
+    "movimientoStock",
+    {
+      tiendaId: params.tiendaId,
+      tipo: { in: CPP_ENTRY_MOVEMENT_TYPES },
+      costoUnitario: null,
+    },
+    params.negocioId,
+  );
+}
+
+/**
+ * PURE. `{ id, tienda: { negocioId } }` — the guard on the ONLY write of this feature.
+ * `update` takes no relation filter, so the write goes through `updateMany` (ADR 0085).
+ */
+export function cppMovimientoUpdateWhere(params: {
+  negocioId: string;
+  id: string;
+}) {
+  return withTenantScope("movimientoStock", { id: params.id }, params.negocioId);
+}
+
 /**
  * Obtiene el historial completo de CPP para un producto específico
  * @param productoTiendaId - ID del producto en la tienda
@@ -46,11 +96,7 @@ export async function obtenerHistorialCPP(productoTiendaId: string): Promise<CPP
     where: {
       productoTiendaId,
       tipo: {
-        in: [
-          'COMPRA',
-          'TRASPASO_ENTRADA',
-          'CONSIGNACION_ENTRADA',
-        ]
+        in: CPP_ENTRY_MOVEMENT_TYPES
       }
     },
     include: {
@@ -155,17 +201,12 @@ export async function analizarCPP(productoTienda: {id: string, costo: number, ex
 
 /**
  * Obtiene análisis de CPP para todos los productos de una tienda
- * @param tiendaId - ID de la tienda
+ * @param params - Tenant scope: `negocioId` (applied to the query) and `tiendaId`
  * @returns Array de análisis de CPP
  */
-export async function analizarCPPTienda(tiendaId: string): Promise<CPPAnalysis[]> {
+export async function analizarCPPTienda(params: ITenantScope): Promise<CPPAnalysis[]> {
   const productos = await prisma.productoTienda.findMany({
-    where: {
-      tiendaId,
-      existencia: {
-        gt: 0
-      }
-    },
+    where: cppProductosWhere(params),
     select: {
       id: true,
       costo: true,
@@ -190,12 +231,15 @@ export async function analizarCPPTienda(tiendaId: string): Promise<CPPAnalysis[]
 
 /**
  * Calcula diferencias entre costo actual y promedio de compras
- * @param tiendaId - ID de la tienda
+ * @param params - Tenant scope plus the optional `umbralPorcentaje` (defaults to 10)
  * @returns Productos con diferencias significativas en costos
  */
-export async function detectarDesviacionesCPP(tiendaId: string, umbralPorcentaje: number = 10) {
-  const analisis = await analizarCPPTienda(tiendaId);
-  
+export async function detectarDesviacionesCPP(
+  params: ITenantScope & { umbralPorcentaje?: number },
+): Promise<ICPPDeviation[]> {
+  const { negocioId, tiendaId, umbralPorcentaje = 10 } = params;
+  const analisis = await analizarCPPTienda({ negocioId, tiendaId });
+
   return analisis
    .filter(a => {
     // 🆕 Solo considerar productos con datos CPP confiables
@@ -228,23 +272,15 @@ export async function detectarDesviacionesCPP(tiendaId: string, umbralPorcentaje
 
 /**
  * 🆕 Función para migrar datos históricos en producción
- * @param tiendaId - ID de la tienda
- * @param dryRun - Si es true, solo simula sin hacer cambios
+ * @param params - Tenant scope plus the optional `dryRun` (defaults to true)
  * @returns Reporte de la migración
  */
-export async function migrarDatosHistoricosCPP(tiendaId: string, dryRun: boolean = true) {
+export async function migrarDatosHistoricosCPP(
+  params: ITenantScope & { dryRun?: boolean },
+): Promise<ICPPMigrationReport> {
+  const { negocioId, tiendaId, dryRun = true } = params;
   const movimientosSinCPP = await prisma.movimientoStock.findMany({
-    where: {
-      tiendaId,
-      tipo: {
-        in: [
-          'COMPRA',
-          'TRASPASO_ENTRADA',
-          'CONSIGNACION_ENTRADA',
-        ]
-      },
-      costoUnitario: null
-    },
+    where: cppMovimientosSinCostoWhere({ negocioId, tiendaId }),
     include: {
       productoTienda: {
         include: {
@@ -261,11 +297,11 @@ export async function migrarDatosHistoricosCPP(tiendaId: string, dryRun: boolean
     }
   });
 
-  const reporte = {
+  const reporte: ICPPMigrationReport = {
     movimientosEncontrados: movimientosSinCPP.length,
     movimientosProcesados: 0,
     errores: 0,
-    detalles: [] as string[]
+    detalles: []
   };
 
   if (dryRun) {
@@ -286,10 +322,8 @@ export async function migrarDatosHistoricosCPP(tiendaId: string, dryRun: boolean
     try {
       const costoActual = movimiento.productoTienda.costo || 0;
       
-      await prisma.movimientoStock.update({
-        where: {
-          id: movimiento.id
-        },
+      const { count } = await prisma.movimientoStock.updateMany({
+        where: cppMovimientoUpdateWhere({ negocioId, id: movimiento.id }),
         data: {
           costoUnitario: 0, // Marcador de dato histórico
           costoTotal: 0,
@@ -298,10 +332,17 @@ export async function migrarDatosHistoricosCPP(tiendaId: string, dryRun: boolean
         }
       });
 
-      reporte.movimientosProcesados++;
-      reporte.detalles.push(
-        `✅ ${movimiento.productoTienda.producto.nombre} - Procesado como histórico`
-      );
+      if (count === 1) {
+        reporte.movimientosProcesados++;
+        reporte.detalles.push(
+          `✅ ${movimiento.productoTienda.producto.nombre} - Procesado como histórico`
+        );
+      } else {
+        reporte.errores++;
+        reporte.detalles.push(
+          `❌ ${movimiento.productoTienda.producto.nombre} - No se pudo actualizar`
+        );
+      }
 
     } catch (error) {
       console.error(error);

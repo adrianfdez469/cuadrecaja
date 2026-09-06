@@ -63,6 +63,7 @@ el área correspondiente, léelos antes de escribir código.
 | [E-042](errors/E-042-un-barrido-cuenta-una-mencion-como-si-fuera-un-filtro.md) | Un barrido de seguridad marca una ruta **protegida** porque encontró la palabra `negocioId`… en una **guarda de nulidad**. Y su hermana: eximir en bloque un grupo «porque otra cosa lo cubre» es **una clasificación sin hacer** | build | 1 |
 | [E-043](errors/E-043-una-columna-unique-global-usada-para-idempotencia-es-un-eje-de-tenant.md) | Una columna `@unique` **global** usada para idempotencia (`syncId`) es un eje de tenant más: al cerrar la ruta por `tiendaId`, el `catch` del `P2002` pasó de inalcanzable a alcanzable y devolvía la venta de otro negocio | prisma | 1 |
 | [E-044](errors/E-044-type-text-duplica-en-inputs-controlados.md) | `type-text` de `orca computer` **duplica el texto** en los inputs controlados de React/MUI de esta app; `paste-text` no. El síntoma parece un problema de foco | ui | 1 |
+| [E-045](errors/E-045-el-exit-code-de-un-pipe-no-es-el-del-comando.md) | `$?` tras un pipe es el de `tail`/`head`/`grep`, no el del comando: `npm run lint` con exit 1 se reportó "en verde" por tres agentes seguidos, y el único `Error:` real estaba enterrado entre warnings preexistentes | build | 1 |
 
 ---
 

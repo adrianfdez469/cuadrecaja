@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
+import type { ITenantScope } from "@/lib/tenantScope";
+import { withTenantScope } from "@/lib/tenantScope";
 import {
   applyDiscounts,
   recomputeAppliedDiscountsAfterRemoval,
@@ -64,30 +66,61 @@ export const DISCOUNT_RULE_SELECT = {
   endDate: true,
 } as const;
 
-/** Active rules of the business owning `tiendaId`, ready for the engine. */
+/**
+ * PURE. The `where` that selects the active discount rules of ONE business.
+ *
+ * Strict equality on purpose: a `DiscountRule` with a null `negocioId` belongs to no business and
+ * is applied to none (ADR 0082). Never widen this with an OR on `negocioId: null`.
+ */
+export function discountRulesWhere(params: { negocioId: string }): {
+  isActive: true;
+  negocioId: string;
+} {
+  return { isActive: true, negocioId: params.negocioId };
+}
+
+/**
+ * PURE. The `where` that resolves product metadata for the engine, tied to the business.
+ * Returns `withTenantScope("productoTienda", { id: { in: productoTiendaIds } }, negocioId)`,
+ * i.e. `{ id: { in: [...] }, tienda: { negocioId } }` (ADR 0085).
+ */
+export function discountProductMetaWhere(params: {
+  negocioId: string;
+  productoTiendaIds: string[];
+}) {
+  return withTenantScope(
+    "productoTienda",
+    { id: { in: params.productoTiendaIds } },
+    params.negocioId,
+  );
+}
+
+/**
+ * Active rules of `negocioId`, ready for the engine.
+ *
+ * `tiendaId` is accepted and DELIBERATELY NOT used in the query: discount rules hang off the
+ * business, not the store, and this function no longer reads `Tienda` to derive the tenant
+ * (ADR 0083). Do not remove the field, and do not reintroduce the lookup.
+ */
 export async function fetchDiscountRulesForTienda(
-  tiendaId: string,
+  params: ITenantScope,
 ): Promise<DiscountRuleInput[]> {
-  const tienda = await prisma.tienda.findUnique({
-    where: { id: tiendaId },
-    select: { negocioId: true },
-  });
-  const negocioId = tienda?.negocioId;
   const rules = await prisma.discountRule.findMany({
-    where: { isActive: true, ...(negocioId ? { negocioId } : {}) },
+    where: discountRulesWhere({ negocioId: params.negocioId }),
     select: DISCOUNT_RULE_SELECT,
   });
   return rules.map(toDiscountRuleInput);
 }
 
-export async function applyDiscountsForSale(params: {
-  tiendaId: string;
-  products: DiscountApplicationInputProduct[];
-  discountCodes?: string[];
-}): Promise<DiscountApplicationResult> {
-  const { tiendaId, products, discountCodes } = params;
+export async function applyDiscountsForSale(
+  params: ITenantScope & {
+    products: DiscountApplicationInputProduct[];
+    discountCodes?: string[];
+  },
+): Promise<DiscountApplicationResult> {
+  const { negocioId, tiendaId, products, discountCodes } = params;
 
-  const rules = await fetchDiscountRulesForTienda(tiendaId);
+  const rules = await fetchDiscountRulesForTienda({ negocioId, tiendaId });
 
   // Mapear productoTiendaId -> { productoId, categoriaId }
   const ids = Array.from(
@@ -96,7 +129,7 @@ export async function applyDiscountsForSale(params: {
   const productMeta: Record<string, ProductMeta> = {};
   if (ids.length > 0) {
     const pts = await prisma.productoTienda.findMany({
-      where: { id: { in: ids } },
+      where: discountProductMetaWhere({ negocioId, productoTiendaIds: ids }),
       select: {
         id: true,
         producto: { select: { id: true, categoriaId: true } },

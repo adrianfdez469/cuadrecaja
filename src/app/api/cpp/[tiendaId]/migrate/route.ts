@@ -20,7 +20,7 @@ export async function POST(
     });
     if (!scope) return response;
 
-    const reporte = await migrarDatosHistoricosCPP(tiendaId, dryRun);
+    const reporte = await migrarDatosHistoricosCPP({ ...scope, dryRun });
 
 
     return NextResponse.json({
@@ -61,7 +61,7 @@ export async function GET(
     if (!scope) return response;
 
     // Siempre hacer un dry run para GET
-    const reporte = await migrarDatosHistoricosCPP(tiendaId, true);
+    const reporte = await migrarDatosHistoricosCPP({ ...scope, dryRun: true });
 
     return NextResponse.json({
       success: true,

@@ -372,7 +372,7 @@ export async function POST(
       );
 
       discountCalcResult = await applyDiscountsForSale({
-        tiendaId,
+        ...tenantScope,
         discountCodes: Array.isArray(discountCodes) ? discountCodes : [],
         products: discountProducts,
       });
