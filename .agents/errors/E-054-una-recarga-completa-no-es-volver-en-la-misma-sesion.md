@@ -1,0 +1,46 @@
+# E-054: una recarga completa no es «volver en la misma sesión», y el caché parece no funcionar
+
+**Área:** tests
+**Apariciones:** 1 — F-025
+
+## Síntoma
+
+Verificando el criterio de caché de F-025 —que al volver a la pantalla las teselas ya vistas se
+sirvan del caché y no se vuelvan a pedir— el navegador reportaba `fromDiskCache: false` en **las
+dos** visitas. Parecía un incumplimiento de la política del proveedor, y estuvo a punto de ser un
+rechazo.
+
+## Causa raíz
+
+La verificación usaba `page.goto()` / `page.reload()`, es decir **una recarga completa de
+documento**. Esa pantalla no se navega así: la app cambia de pestaña con `router.replace`, o sea
+**navegación de cliente, sin recarga**.
+
+Son dos cosas distintas, y solo una es la que vive el usuario:
+
+- Una recarga de documento reinicia el árbol y **puede revalidar** las subpeticiones.
+- Una navegación de cliente desmonta y remonta el componente **dentro de la misma sesión**, y ahí
+  es donde el caché HTTP se nota.
+
+Lo que hace este error caro es que **el falso negativo es plausible**: «el caché no funciona» es una
+conclusión razonable, y el número que la respalda (`fromDiskCache: false`) es real. Costó tres
+intentos descartarlo — CDP directo (`Network.responseReceived`), un repro aislado con un `<img>`
+suelto que **sí** cacheaba a la segunda, y por fin un clic real de pestaña.
+
+## Solución
+
+Repetir la comprobación con **una navegación de cliente de verdad**: clic en otra pestaña y vuelta,
+sin ningún `page.goto`. Con eso, **cero** peticiones nuevas al host de teselas la segunda vez.
+
+## Cómo evitarlo
+
+**Antes de medir «volver a una pantalla», averigua cómo se vuelve a esa pantalla de verdad.** En
+esta app las pestañas de configuración son `router.replace`; un `goto` no reproduce ese camino y
+mide otra cosa.
+
+Y la regla general, que aplica a cualquier verificación de caché, de estado en memoria o de
+remontaje: **`page.goto` prueba el arranque en frío, no la vuelta.** Si el criterio habla de
+«volver», el gesto tiene que ser el que el usuario hace.
+
+Primo de **E-008**: el dato era correcto y la conclusión falsa, porque el escenario no distinguía lo
+que se creía distinguir.

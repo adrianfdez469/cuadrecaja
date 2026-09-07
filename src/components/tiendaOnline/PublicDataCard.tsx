@@ -5,6 +5,12 @@ import { useRouter } from "next/navigation";
 
 import { ContentCard } from "@/components/ContentCard";
 import {
+  LATITUDE_MAX,
+  LATITUDE_MIN,
+  LONGITUDE_MAX,
+  LONGITUDE_MIN,
+} from "@/constants/map";
+import {
   QAB_STORE_ADDRESS_MAX_LENGTH,
   QAB_STORE_CITY_MAX_LENGTH,
   QAB_STORE_DESCRIPTION_MAX_LENGTH,
@@ -12,31 +18,39 @@ import {
   QAB_STORE_PHONE_MAX_LENGTH,
   QAB_STORE_PROVINCE_MAX_LENGTH,
 } from "@/constants/qab";
+import type { IMapPoint } from "@/schemas/map";
 import type { ITiendaOnlineLocal } from "@/schemas/tiendaOnline";
 import { shape, touch } from "@/theme/tokens";
 import {
   CONTACT_FIELD_LABELS,
+  draftToMapPoint,
   emptyContactFieldsNotice,
   hasLonelyCoordinate,
 } from "@/utils/tiendaOnlineDraft";
 import type { ITiendaOnlineDraft } from "@/utils/tiendaOnlineDraft";
 
+import { MAP_GROUP_LABEL, mapHintCopy } from "./map/mapCopy";
 import { isKnownInOnlineStore } from "./publicationPresentation";
+import { StoreLocationField } from "./StoreLocationField";
 
 export interface PublicDataCardProps {
   local: ITiendaOnlineLocal;
   draft: ITiendaOnlineDraft;
   isMobile: boolean;
   onFieldChange: (field: keyof ITiendaOnlineDraft, value: string) => void;
+  onPointChange: (point: IMapPoint | null) => void;
 }
 
 const CARD_TITLE = "Datos públicos del local";
 const LOCALES_ROUTE = "/configuracion/locales";
 const DESCRIPTION_ROWS = 3;
-const LATITUDE_MIN = -90;
-const LATITUDE_MAX = 90;
-const LONGITUDE_MIN = -180;
-const LONGITUDE_MAX = 180;
+/**
+ * The width of the coordinates column once the card stops growing (`md`, 900 px,
+ * where `Container maxWidth="md"` tops out). Side by side inside it the two
+ * fields would be ~118 px each, which does not fit «Longitud» plus a
+ * nine-character number, so there they stack instead.
+ */
+const COORDINATES_COLUMN_WIDTH = 264;
 
 /**
  * The two differentiated helpers of an empty contact field. They say opposite
@@ -58,8 +72,14 @@ export function PublicDataCard({
   draft,
   isMobile,
   onFieldChange,
+  onPointChange,
 }: Readonly<PublicDataCardProps>) {
   const router = useRouter();
+
+  // Derived from the draft on every render, and it is the ONLY reader of the two
+  // coordinates for map purposes: the marker cannot get out of step with the
+  // fields because it is drawn from the very same value (ADR 0098).
+  const point = draftToMapPoint(draft);
 
   // Derived HERE from the prop that already arrives, never passed down as a
   // flag: a flag travelling by prop is E-014's paraphrased definition on a bus.
@@ -164,33 +184,86 @@ export function PublicDataCard({
           })}
         </Stack>
 
-        <Box>
-          {/* The one pair that stays side by side even at 320 px: split apart,
-              they invite filling one and forgetting the other, and half a
-              coordinate draws no point on any map. */}
-          <Stack direction="row" spacing={2}>
-            {field("latitud", {
-              type: "number",
-              slotProps: {
-                htmlInput: { min: LATITUDE_MIN, max: LATITUDE_MAX, step: "any" },
-              },
-            })}
-            {field("longitud", {
-              type: "number",
-              slotProps: {
-                htmlInput: { min: LONGITUDE_MIN, max: LONGITUDE_MAX, step: "any" },
-              },
-            })}
-          </Stack>
-          {hasLonelyCoordinate(draft) && (
-            <Typography
-              variant="body2"
-              sx={{ mt: 1, color: "semantic.hue.caution.main" }}
+        {/* The SAME element that grouped the two coordinates before F-025, with
+            `component` and `aria-label` added and nothing wrapped around it: it
+            stays the direct flex item of this `Stack`, so it cannot trap
+            anybody's own margin (E-048). */}
+        <Box component="section" aria-label={MAP_GROUP_LABEL}>
+          {/* Names the whole group, so it goes above the row and not inside
+              either half. The caption treatment is this card's own, the one
+              «Nombre del local» already uses. */}
+          <Typography
+            variant="caption"
+            sx={{ color: "semantic.text.secondary" }}
+          >
+            {MAP_GROUP_LABEL}
+          </Typography>
+          {/* Shown ALWAYS, including when the map fails: neither this card nor
+              the field can know that it did, so both variants name the map AND
+              the fields and stay true either way (E-013). */}
+          <Typography variant="body2" sx={{ color: "semantic.text.secondary" }}>
+            {mapHintCopy(point !== null)}
+          </Typography>
+
+          <Box
+            sx={{
+              mt: 1,
+              display: "flex",
+              flexDirection: { xs: "column", md: "row" },
+              alignItems: "flex-start",
+              gap: { xs: 2, md: 3 },
+            }}
+          >
+            <Box sx={{ width: "100%", flex: { md: 1 }, minWidth: 0 }}>
+              <StoreLocationField
+                point={point}
+                onPointChange={onPointChange}
+              />
+            </Box>
+
+            <Box
+              sx={{
+                width: { xs: "100%", md: COORDINATES_COLUMN_WIDTH },
+                flexShrink: 0,
+              }}
             >
-              Pon las dos coordenadas o ninguna: con una sola no se puede ubicar
-              el local en el mapa.
-            </Typography>
-          )}
+              {/* The one pair that stays side by side even at 320 px: split
+                  apart, they invite filling one and forgetting the other, and
+                  half a coordinate draws no point on any map. They stack only in
+                  the narrow column of the two-column layout. */}
+              <Stack direction={{ xs: "row", md: "column" }} spacing={2}>
+                {field("latitud", {
+                  type: "number",
+                  slotProps: {
+                    htmlInput: {
+                      min: LATITUDE_MIN,
+                      max: LATITUDE_MAX,
+                      step: "any",
+                    },
+                  },
+                })}
+                {field("longitud", {
+                  type: "number",
+                  slotProps: {
+                    htmlInput: {
+                      min: LONGITUDE_MIN,
+                      max: LONGITUDE_MAX,
+                      step: "any",
+                    },
+                  },
+                })}
+              </Stack>
+              {hasLonelyCoordinate(draft) && (
+                <Typography
+                  variant="body2"
+                  sx={{ mt: 1, color: "semantic.hue.caution.main" }}
+                >
+                  Pon las dos coordenadas o ninguna: con una sola no se puede
+                  ubicar el local en el mapa.
+                </Typography>
+              )}
+            </Box>
+          </Box>
         </Box>
 
         <Stack direction={isMobile ? "column" : "row"} spacing={2}>
