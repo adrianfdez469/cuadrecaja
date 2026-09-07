@@ -73,7 +73,6 @@ import DesfaseCardBanda from "./components/DesfaseCardBanda";
 import DesfaseBanner from "./components/DesfaseBanner";
 import DrawerDesfaseAlert from "./components/DrawerDesfaseAlert";
 import RecalcularCierreDialog from "./components/RecalcularCierreDialog";
-import { desfaseMotivo } from "./components/desfaseCopy";
 import { roles } from "@/utils/roles";
 
 export default function ResumenCierrePage() {
@@ -569,7 +568,9 @@ export default function ResumenCierrePage() {
     >
       <TasasBanner tasas={tasasVigentes} sx={{ mb: 2 }} />
 
-      {data && <DesfaseBanner cierres={data.cierres} sx={{ mb: 2 }} />}
+      {data && canRecalculate && (
+        <DesfaseBanner cierres={data.cierres} sx={{ mb: 2 }} />
+      )}
 
       {/* Filtros */}
       <ContentCard
@@ -840,9 +841,8 @@ export default function ResumenCierrePage() {
                             </IconButton>
                           </Box>
 
-                          {row.totalesDesactualizados && (
+                          {row.totalesDesactualizados && canRecalculate && (
                             <DesfaseCardBanda
-                              canRecalculate={canRecalculate}
                               onRecalculate={() => setRecalcCierreId(row.id)}
                             />
                           )}
@@ -1218,9 +1218,10 @@ export default function ResumenCierrePage() {
                         </TableCell>
                         <TableCell sx={stickyActionsCellSx.body}>
                           <AccionesCierreCell
-                            desactualizado={Boolean(row.totalesDesactualizados)}
-                            motivo={desfaseMotivo(row.totalsComputedAt)}
-                            canRecalculate={canRecalculate}
+                            desactualizado={
+                              canRecalculate &&
+                              Boolean(row.totalesDesactualizados)
+                            }
                             onRecalculate={() => setRecalcCierreId(row.id)}
                             onVerDetalles={() => handleViewMore(row)}
                           />
@@ -1433,15 +1434,15 @@ export default function ResumenCierrePage() {
                 >
                   {/* First thing in the body: everything below is read
                       through this warning. */}
-                  {cierreProducData.ciereData.totalesDesactualizados && (
-                    <DrawerDesfaseAlert
-                      canRecalculate={canRecalculate}
-                      isMobile={isMobile}
-                      onRecalculate={() =>
-                        setRecalcCierreId(cierreProducData.cierreId)
-                      }
-                    />
-                  )}
+                  {cierreProducData.ciereData.totalesDesactualizados &&
+                    canRecalculate && (
+                      <DrawerDesfaseAlert
+                        isMobile={isMobile}
+                        onRecalculate={() =>
+                          setRecalcCierreId(cierreProducData.cierreId)
+                        }
+                      />
+                    )}
                   <Stack
                     direction="row"
                     alignItems="center"

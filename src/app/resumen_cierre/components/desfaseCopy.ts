@@ -2,21 +2,14 @@
  * Copy of the "totales desactualizados" state, in one place so the fixed
  * column, the mobile band, the page banner and the drawer alert never drift
  * from each other. See `.agents/designs/recalculo-cierres.md`.
+ *
+ * The whole notice is shown only to a superadmin: it names a mismatch that
+ * only that role can resolve, so for anyone else it is noise.
  */
 export const DESFASE_LABEL = "Totales desactualizados";
 
 /** Why the figures are stale: the sales changed, or the old engine closed it. */
 export type DesfaseMotivo = "ventas" | "motor-anterior";
-
-export const DESFASE_EXPLICACION: Record<DesfaseMotivo, string> = {
-  ventas:
-    "Las ventas de este período cambiaron después del cierre. Sus cifras guardadas no reflejan las ventas actuales.",
-  "motor-anterior":
-    "Este cierre se hizo con una versión anterior y sus cifras guardadas aún no se han vuelto a derivar de las ventas.",
-};
-
-export const DESFASE_SOLO_SUPERADMIN =
-  "Solo un superadministrador puede recalcularlas.";
 
 export const DESFASE_TOOLTIP_RECALCULAR = `${DESFASE_LABEL} — recalcular`;
 

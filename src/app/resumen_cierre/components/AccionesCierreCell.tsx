@@ -1,16 +1,10 @@
 "use client";
 
-import { Box, IconButton, Stack, Tooltip } from "@mui/material";
+import { IconButton, Stack, Tooltip } from "@mui/material";
 import type { SxProps, Theme } from "@mui/material";
 import ZoomInIcon from "@mui/icons-material/ZoomIn";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
-import {
-  DESFASE_EXPLICACION,
-  DESFASE_LABEL,
-  DESFASE_SOLO_SUPERADMIN,
-  DESFASE_TOOLTIP_RECALCULAR,
-  type DesfaseMotivo,
-} from "./desfaseCopy";
+import { DESFASE_TOOLTIP_RECALCULAR } from "./desfaseCopy";
 
 /** Two 44 px targets + 8 px gap + 8 px padding each side. */
 export const ACTIONS_COLUMN_WIDTH = 112;
@@ -53,59 +47,34 @@ export const stickyActionsCellSx = {
 
 interface Props {
   desactualizado: boolean;
-  motivo: DesfaseMotivo;
-  canRecalculate: boolean;
   onRecalculate: () => void;
   onVerDetalles: () => void;
 }
 
 /**
  * Contents of the fixed «Acciones» cell: one slot that states the stale
- * figures (clickable only for a superadmin) and the «Ver detalles» button.
- * The slot draws the same glyph in the same place for every role, so the
- * row reads the same whoever looks at it.
+ * figures and opens the recalculation dialog, plus the «Ver detalles»
+ * button. The stale slot is only ever rendered for a superadmin — the only
+ * role that can act on it — so the caller decides whether it appears.
  */
 export default function AccionesCierreCell({
   desactualizado,
-  motivo,
-  canRecalculate,
   onRecalculate,
   onVerDetalles,
 }: Readonly<Props>) {
   return (
     <Stack direction="row" spacing={1} justifyContent="center">
-      {desactualizado &&
-        (canRecalculate ? (
-          <Tooltip title={DESFASE_TOOLTIP_RECALCULAR}>
-            <IconButton
-              onClick={onRecalculate}
-              aria-label="Recalcular las cifras de este cierre"
-              sx={{ color: "semantic.hue.caution.main" }}
-            >
-              <WarningAmberIcon />
-            </IconButton>
-          </Tooltip>
-        ) : (
-          <Tooltip
-            title={`${DESFASE_EXPLICACION[motivo]} ${DESFASE_SOLO_SUPERADMIN}`}
+      {desactualizado && (
+        <Tooltip title={DESFASE_TOOLTIP_RECALCULAR}>
+          <IconButton
+            onClick={onRecalculate}
+            aria-label="Recalcular las cifras de este cierre"
+            sx={{ color: "semantic.hue.caution.main" }}
           >
-            <Box
-              role="img"
-              aria-label={DESFASE_LABEL}
-              sx={{
-                width: 44,
-                height: 44,
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "semantic.hue.caution.main",
-                cursor: "default",
-              }}
-            >
-              <WarningAmberIcon />
-            </Box>
-          </Tooltip>
-        ))}
+            <WarningAmberIcon />
+          </IconButton>
+        </Tooltip>
+      )}
       <Tooltip title="Ver detalles del cierre">
         <IconButton
           onClick={onVerDetalles}
