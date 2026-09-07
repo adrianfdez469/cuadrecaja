@@ -43,13 +43,17 @@ const baseRow = {
 };
 
 describe("qabOutboxEntitySchema", () => {
-  it("should hold exactly the five wire entities of the contract", () => {
+  // F-027 (contract v12.1, § 1): BUSINESS is the sixth entity, added at the end.
+  // Updated here rather than left to go red, since the contract fixes this exact
+  // array literal and dev-tester owns this file.
+  it("should hold exactly the six wire entities of the contract", () => {
     expect([...QAB_OUTBOX_ENTITIES]).toEqual([
       "STORE",
       "CATEGORY",
       "PRODUCT",
       "CURRENCY",
       "EXCHANGE_RATE",
+      "BUSINESS",
     ]);
   });
 

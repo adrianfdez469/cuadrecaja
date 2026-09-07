@@ -3,6 +3,9 @@
 **Estado:** aceptado
 **Fecha:** 2026-09-06
 **Feature:** F-027 (v12, en pie) · F-013 / F-016 / F-026 (v13, pendiente de publicarse)
+**Ampliado por:** [ADR 0092](0092-el-drenaje-retiene-business-en-la-reclamacion-y-la-lista-de-monedas-tiene-un-solo-simbolo.md)
+— el **cómo** de las reglas 1 y 2 de aquí: dónde vive el filtro del drenaje, cómo se enciende, cómo
+se ve que sigue puesto, y con qué símbolo se fija el instante del `updatedAt`.
 **Se apoya en:** [ADR 0060](0060-la-conversion-de-moneda-se-recomputa-con-enteros-escalados-y-nunca-reescribe-unitprice.md) ·
 [ADR 0021](0021-el-interruptor-filtra-las-dos-fases-del-cron.md) ·
 [E-014](../../.agents/errors/E-014-una-senal-derivada-cuya-definicion-se-parafrasea.md) ·

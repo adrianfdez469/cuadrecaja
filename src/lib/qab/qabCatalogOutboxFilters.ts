@@ -4,6 +4,7 @@ import {
   QAB_EXCHANGE_RATE_ENTITY,
 } from "@/constants/qab";
 import type { PrismaClientLike } from "@/lib/prisma";
+import type { IQabOutboxWithheld } from "@/schemas/qabSync";
 
 /**
  * The reads of the «has this business already synced this?» signal (ADR 0046).
@@ -112,6 +113,37 @@ export async function readQabCategoryCarriers(
     negocioIds: rows.slice(0, args.limit).map((row) => row.id),
     truncated: rows.length > args.limit,
   };
+}
+
+/**
+ * How many events of each WITHHELD entity are waiting, and since when. One entry
+ * per entity with at least one pending event, sorted ascending by `entidad`.
+ * `entidades: []` returns `[]` without touching the database.
+ *
+ * Not scoped by business ON PURPOSE: the drain is a platform-wide cron and this
+ * is a queue-health figure, not tenant data. It carries no `negocioId`, no
+ * `entidadId` and no payload — an entity name, a count and one instant.
+ */
+export async function readQabWithheldOutboxPending(
+  tx: PrismaClientLike,
+  args: { entidades: readonly string[] },
+): Promise<IQabOutboxWithheld[]> {
+  if (args.entidades.length === 0) return [];
+
+  const rows = await tx.outboxEvento.groupBy({
+    by: ["entidad"],
+    where: { procesadoAt: null, entidad: { in: [...args.entidades] } },
+    _count: { _all: true },
+    _min: { ocurridoAt: true },
+  });
+
+  return rows
+    .map((row) => ({
+      entidad: row.entidad,
+      pending: row._count._all,
+      oldestOcurridoAt: row._min.ocurridoAt ?? null,
+    }))
+    .sort((left, right) => (left.entidad < right.entidad ? -1 : left.entidad > right.entidad ? 1 : 0));
 }
 
 /**

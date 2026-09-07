@@ -1,5 +1,11 @@
 import { z } from "zod";
 import {
+  LATITUDE_MAX,
+  LATITUDE_MIN,
+  LONGITUDE_MAX,
+  LONGITUDE_MIN,
+} from "@/constants/map";
+import {
   QAB_ORDER_STATUS_FAILURE_CODES,
   QAB_ORDER_STATUS_REPORTABLE,
   QAB_PRODUCT_PAGE_SIZE_MAX,
@@ -60,11 +66,6 @@ export type ITiendaOnlineScaffold = z.infer<typeof tiendaOnlineScaffoldSchema>;
 /* -------------------------------------------------------------------------- */
 /* F-005 — the configuration screen of one local                               */
 /* -------------------------------------------------------------------------- */
-
-const LATITUDE_MIN = -90;
-const LATITUDE_MAX = 90;
-const LONGITUDE_MIN = -180;
-const LONGITUDE_MAX = 180;
 
 /**
  * A free-text field of the form. Trims, and turns the EMPTY STRING INTO `null`:

@@ -184,6 +184,7 @@ export function emptyQabOutboxDrainReport(): IQabOutboxDrainReport {
     byBusiness: [],
     permanentFailures: [],
     appliedStoreEvents: [],
+    withheld: [],
   };
 }
 

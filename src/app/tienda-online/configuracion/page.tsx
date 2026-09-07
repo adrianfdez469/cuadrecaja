@@ -34,11 +34,14 @@ import { useMessageContext } from "@/context/MessageContext";
 import { useTiendaOnlineAccess } from "@/hooks/useTiendaOnlineAccess";
 import { useTiendaOnlineConfiguracion } from "@/hooks/useTiendaOnlineConfiguracion";
 import { useTiendaOnlineProductos } from "@/hooks/useTiendaOnlineProductos";
+import type { IMapPoint } from "@/schemas/map";
 import { collectOpeningHoursIssues } from "@/schemas/qabOpeningHours";
 import { TipoLocal } from "@/schemas/tienda";
 import type { ITiendaOnlineLocal } from "@/schemas/tiendaOnline";
 import { TiendaOnlineOpeningHoursRejected } from "@/services/tiendaOnlineService";
 import {
+  applyMapPointToDraft,
+  clearMapPointFromDraft,
   draftFromLocal,
   draftToUpdate,
   hasNoContactAtAll,
@@ -164,6 +167,19 @@ function TiendaOnlineConfiguracionScreen() {
   const setField = (field: keyof ITiendaOnlineDraft, value: string) => {
     setDraft((current) =>
       current === null ? current : { ...current, [field]: value },
+    );
+  };
+
+  // ONE `setDraft`, so the two coordinates move TOGETHER: `hasLonelyCoordinate`
+  // never flickers and `dirty` never sees a half-written point. The page stays
+  // the only owner of the draft — the map widget knows nothing about it.
+  const setMapPoint = (point: IMapPoint | null) => {
+    setDraft((current) =>
+      current === null
+        ? current
+        : point === null
+          ? clearMapPointFromDraft(current)
+          : applyMapPointToDraft(current, point),
     );
   };
 
@@ -375,6 +391,7 @@ function TiendaOnlineConfiguracionScreen() {
                 draft={draft}
                 isMobile={isMobile}
                 onFieldChange={setField}
+                onPointChange={setMapPoint}
               />
 
               <Box ref={scheduleRef}>
