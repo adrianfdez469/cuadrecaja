@@ -108,6 +108,19 @@ export type IQabSlugLearnPhaseReport = z.infer<typeof qabSlugLearnPhaseReportSch
  */
 export { QAB_BUSINESS_OUTCOMES };
 
+/**
+ * One WITHHELD entity's backlog: how many of its events are waiting and since
+ * when. `entidad` is a plain string and not `z.enum(QAB_OUTBOX_ENTITIES)`: it is
+ * grouped from a raw column, and a legacy row with an unknown value must not make
+ * the whole drain throw.
+ */
+export const qabOutboxWithheldSchema = z.object({
+  entidad: z.string(),
+  pending: z.number().int().min(0),
+  oldestOcurridoAt: z.coerce.date().nullable(),
+});
+export type IQabOutboxWithheld = z.infer<typeof qabOutboxWithheldSchema>;
+
 export const qabOutboxDrainReportSchema = z.object({
   claimed: z.number().int().min(0),
   eventIds: z.array(z.string()), // ids claimed by THIS run, in id order
@@ -129,6 +142,12 @@ export const qabOutboxDrainReportSchema = z.object({
    * learning phase's eligible set; it never widens it (ADR 0036b).
    */
   appliedStoreEvents: z.array(qabAppliedStorePublishSchema).default([]),
+  /**
+   * The backlog of the entities the drain withholds (ADR 0092 § 1). One entry per
+   * entity WITH at least one pending event; `[]` is what the day the switch is
+   * turned on looks like.
+   */
+  withheld: z.array(qabOutboxWithheldSchema).default([]),
 });
 export type IQabOutboxDrainReport = z.infer<typeof qabOutboxDrainReportSchema>;
 

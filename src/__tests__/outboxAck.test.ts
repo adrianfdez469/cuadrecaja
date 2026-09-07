@@ -265,7 +265,10 @@ describe("planOutboxAck", () => {
 });
 
 describe("emptyQabOutboxDrainReport", () => {
-  it("should return every counter at zero, both arrays empty, NO permanent failures (F-005) and NO applied STORE events (F-020)", () => {
+  // F-027 (contract v12.1, § 7.3): `withheld: []` was added here — what the day
+  // the switch is turned on looks like. Updated in place rather than left red,
+  // since the contract fixes this exact shape and dev-tester owns this file.
+  it("should return every counter at zero, both arrays empty, NO permanent failures (F-005), NO applied STORE events (F-020) and NO withheld backlog (F-027)", () => {
     expect(emptyQabOutboxDrainReport()).toEqual({
       claimed: 0,
       eventIds: [],
@@ -275,6 +278,7 @@ describe("emptyQabOutboxDrainReport", () => {
       byBusiness: [],
       permanentFailures: [],
       appliedStoreEvents: [],
+      withheld: [],
     });
   });
 

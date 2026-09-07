@@ -28,6 +28,7 @@ export const QAB_OUTBOX_ENTITIES = [
   "PRODUCT",
   "CURRENCY",
   "EXCHANGE_RATE",
+  "BUSINESS",
 ] as const;
 
 export const QAB_OUTBOX_OPERATIONS = ["CREATE", "UPDATE", "DELETE"] as const;
@@ -342,6 +343,9 @@ export const QAB_PRODUCT_ENTITY = "PRODUCT" satisfies (typeof QAB_OUTBOX_ENTITIE
 export const QAB_CATEGORY_ENTITY = "CATEGORY" satisfies (typeof QAB_OUTBOX_ENTITIES)[number];
 export const QAB_CURRENCY_ENTITY = "CURRENCY" satisfies (typeof QAB_OUTBOX_ENTITIES)[number];
 export const QAB_EXCHANGE_RATE_ENTITY = "EXCHANGE_RATE" satisfies (typeof QAB_OUTBOX_ENTITIES)[number];
+
+/** Sixth entity of the outbox (contract v12). The one place this literal is written. */
+export const QAB_BUSINESS_ENTITY = "BUSINESS" satisfies (typeof QAB_OUTBOX_ENTITIES)[number];
 
 /**
  * Dependency order of ONE emission, and the ONE place it is written.
@@ -746,3 +750,45 @@ export const QAB_ORDER_STATUS_MAX_RESPONSE_BYTES = 1_024;
  * every address on the internet (ADR 0066).
  */
 export const QAB_ORDER_WHATSAPP_HOST = "wa.me";
+
+/* -------------------------------------------------------------------------- */
+/* F-027 — the currency list the storefront shows                              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Entities the drain WITHHOLDS: they are enqueued like any other event, they are
+ * never claimed, and they wait untouched. EMPTYING THIS LIST IS THE WHOLE SWITCH.
+ *
+ * BUSINESS is here because QAB's `entity` does not admit it yet: such an event
+ * answers `400 INVALID_BATCH` and takes THE WHOLE BATCH with it, the PRODUCT
+ * events travelling in it included (contract v12.1, § Cambios requeridos en
+ * cuadrecaja ①).
+ *
+ * TO TURN IT ON, the day QAB says the applier is up: remove QAB_BUSINESS_ENTITY
+ * from this array. Nothing else — no test pins it here, on purpose.
+ *
+ * The backlog then drains on its own, claimed in `id` order, which for this
+ * entity is also `updatedAt` order: each event of a business is newer than the
+ * one before it, so each one applies and overwrites the previous, and the list
+ * that stays is the newest. The anti-stale guard is what covers the OTHER order —
+ * an event delivered late by a retry answers `stale`, which the contract reports
+ * in `ok` (§ Respuesta: everything that is not `failed` goes in `ok`), so
+ * `planOutboxAck` marks it processed instead of retrying it forever. No
+ * re-emission and no manual cleanup either way.
+ *
+ * WHILE IT IS NOT EMPTY, every drain run reports how many events are waiting and
+ * since when: `IQabOutboxDrainReport.withheld` and one QAB_OUTBOX_WITHHELD_LOG
+ * line per entity. See ADR 0092 § 1.
+ */
+export const QAB_OUTBOX_WITHHELD_ENTITIES = [QAB_BUSINESS_ENTITY] as const;
+
+/**
+ * What the claim of `outboxDrain.ts` may pick up. DERIVED, never written by hand:
+ * the two lists cannot disagree, and emptying the one above is enough.
+ */
+export const QAB_OUTBOX_DRAINABLE_ENTITIES = QAB_OUTBOX_ENTITIES.filter(
+  (entity) => !(QAB_OUTBOX_WITHHELD_ENTITIES as readonly string[]).includes(entity),
+);
+
+/** Log prefix of the withheld backlog. Entity, count and one instant: never a payload. */
+export const QAB_OUTBOX_WITHHELD_LOG = "qab.outbox.withheld";

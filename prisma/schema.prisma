@@ -1195,7 +1195,7 @@ model OutboxEvento {
   id          BigInt    @id @default(autoincrement())
   negocio     Negocio   @relation(fields: [negocioId], references: [id])
   negocioId   String
-  /// Wire value: STORE | CATEGORY | PRODUCT | CURRENCY | EXCHANGE_RATE.
+  /// Wire value: STORE | CATEGORY | PRODUCT | CURRENCY | EXCHANGE_RATE | BUSINESS.
   entidad     String
   entidadId   String
   /// Wire value: CREATE | UPDATE | DELETE.

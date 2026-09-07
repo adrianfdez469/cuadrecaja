@@ -9,6 +9,13 @@ function tieneTasaVigente(monedaCode: string, tasas: Record<string, number>): bo
   return tasa != null && tasa > 0;
 }
 
+/**
+ * NOT the same list as `buildQabDisplayCurrencies`
+ * (`src/lib/qab/qabBusinessPayload.ts`), and the two must not be unified: this
+ * hook answers "in which OTHER currencies can the POS show this amount right
+ * now", so it drops the base and drops whatever has no live rate — the other one
+ * includes the base and is indifferent to the rate.
+ */
 export function useMonedasAlternativas() {
   const { monedasNegocio, tasasVigentes, monedaBase } = useAppContext();
 
