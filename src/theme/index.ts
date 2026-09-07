@@ -410,6 +410,23 @@ function buildTheme(mode: "light" | "dark", t: SemanticTokens): Theme {
  * only for the ones the redesign actually draws as a bordered square
  * (refresh, clear filters, "+", more-actions…).
  */
+/**
+ * A product name is never clipped: it wraps onto as many lines as it needs.
+ *
+ * Half of this catalogue reads «Refresco de Cola 355 ml» and «Detergente en
+ * Polvo 1 kg» — the part an ellipsis eats is the size, which is exactly what
+ * tells two rows of the same product apart. A name that ends in «…» asks the
+ * cashier to tap the row to find out what it is.
+ *
+ * `overflowWrap: "anywhere"` is the half that is easy to forget: `normal`
+ * alone only breaks at spaces, so a single unbroken 40-character token (a
+ * code, a SKU) would push its column wider instead of wrapping.
+ */
+export const productNameSx = {
+  whiteSpace: "normal",
+  overflowWrap: "anywhere",
+} as const;
+
 export const squareIconButtonSx = {
   border: 1,
   borderColor: "divider",

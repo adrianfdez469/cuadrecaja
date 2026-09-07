@@ -12,7 +12,7 @@ import { useShowAlternativeCurrencies } from "@/hooks/useShowAlternativeCurrenci
 import { convertToBase } from "@/lib/currency";
 import { formatQuantity } from "@/utils/formatters";
 import { POS_CATALOG_ROW_HEIGHT } from "@/constants/pos";
-import { shape, touch } from "@/theme";
+import { productNameSx, shape, touch } from "@/theme";
 
 /**
  * A catalogue entry, as the redesign draws it: a row, not a card.
@@ -65,12 +65,14 @@ const STOCK_SX = { display: "block" } as const;
 // 14.5px, not the 13px of `body2`. The redesign sets the catalogue name at
 // this exact step and it is the one string a cashier reads at arm's length
 // while the phone is on the counter; the theme's body2 is sized for tables.
+//
+// It wraps instead of clipping: the row's height is a `minHeight`, so a long
+// name takes the second line it needs, and the virtualizer measures each row
+// (`measureElement`) rather than trusting the 60px estimate.
 const NAME_SX = {
   fontSize: "0.90625rem",
   lineHeight: 1.3,
-  whiteSpace: "nowrap",
-  overflow: "hidden",
-  textOverflow: "ellipsis",
+  ...productNameSx,
 } as const;
 
 const PRICE_BASE_SX = {
