@@ -1,0 +1,40 @@
+================================
+     Comercial Peña & Hijos
+       Bodega La Esquiña
+          VENTA EN CUP
+================================
+
+Cajero: María Fernández
+Fecha: 07/03/2026
+================================
+1 USD = 675,00 CUP
+================================
+--------------------------------
+2 Pasta de Dientes Ar    1350,00
+   tesanal Caribe ... 675,00    
+1 Refresco Cola 2L     10.000,00
+                   10.000,00    
+1.5 Jamón                1800,00
+                     1200,00    
+3 Café Cubita Molido     2851,50
+   Envasado Al Vac... 950,50    
+--------------------------------
+Subtotal               16.001,50
+Descuento                 500,00
+--------------------------------
+TOTAL CUP              15.501,50
+TOTAL USD                  22,97
+================================
+Pago Efectivo          20,00 USD
+Pago Transf          2001,50 CUP
+--------------------------------
+Devuelto CUP              123,45
+Propina                   250,00
+--------------------------------
+
+        ¡Vuelva pronto!
+
+ Sistema de ventas e inventario
+   cuadrecaja.ventario.cloud
+
+================================

@@ -1,0 +1,70 @@
+{
+  "tiendaNombre": "Bodega La Esquiña",
+  "negocioNombre": "Comercial Peña & Hijos",
+  "cajeroNombre": "María Fernández",
+  "ticketId": "00abcdef",
+  "fechaCompleta": "07/03/2026",
+  "productos": [
+    {
+      "cantidad": 2,
+      "nombre": "Pasta de Dientes Artesanal Caribe Bello",
+      "precioUnitario": 675,
+      "subtotal": 1350,
+      "monedaPrecioCode": "CUP"
+    },
+    {
+      "cantidad": 1,
+      "nombre": "Refresco Cola 2L",
+      "precioUnitario": 10000,
+      "subtotal": 10000,
+      "monedaPrecioCode": "CUP"
+    },
+    {
+      "cantidad": 1.5,
+      "nombre": "Jamón",
+      "precioUnitario": 1200,
+      "subtotal": 1800,
+      "monedaPrecioCode": "CUP"
+    },
+    {
+      "cantidad": 3,
+      "nombre": "Café Cubita Molido Envasado Al Vacío Media Libra",
+      "precioUnitario": 950.5,
+      "subtotal": 2851.5,
+      "monedaPrecioCode": "CUP"
+    }
+  ],
+  "subtotalBase": 16001.5,
+  "total": 15501.5,
+  "totalCash": 13500,
+  "totalTransfer": 2001.5,
+  "discountTotal": 500,
+  "discountCodes": ["PROMO10"],
+  "tipTotal": 250,
+  "pagosDetalle": [
+    { "tipo": "cash", "moneda": "USD", "monto": 20, "equivalenteBase": 13500 },
+    { "tipo": "transfer", "moneda": "CUP", "monto": 2001.5, "equivalenteBase": 2001.5 }
+  ],
+  "vueltoDetalle": [{ "moneda": "CUP", "monto": 123.45 }],
+  "monedaCobro": "USD",
+  "tasaSnapshot": { "USD": 675, "EUR": 720 },
+  "monedasUsadasEnVenta": ["USD"],
+  "monedasParaTasas": ["USD"],
+  "plantilla": {
+    "tiendaId": "11111111-1111-4111-8111-111111111111",
+    "encabezado": null,
+    "pie": "¡Vuelva pronto!",
+    "mostrarNegocio": true,
+    "mostrarTienda": true,
+    "mostrarCajero": true,
+    "mostrarDescuentos": true,
+    "mostrarPropina": true,
+    "mostrarMultimoneda": true,
+    "mostrarTasas": true,
+    "mostrarTotalesSecundarios": true,
+    "marcarLineasVacias": true,
+    "anchoPapel": 58,
+    "logoUrl": null
+  },
+  "monedaBase": "CUP"
+}
