@@ -12,12 +12,13 @@ afectados y borrar la entrada de la tabla de abiertas.
 | # | Qué falta | Bloquea | Desde |
 |---|-----------|---------|-------|
 | S-007 | Envío por zonas: `ZONE_BASED`, tarifario por zona y `contact.zoneCode` | F-013, F-016, F-026 | contrato v10.1 · 2026-09-06 |
-| S-008 | El escaparate no sabe qué monedas mostrar (`displayCurrencies`) | F-027 | contrato v10.1 · 2026-09-06 |
 
-Las dos se pidieron para la v11 y la **v11 se publicó sin ellas**, a propósito y por escrito
-(§ «Lo que NO entra en la v11, y está en conversación»). No hay campo, ni enum, ni entidad, ni
-ruta: nada de las dos es implementable todavía. Lo que sí hay es la postura de queandabuscando
-sobre cada punto, recogida abajo en cada solicitud.
+Queda una, y **ya no está en discusión: su forma se cerró entera el 2026-09-06** en una negociación
+entre los dos equipos, y lo que le falta son tres decisiones de diseño del lado de QAB, no un
+acuerdo. Está publicada como propuesta en su repositorio (`.agent/specs/propuestas/zonas-de-envio.md` (en **su** repositorio el directorio es `.agent/`, en singular; el `.agents/` de este documento es la convención de este repositorio))
+y será la **v13**. Nada de ella es implementable todavía: no hay `ZONE_BASED`, no existe
+`ZONE_TARIFF` y `contact` sigue teniendo exactamente cuatro claves. El detalle de la forma
+acordada está abajo, en la propia solicitud.
 
 ## Resueltas
 
@@ -29,10 +30,16 @@ sobre cada punto, recogida abajo en cada solicitud.
 | S-004 | `EXCHANGE_RATE` no invalida la caché del catálogo público | contrato v11 ① | 2026-09-06 |
 | S-005 | `EXCHANGE_RATE` no tiene guarda anti-rancio | contrato v11 ② | 2026-09-06 |
 | S-006 | Un fallo por evento no arrastra a sus dependientes del mismo lote | contrato v11 ③ | 2026-09-06 |
+| S-008 | El escaparate no sabe qué monedas mostrar (`displayCurrencies`) | contrato v12, afinada en la v12.1 | 2026-09-06 |
 
 Las cuatro de la v11 se concedieron **enteras y en una sola versión**, y la v11 se publicó
 **antes de estar construida** del lado de queandabuscando: está acordada, no en pie. QAB avisa
 feature a feature. Ver `estado_del_lado_receptor` en `features.json`.
+
+**S-008 se concedió igual: publicada antes de estar construida.** La v12 existe en el documento y
+`entity` todavía **no** acepta `BUSINESS`, así que emitirlo hoy no falla solo — cae en el
+`400 INVALID_BATCH` del schema del sobre y **se lleva el lote entero por delante**. Ver la
+solicitud para lo que eso obliga a hacer en F-027.
 
 ---
 
@@ -433,51 +440,156 @@ que es lo que sí depende de nosotros.
 
 ---
 
-### S-007 · Envío por zonas: `ZONE_BASED`, tarifario por zona y `contact.zoneCode` — SIGUE ABIERTA
+### S-007 · Envío por zonas: `ZONE_BASED`, tarifario por zona y `contact.zoneCode` — ABIERTA, con la forma ya cerrada
 
-> **Revisada el 2026-09-06 contra la v11: NO entra en la v11**, y el contrato lo dice por escrito
-> en § «Lo que NO entra en la v11, y está en conversación». No hay campo, ni enum, ni entidad, ni
-> ruta: **nada de esta solicitud es implementable todavía**. F-013, F-016 y F-026 siguen
-> `blocked`, y por el mismo motivo que antes.
+> **Revisada el 2026-09-06 contra la v12: NO entra, y por primera vez eso no significa que siga en
+> discusión.** La forma se negoció y se cerró **entera** ese mismo día, y está publicada como
+> propuesta del lado de QAB en `.agent/specs/propuestas/zonas-de-envio.md` (en **su** repositorio el directorio es `.agent/`, en singular; el `.agents/` de este documento es la convención de este repositorio). Será la **v13**. Lo que
+> falta no es un acuerdo: son **tres decisiones de diseño** de su lado —el formato del catálogo, su
+> versionado (incluido qué pasa con un código que muere en una versión nueva) y calcular el vector
+> ejecutando—. F-013, F-016 y F-026 siguen `blocked`, y nada de esto es implementable: no hay
+> `ZONE_BASED`, no existe `ZONE_TARIFF` y `contact` sigue teniendo cuatro claves.
 >
-> Lo que sí cambió es que ya hay respuesta punto por punto, y es favorable en todo lo
-> estructural. Lo que queandabuscando **ya afirma**:
+> **Estado del lado de QAB al 2026-09-06:** su humano aceptó la propuesta y entró en su backlog como
+> **dos features** — **F-041**, el contrato y lo que no ve nadie (`ZONE_BASED`, `ZONE_TARIFF`, el
+> catálogo, `STORE.zoneCode` y la función de precedencia con su vector), y **F-042**, el checkout que
+> ve el comprador (selector, mapa por cobertura declarada, y el pedido llevando `zoneCode` y
+> `zoneName` hasta nuestro pull). **Aceptar no es publicar:** la v13 sigue sin salir y lo que la
+> bloquea son las tres decisiones de diseño, anotadas de su lado como SP1 (formato del catálogo),
+> SP2 (cómo sabe cada lado que comparte versión, y qué pasa con las filas que apuntan a una zona que
+> desapareció) y SP3 (calcular el vector ejecutando). Y van **después** de sus F-035 a F-038, así
+> que no es pronto. **SP3 no depende de nosotros**: QAB entrega el vector ya resuelto en el JSON del
+> contrato. Ofrecen dos cosas que son decisión del humano de este lado: diseñar SP1 y SP2 juntos en
+> vez de dos veces, y que calculemos el vector por separado para cruzarlo con el suyo antes de
+> publicarlo.
 >
-> - **`ZONE_BASED` como tercer valor de `deliveryFeeMode` es el camino previsto**, no una
->   excepción: su ADR 0028 dice que un modo de envío nuevo es una versión del contrato, y su
->   § «Reabrir cuando» nombra exactamente esto.
-> - **`ZONE_TARIFF` como sexta entidad del outbox, de acuerdo**, y no un array anidado en el
->   `payload` de `STORE`. Suman un argumento que esta solicitud no había dado: el `payload` de
->   `STORE` es un upsert de la fila entera con guarda anti-rancio, así que cambiar una tarifa
->   reenviaría la configuración del local y **competiría con la guarda** por quién escribió el
->   último.
-> - **`contact.zoneCode` y `contact.lat`/`lng` opcionales, de acuerdo**, con el `zoneCode`
->   decidiendo el precio y las coordenadas nunca. Es contrato mayor porque cambia la forma del
->   pedido en el pull.
-> - **Esto no arrastra PostGIS**: `Store.latitude`/`longitude` ya viajan y ya se guardan, y para
->   el `zoneCode` no hace falta geometría.
+> **SP1 y SP2 quedaron CERRADOS el 2026-09-06**, diseñados a cuatro manos por decisión del humano
+> de este lado. Falta solo SP3 del lado de QAB —generar—, más la revisión humana de la unión de
+> arranque. Lo acordado:
 >
-> **Las cuatro preguntas abiertas, contestadas como propuesta de su lado:** una zona sin tarifa
-> es «no entregamos ahí» y la tienda declara las que sirve; los modos son **excluyentes**, que es
-> lo único consistente con lo anterior; un `zoneCode` que ellos no conozcan es un `400` con
-> nombre propio y nunca una tarifa que nadie puede seleccionar; y la versión del catálogo se
-> publica **en el propio `sync-contract.md`**, que es donde los dos lados ya miran. De acuerdo
-> también con sembrar desde OpenStreetMap y con no meter Google Maps. **Las cuatro coinciden con
-> las decisiones del humano ya anotadas en F-026**, así que no hay nada que renegociar ahí.
+> - **Autoridad repartida:** la lista oficial **DPA/ONEI manda en códigos y nombres**; **OSM manda
+>   en la geometría y en nada más**. El hallazgo que lo obligó es de QAB y ninguno de los dos lo
+>   había nombrado: **el `code` NO sale de OSM**, así que hay que unir los polígonos con la lista
+>   oficial, y esa unión se hace **por nombre** — acentos, «La Habana» contra «Ciudad de La Habana»,
+>   homónimos en provincias distintas. Un código mal asignado **no lo detecta ningún hash**: los dos
+>   ficheros serían internamente consistentes y el comercio cobraría la tarifa de un municipio a
+>   otro, para siempre.
+> - **La unión por nombre ocurre UNA VEZ EN LA VIDA.** El artefacto guarda **el id de la relación de
+>   OSM** de cada zona, así que toda regeneración une **por id** y la revisión humana pasa de 184
+>   filas a un **diff**. Aportación de este lado: sin el id, la revisión se reprograma en vez de
+>   cerrarse, porque en la segunda generación nadie revisa 184 filas con atención. Y guarda también
+>   **el nombre que tenía en OSM al generarse**, aportación de QAB, para que el diff distinga tres
+>   cosas y no dos: id nuevo, id que desapareció, e **id vivo que cambió de nombre** — el único que
+>   necesita una persona, porque puede ser una errata o el rastro de un cambio territorial.
+> - **Tres identidades por zona, con su papel escrito: `code` DPA/ONEI, id de OSM, y nombre. Por el
+>   cable viaja SOLO el `code`.** El id de OSM es identidad de la *regeneración* y no aparece nunca
+>   en un `ZONE_TARIFF`, ni en un pedido, ni en una pantalla; el nombre es para las personas.
+> - **Simplificación TOPOLÓGICA**, aportación de este lado. Simplificar polígono a polígono deja
+>   **huecos y solapes** en la frontera compartida, y el fallo aparece **justo donde se usa el
+>   mapa**: el comprador toca su casa en el límite entre Playa y Marianao y el punto no cae en
+>   ninguna zona, o cae en dos. Forma accionable: el conjunto se simplifica **en una sola
+>   operación**, nunca zona a zona. Dos comprobaciones al generar, y la segunda es la que vale: que
+>   la unión de los municipios de una provincia la reconstruya sin huecos, y que **cualquier punto
+>   dentro de una provincia caiga en exactamente una** de sus zonas.
+> - **El NIVEL de cada zona lo declara el artefacto y NO se deduce de la longitud del código.** Cuba
+>   tiene un municipio especial —la Isla de la Juventud— al nivel de una provincia, así que «2
+>   dígitos = provincia, 4 = municipio» es una regla que aguanta 183 filas y rompe en la 184. Ver
+>   ADR 0091 para el fallo concreto que evita.
+> - **La procedencia se escribe junto a los bytes**, y no vale «genéralo con este comando»: OSM
+>   cambia a diario, así que un comando es una promesa que no se puede cumplir dos veces. Lleva la
+>   edición de ONEI usada, el volcado de OSM exacto con su fecha y suma de comprobación, los
+>   `admin_level`, la proyección, la tolerancia y la **precisión decimal** —que es una segunda
+>   pérdida y suele olvidarse—, el modo de simplificación, el **recuento** de divisiones de primer
+>   nivel y de municipios, las filas que necesitaron mano, y el hash de cada artefacto.
+> - **Genera QAB**, una sola extracción para los dos artefactos: si el índice sale de un volcado y la
+>   geometría de otro, un municipio puede faltar en uno y **ningún hash lo detecta**, porque los dos
+>   ficheros serían internamente consistentes.
+> - **El vector de precedencia (SP3) quedó cruzado**: dos implementaciones independientes, calculadas
+>   a ciegas, **diez casos idénticos** en importe, fila decisoria y camino. Ver ADR 0091.
 >
-> **Discrepancia que sí queda abierta, y es de pantalla, no de cable:** esta solicitud propone que
-> la persona toque su municipio **sobre un mapa**; queandabuscando responde que el mapa lo pinta
-> su checkout, no el POS, y que servir un GeoJSON municipal de Cuba —aun simplificado, cientos de
-> KB— en la página cuyo peso importa y para un público con conexión limitada no sale a cuenta. Su
-> propuesta es un **selector jerárquico provincia → municipio** como camino primario, con el mapa
-> detrás de una carga diferida solo si se demuestra que hace falta. Es el mismo argumento con el
-> que esta solicitud descarta el GPS: la zona la elige la persona.
+> **Por qué se partió en dos versiones.** S-008 estaba decidida y esto no; agruparlas era retener la
+> decidida como rehén. El número lo decidió nuestro grafo: **F-027 depende de una sola cosa, F-006,
+> que ya está en `passes: true`**, mientras que la rama de zonas arrastra cuatro features (F-013,
+> del que cuelgan F-015 y F-017, y F-026, que cuelga de F-013, F-016 y F-025). QAB confirmó que
+> partir **no retrasa la v13**: lo que marca su calendario son las tres decisiones abiertas, que no
+> corren más por tener el documento sin publicar.
 >
-> **Lee esto antes de tocar F-026**, cuya decisión (4) del humano dice «la zona LA ELIGE LA
-> PERSONA sobre el mapa». Sigue siendo cierta la parte que importa —la elige la persona— y la que
-> está en discusión es solo con qué widget. Del lado del comprador la pantalla es de QAB, así que
-> esa discusión no es nuestra; del nuestro solo lo es si el encargado elige zonas para armar el
-> tarifario, y ahí el mismo argumento del peso no aplica igual.
+> **La forma acordada, cerrada y no renegociable salvo que aparezca algo nuevo:**
+>
+> - **`ZONE_BASED`** como tercer valor de `deliveryFeeMode`, y los modos son **excluyentes**.
+> - **`ZONE_TARIFF`** como entidad propia del outbox y **no** un array anidado en `STORE`: el
+>   `payload` de `STORE` es un upsert de la fila entera **con guarda anti-rancio**, así que cambiar
+>   una tarifa reenviaría la configuración del local y competiría con la guarda.
+> - **La fila lleva un discriminante, no dos banderas:**
+>   `{ storeId, zoneCode, rule: "FEE" | "NOT_SERVED" | "INHERIT", deliveryFee?, updatedAt }`.
+>   `deliveryFee` es **obligatorio** con `FEE` y **prohibido** en las otras dos —presente es `400`,
+>   con el precedente de `barcode` de la v4—.
+> - **`ZONE_TARIFF` no acepta `DELETE`.** Si llega, vuelve en `failed[]` con su propio código:
+>   ruido, no el silencio con el que `CURRENCY` y `EXCHANGE_RATE` ignoran `operation`. Es una
+>   decisión de este lado y cierra un agujero real — con `DELETE`, la fila aplicada desaparece, no
+>   queda marca contra la que comparar, y **un `UPDATE` rancio posterior resucita la fila** con un
+>   importe que el encargado ya retiró. Sin `DELETE` no existe el estado «fila ausente», así que
+>   **toda fila conserva siempre su marca y la guarda es total por construcción**.
+> - **`INHERIT` a nivel provincia es legal.** Al matar el `DELETE`, `INHERIT` pasó a ser el **único
+>   mecanismo de retracción que existe**, en cualquier nivel: un encargado que puso «toda La Habana
+>   a 400» y quiere volver a no tener regla de provincia conservando sus excepciones no tiene otro
+>   camino. No hace falta regla nueva: «cae al escalón de encima; si no hay, no servida» ya lo
+>   cubre.
+> - **Precedencia:** municipio con `FEE` → ese importe · municipio con `NOT_SERVED` → no servida ·
+>   municipio con `INHERIT` **o sin fila** → cae a la provincia, y si la provincia tampoco resuelve,
+>   no servida. **Una fila de provincia declara servidas todas sus zonas.** La resuelve QAB en la
+>   consulta, pero **se implementa en los dos lados**, así que va en el contrato con letra y de aquí
+>   sale como **función pura en `src/lib/` con su test**.
+> - **Un vector de prueba de siete casos, en JSON dentro del contrato**, calculado ejecutando y no a
+>   mano. Los tests de ambos lados **leen ese JSON**, no una copia: la transcripción a mano es justo
+>   donde las dos implementaciones divergen en silencio.
+> - **Las filas mueren con la sucursal**, por clave ajena del lado de QAB, no por un evento de zona.
+> - **Upsert con guarda anti-rancio por `updatedAt`**, y **la marca es el instante real de la
+>   edición** del encargado, nunca el `now()` del drenaje — la misma regla de la v11 ②, que ya
+>   cumplimos por ese camino de código.
+> - **`contact.zoneCode`** decide el precio; **`contact.lat`/`lng` opcionales** y no deciden nunca.
+> - **`contact.zoneName`**, petición de QAB y buena para *nuestro* usuario: instantánea del nombre
+>   como se le enseñó al comprador, igual que `rateSnapshot` congela las tasas. Sin él, el encargado
+>   y el mensajero leen un código DPA en vez de «Playa». **Es de lectura humana y nunca se compara,
+>   se parsea ni resuelve nada**: el precio y la cobertura salen siempre del `zoneCode`.
+> - **`STORE.zoneCode`** de la sucursal. Lo pedimos nosotros al detectar que su precarga se apoyaba
+>   en `Store.province`, que **es texto libre tecleado por el comerciante** en los dos schemas y
+>   falla más en la capital. Un `zoneCode` inválido **rechaza el evento** con su propio código:
+>   sale de un selector sobre un catálogo compartido, así que solo puede estar mal si los catálogos
+>   divergen, y esa es una alarma que no se oye bajito.
+> - **Catálogo geográfico compartido**, sembrado de OpenStreetMap, identificado por `code` DPA/ONEI.
+>   **Los polígonos no viajan**: por el cable va el código.
+> - **El comprador elige sobre mapa Y lista**, con la geometría servida **por cobertura declarada de
+>   la tienda y no por provincia** —aportación de este lado—: un comercio que reparte en cuatro
+>   municipios descarga cuatro polígonos, y el paso de provincia solo aparece cuando la cobertura
+>   cruza más de una. Eso disuelve la objeción de peso de JavaScript que QAB tenía, y con ella la
+>   única discrepancia que quedaba viva con la decisión (4) de F-026.
+> - **La cobertura se ve antes del checkout**, nunca dentro: no se ofrece una zona para luego decir
+>   que no.
+>
+> **Lo que esto obliga en NUESTRA pantalla, y va al contrato de diseño con estas palabras.** Hay dos
+> pares que significan cosas opuestas y van a estar a un clic en la misma tabla:
+>
+> - **Borrar una zona de la lista ≠ declarar que no se entrega ahí.** El encargado va a intentar lo
+>   primero cuando quiere lo segundo, porque en su cabeza quitar una zona es borrarla.
+> - **Retirar la regla de provincia (`INHERIT`) ≠ declarar la provincia no servida (`NOT_SERVED`).**
+>   El segundo apaga la provincia entera.
+>
+> Y la exigencia que hace utilizable la precedencia: **el encargado tiene que leer su cobertura
+> resuelta** —«sirvo estas 14 zonas a estos precios»— y no las cuatro filas que tecleó. Un mecanismo
+> de precedencia potente y opaco es peor que no tenerlo.
+>
+> **El costo asumido, escrito por adelantado para que se pueda releer.** Hoy el catálogo tiene **un
+> solo consumidor**: el tarifario. No hay ningún feature de búsqueda ni de informes por zona, ni
+> abierto ni previsto, y la distancia sale de las coordenadas y no del catálogo. Se descartó **por
+> escrito y no por omisión** la alternativa simple —zonas con nombre libre declaradas por cada
+> tienda, sin DPA ni GeoJSON— por cuatro razones: un nombre libre **no se puede dibujar**, y sin
+> geometría no hay mapa; es el mismo concepto en dos bases de datos de dos organizaciones, que es lo
+> que ya mordió en E-014/E-039; no es más simple, es el mismo problema repartido entre quinientos
+> comerciantes, donde nadie lo puede arreglar; y `zoneName` se queda sin sentido si el código *es* el
+> nombre. **Si dentro de un año el tarifario sigue siendo lo único que usa el catálogo y mantener su
+> versión sincronizada cuesta más de lo que ahorra, la decisión correcta era la otra y esta
+> conversación es donde nos equivocamos.** QAB se llevó este párrafo literal a su propuesta.
 
 **Cómo apareció.** Necesidad de producto, no un hueco del contrato: los comercios cubanos cobran el
 envío por municipio, y hoy el contrato solo permite una tarifa plana única por sucursal o cotizar a
@@ -550,37 +662,74 @@ libre**. Cerrar cualquiera de los dos antes de esta conversación obliga a reabr
 
 ---
 
-### S-008 · El escaparate no sabe qué monedas mostrar (`displayCurrencies`) — SIGUE ABIERTA
+### S-008 · El escaparate no sabe qué monedas mostrar (`displayCurrencies`) — RESUELTA en la v12
 
-> **Revisada el 2026-09-06 contra la v11: NO entra en la v11**, junto con S-007 y por escrito en
-> § «Lo que NO entra en la v11, y está en conversación». **F-027 sigue `blocked`.**
+> **Cerrada el 2026-09-06, concedida entera y por la vía mejor de las dos.** La señal viaja en una
+> **entidad `BUSINESS` propia** —la sexta del outbox— y no repetida en el `payload` de `STORE`, que
+> era la propuesta inicial de QAB. La retiraron ellos mismos al ver su coste: con la lista repetida
+> por sucursal, habilitar una moneda emite N eventos que **pueden fallar por separado**, y el
+> resultado son dos sucursales de la misma marca enseñando listas distintas sin que nada esté roto.
 >
-> Respuesta de queandabuscando, que concede el fondo y deja abierto el sitio:
+> El argumento que cerró el sitio es de este lado y conviene retenerlo, porque vuelve a aplicar
+> cada vez que alguien proponga meter un dato de negocio en `STORE`: **desde la v9 un `openingHours`
+> malformado rechaza el evento `STORE` entero**, así que la lista de monedas se habría perdido en
+> silencio justo en la sucursal con el calendario mal puesto, y el único rastro sería una entrada
+> en `failed[]` de un evento que trataba de otra cosa.
 >
-> - **Sí a la señal explícita.** Descartan derivarla de las tasas por lo que decía esta solicitud
->   —no hay forma de borrar una tasa— y por algo peor que ellos mismos señalan: la v10.1
->   recomienda `active: false` para retirar una moneda sobre una tabla que **es global a la
->   plataforma**, así que un negocio que retire el euro se lo retiraría a todos.
-> - **El problema abierto es DÓNDE.** El dato es del negocio y en el cable no hay entidad de
->   negocio: `STORE` es el único evento que lleva `businessId` y todo lo del negocio viaja de
->   rebote ahí (`businessName`, `baseCurrency`). Las dos salidas son repetir ese patrón —con su
->   coste conocido: N sucursales repiten la lista y la escribe la que llegue la última— o abrir
->   una entidad `BUSINESS`. **Con `ZONE_TARIFF` entrando en la misma conversación, su propuesta
->   es repetir el patrón de `STORE`.**
-> - **El redondeo ya cumple lo que se pedía.** Su conversión va del importe al ancla CUP y de ahí
->   al destino en una sola división, half-up alejándose del cero sobre enteros escalados, y es la
->   misma función que usa el checkout. Coincide con ADR 0060 de cuadrecaja.
-> - **La segunda condición decae con S-004.** Concedida ①, los equivalentes se pueden pintar en el
->   servidor sin quedarse viejos: **no hace falta convertir en el cliente ni publicar un endpoint
->   de tasas**. La sugerencia de esta solicitud queda superada por una salida mejor.
+> **`payload` de `BUSINESS`:** `businessId`, `displayCurrencies` (códigos de 3 caracteres, `[]`
+> válido) y `updatedAt`. **No añade dependencia de orden**: la lista de la v11 ③ sigue teniendo dos
+> flechas y solo dos. El `Business` ya existe antes de cualquier sync porque lo crea
+> `POST /api/provisioning/credential` (v10), y una moneda de la lista sin tasa vigente **no se
+> pinta y no falla**, que es lo que evita la flecha.
 >
-> **Qué significa para F-027:** sus criterios están escritos a nivel de comportamiento y **no
-> nombran el cable**, a propósito, así que sobreviven a que la señal acabe viajando en `STORE` o
-> en una entidad nueva. Lo que hay que revisar cuando la v12 cierre es el contrato de interfaces,
-> no los criterios. Si acaba siendo el patrón de `STORE`, aparece un efecto que hoy F-027 no
-> contempla: la lista viaja **repetida por sucursal**, así que habilitar una moneda emite N
-> eventos `STORE` y no uno — y eso convive con la regla «omitir no es apagar» de F-016 y con el
-> rechazo por evento de `openingHours` de la v9.
+> **Las dos capas de la regla, que es lo que hay que no romper aguas abajo:**
+>
+> - **La lista no se poda por falta de tasa.** Es una declaración del comerciante, no una lista
+>   derivada: ni el ancla, ni la moneda base, ni una moneda sin tasa se caen de ella.
+> - **Lo que se omite es el importe que no se puede calcular**, producto a producto y moneda a
+>   moneda. El importe en la **moneda base es el primario y el que se cobra**; la moneda de
+>   referencia que elige el comprador **se añade, no sustituye**.
+>
+> Nuestra guarda de validez de cable **no es poda y convive con esto**: el criterio 4 de F-027
+> filtra por *forma* de código de moneda, no por tasas. La regla del contrato quedó redactada como
+> «no se poda **por falta de tasa**» a petición nuestra, justo para que las dos cosas no se pisen.
+>
+> **Cuatro decisiones que QAB tomó al escribirlo y que no se habían hablado:** `CREATE` y `UPDATE`
+> hacen lo mismo y un `DELETE` se **rechaza** con `BUSINESS_DELETE_NOT_SUPPORTED` (ruido, no el
+> silencio de la v10.1); `updatedAt` es guarda anti-rancio; si la base no viene en la lista se
+> enseña igual; y no hay tope de longitud, con los duplicados descartados sin error.
+>
+> **Un código malformado NO mata el lote:** vuelve en `failed[]` con
+> `BUSINESS_DISPLAY_CURRENCIES_INVALID` y el resto del lote se aplica. Sigue el camino que abrió
+> `openingHours` en la v9 —la lista se valida en el aplicador y no en el schema del sobre— porque
+> declararla estricta ahí convertiría un código basura en un `400 INVALID_BATCH` que se lleva por
+> delante los otros 499 eventos.
+>
+> **Lo que corrigió la v12.1, y las tres son nuestras.** La v12 pedía «el `updatedAt` de la fila de
+> origen», copiado de las otras cuatro entidades con guarda, y **en `BUSINESS` no hay fila de
+> origen**: la lista es un conjunto y ninguna de sus filas es la que cambió. Peor, `NegocioMoneda`
+> **no tiene ninguna columna de tiempo**. Quedó escrito como **«el instante en que cambió la lista»,
+> fijado dentro de la transacción que la escribe** — el mismo camino de código con el que ya
+> cumplimos la v11 ②. Se corrigió también la tabla de § Mapeo de nombres, que decía «los
+> `NegocioMoneda` con `activo`» y ahora dice **«más `Negocio.monedaBase`»**.
+>
+> **Y la trampa que va con ello, escrita en el contrato: la marca NO es el `max()` de los
+> `updatedAt` de esas filas.** Si algún día se añade esa columna y alguien la resuelve así,
+> **retirar** una moneda **baja** el máximo, el evento legítimo que sigue al cambio llega con una
+> marca menor que la guardada, se responde `stale`, y **la retirada no se aplica nunca sin que nada
+> falle**. Es el fallo que la v11 ② vino a cerrar, entrando por la puerta de al lado.
+>
+> **PELIGRO OPERATIVO, y es lo único de la v12 que puede hacer daño antes de estar construida: no
+> emitir `BUSINESS` todavía.** `entity` no admite ese valor aún, así que hoy no falla solo — cae en
+> el `400 INVALID_BATCH` del schema del sobre y **se lleva el lote entero por delante, incluidos los
+> `PRODUCT` que viajaran con él**. QAB avisará cuando el aplicador esté en pie; su orden es F-035,
+> F-036 y F-037 primero, que son deuda de la v11.
+>
+> **Qué significa para F-027, y es una buena noticia:** sus seis criterios se verifican **leyendo la
+> fila de `OutboxEvento`**, no llegando a QAB. Así que se implementa y se cierra entero ahora, con
+> el **drenaje filtrando los eventos `BUSINESS`** hasta la señal. La funcionalidad queda hecha y
+> verificada; lo único que espera es un interruptor. Enviaremos `["CUP"]` y nunca `[]` para el caso
+> de solo la base, por el criterio 4.
 
 **Cómo apareció.** Necesidad de producto: un negocio que tiene varias monedas habilitadas quiere que
 el comprador vea el precio **en todas ellas**, igual que ya lo ve el vendedor en el POS de
