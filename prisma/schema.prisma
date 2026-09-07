@@ -915,6 +915,7 @@ model GastoTienda {
   tipoCalculo TipoCalculo
   naturaleza  NaturalezaGasto  @default(OPERATIVO)
   monto       Float? // cuando tipoCalculo = MONTO_FIJO
+  monedaCode  String? // null = monedaBase; solo aplica a MONTO_FIJO. Sin FK a propósito: desactivar una moneda no debe arrastrarse los gastos
   porcentaje  Float? // 0-100, cuando tipoCalculo = PORCENTAJE_*
   recurrencia RecurrenciaGasto
   diaMes      Int?

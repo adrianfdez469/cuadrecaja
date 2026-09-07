@@ -225,12 +225,17 @@ export async function POST(
         await tx.productoTienda.update({ where: { id: p.id }, data });
       }
 
-      // Convert fixed-amount expenses (MONTO_FIJO) — percentage-based ones are unaffected
+      // Convert fixed-amount expenses (MONTO_FIJO) — percentage-based ones are unaffected.
+      // `monedaCode: null` is the filter that matters: only amounts held IN THE
+      // BASE CURRENCY need re-expressing. An expense pinned to its own currency
+      // ("rent is 200 USD") is worth 200 USD before and after the base changes,
+      // and converting it here would silently restate the rent.
       const gastosFijos = await tx.gastoTienda.findMany({
         where: {
           negocioId: id,
           tipoCalculo: "MONTO_FIJO",
           monto: { not: null },
+          monedaCode: null,
         },
         select: { id: true, monto: true },
       });

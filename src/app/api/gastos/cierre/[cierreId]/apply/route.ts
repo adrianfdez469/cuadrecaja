@@ -4,6 +4,8 @@ import { getSession } from "@/utils/auth";
 import { verificarPermisoUsuario } from "@/utils/permisos_back";
 import { applyGastosSchema } from "@/schemas/gastos";
 import { calcularGananciaFinal } from "@/lib/gastos";
+import { buildTasaSnapshot, convertToBase } from "@/lib/currency";
+import { loadTasaHistory } from "@/lib/tasaSnapshotResolver";
 
 export async function POST(
   req: NextRequest,
@@ -29,6 +31,9 @@ export async function POST(
 
     const cierre = await prisma.cierrePeriodo.findFirst({
       where: { id: cierreId, tienda: { negocioId: user.negocio.id } },
+      include: {
+        tienda: { select: { negocio: { select: { id: true, monedaBase: true } } } },
+      },
     });
     if (!cierre) {
       return NextResponse.json(
@@ -65,6 +70,34 @@ export async function POST(
 
     const { gastosToApply } = parsed.data;
 
+    const monedaBase = cierre.tienda.negocio.monedaBase ?? "CUP";
+    const tasas = buildTasaSnapshot(
+      await loadTasaHistory(cierre.tienda.negocio.id),
+    );
+
+    /**
+     * The currency of a recurring expense is read back from `GastoTienda`, not
+     * taken from the request: the body reaches us straight from the browser, and
+     * a currency decides how much the amount is worth once converted. Restricted
+     * to this store's rows so an id from another store cannot be smuggled in.
+     */
+    const gastoTiendaIds = gastosToApply
+      .map((g) => g.gastoTiendaId)
+      .filter((id): id is string => Boolean(id));
+    const monedaPorGastoTienda = new Map(
+      (
+        await prisma.gastoTienda.findMany({
+          where: { id: { in: gastoTiendaIds }, tiendaId: cierre.tiendaId },
+          select: { id: true, monedaCode: true },
+        })
+      ).map((g) => [g.id, g.monedaCode]),
+    );
+    /** Percentage-based amounts come from base-currency totals: always base. */
+    const monedaDe = (g: (typeof gastosToApply)[number]): string | null =>
+      g.tipoCalculo === "MONTO_FIJO" && g.gastoTiendaId
+        ? (monedaPorGastoTienda.get(g.gastoTiendaId) ?? null)
+        : null;
+
     // Obtener los gastos ad-hoc ya registrados para sumarlos al total
     const gastosAdHocExistentes = await prisma.gastoCierre.findMany({
       where: { cierreId, esAdHoc: true },
@@ -84,17 +117,22 @@ export async function POST(
             monto: g.monto ?? null,
             porcentaje: g.porcentaje ?? null,
             esAdHoc: false,
+            monedaCode: monedaDe(g),
           })),
         });
       }
 
       // Solo naturaleza OPERATIVO resta de ganancia (pre-cálculo de referencia; close/route.ts recalcula definitivamente)
+      // Amounts in a foreign currency are converted before summing — mixing
+      // 20 USD into a CUP total as a bare 20 understates the expense.
+      const enBase = (montoCalculado: number, monedaCode: string | null) =>
+        convertToBase(montoCalculado, monedaCode ?? monedaBase, tasas, monedaBase);
       const totalGastosRecurrentes = gastosToApply
         .filter((g) => g.naturaleza === "OPERATIVO")
-        .reduce((s, g) => s + g.montoCalculado, 0);
+        .reduce((s, g) => s + enBase(g.montoCalculado, monedaDe(g)), 0);
       const totalGastosAdHoc = gastosAdHocExistentes
         .filter((g) => g.naturaleza === "OPERATIVO")
-        .reduce((s, g) => s + g.montoCalculado, 0);
+        .reduce((s, g) => s + enBase(g.montoCalculado, g.monedaCode), 0);
       const totalGastos = totalGastosRecurrentes + totalGastosAdHoc;
 
       await tx.cierrePeriodo.update({

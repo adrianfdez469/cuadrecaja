@@ -30,9 +30,18 @@ export async function PUT(
       return NextResponse.json({ error: "Datos inválidos", details: parsed.error.flatten() }, { status: 400 });
     }
 
+    // `updateGastoTiendaSchema` is a `.partial()`, so it carries no refinement:
+    // switching an expense to a percentage would otherwise leave its currency
+    // behind, and a stale monedaCode converts an amount that is already in base.
+    const tipoCalculo = parsed.data.tipoCalculo ?? gasto.tipoCalculo;
+    const data =
+      tipoCalculo === "MONTO_FIJO"
+        ? parsed.data
+        : { ...parsed.data, monedaCode: null };
+
     const updated = await prisma.gastoTienda.update({
       where: { id: gastoId },
-      data: parsed.data,
+      data,
       include: { plantilla: true },
     });
 

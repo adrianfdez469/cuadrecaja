@@ -164,13 +164,24 @@ const stockRoles: Record<StockRole, keyof Hues> = {
   expired: "negative",
 };
 
-export type SyncRole = "online" | "offline" | "syncing" | "failed";
+export type SyncRole =
+  | "online"
+  | "offline"
+  | "syncing"
+  | "failed"
+  /** Sales registered on this device that are not on the server yet. */
+  | "pending";
 
 const syncRoles: Record<SyncRole, keyof Hues> = {
   online: "positive",
   offline: "caution",
   syncing: "info",
   failed: "negative",
+  // The same ink as `offline`, on purpose: a queue of sales is not a failure,
+  // it is the design working. It gets its own name rather than its own colour
+  // because the case that matters most — a queue *with* a connection — would
+  // be a lie painted with a role called `offline`.
+  pending: "caution",
 };
 
 export type SubscriptionRole = "active" | "grace" | "expired" | "suspended";

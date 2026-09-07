@@ -15,6 +15,27 @@ export const RecurrenciaGastoEnum = z.enum([
 // (ej. compra de equipamiento/capital que no es mercancía)
 export const NaturalezaGastoEnum = z.enum(["OPERATIVO", "INVERSION"]);
 
+/**
+ * A currency only makes sense on a fixed amount: percentage-based expenses are
+ * derived from period totals that are already expressed in the base currency,
+ * so tagging them with another currency would convert an amount twice.
+ *
+ * Shared by every expense shape that carries `monedaCode` so the three of them
+ * cannot drift apart.
+ */
+const monedaSoloMontoFijoRefinement = (
+  data: { tipoCalculo: string; monedaCode?: string | null },
+  ctx: z.RefinementCtx,
+) => {
+  if (data.tipoCalculo !== "MONTO_FIJO" && data.monedaCode) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["monedaCode"],
+      message: "La moneda solo aplica a gastos de monto fijo",
+    });
+  }
+};
+
 const recurrenciaRefinement = (
   data: {
     recurrencia: string;
@@ -103,6 +124,9 @@ export const gastoTiendaSchema = gastoPlantillaSchema.extend({
     .finite()
     .nullable()
     .optional(),
+  // null = monedaBase. Each store picks its own: the same template assigned to
+  // two stores can be paid in different currencies.
+  monedaCode: z.string().nullable().optional(),
 });
 
 // Base sin refinements para poder usar .partial() en updates
@@ -137,6 +161,7 @@ export const createGastoTiendaSchema = gastoTiendaInputBase.superRefine(
         message: "El porcentaje es requerido y debe ser mayor a 0",
       });
     }
+    monedaSoloMontoFijoRefinement(data, ctx);
   },
 );
 export const updateGastoTiendaSchema = gastoTiendaInputBase.partial();
@@ -150,6 +175,10 @@ export const assignPlantillaSchema = z.object({
   diaMes: z.number().int().min(1).max(31).nullable().optional(),
   mesAnio: z.number().int().min(1).max(12).nullable().optional(),
   diaAnio: z.number().int().min(1).max(31).nullable().optional(),
+  // The template fixes what the expense IS; the store fixes what it costs and
+  // in which currency. `tipoCalculo` lives on the template, so the route checks
+  // the fixed-amount rule against it instead of a refinement here.
+  monedaCode: z.string().nullable().optional(),
 });
 
 // ─── GastoCierre (registro inmutable por cierre) ────────────────────────────
@@ -183,6 +212,7 @@ export const gastoPreviewSchema = z.object({
   porcentaje: z.number().nullable().optional(),
   recurrencia: RecurrenciaGastoEnum,
   esAdHoc: z.boolean().default(false),
+  monedaCode: z.string().nullable().optional(),
   motivoAplica: z.string().optional(),
 });
 
@@ -206,15 +236,7 @@ export const gastoAdHocCreateSchema = z
     porcentaje: z.number().min(0).max(100).finite().nullable().optional(),
     monedaCode: z.string().nullable().optional(),
   })
-  .superRefine((data, ctx) => {
-    if (data.tipoCalculo !== "MONTO_FIJO" && data.monedaCode) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["monedaCode"],
-        message: "La moneda solo aplica a gastos de monto fijo",
-      });
-    }
-  });
+  .superRefine(monedaSoloMontoFijoRefinement);
 
 // ─── Respuestas de API ───────────────────────────────────────────────────────
 

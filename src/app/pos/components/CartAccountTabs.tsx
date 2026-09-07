@@ -9,12 +9,13 @@ import {
   type MouseEvent,
   type ReactNode,
 } from "react";
-import { Box, ButtonBase, Typography } from "@mui/material";
+import { Box, ButtonBase } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import SelectableTextField from "@/components/SelectableTextField";
 import { CartAccountMenu } from "@/app/pos/components/CartAccountMenu";
 import { useCartStore } from "@/store/cartStore";
 import { useStoreStatus } from "@/hooks/useStoreStatus";
+import { SyncStatusLine } from "@/components/nav/SyncStatusLine";
 import { shape, touch } from "@/theme";
 
 /**
@@ -102,14 +103,13 @@ const NEW_TAB_SX = {
   fontSize: "1.25rem",
 } as const;
 
+// Stacked and right-aligned, at the end of the tab row. The units keep their
+// full text at every width here — they sit on two lines, so each one has the
+// whole block to itself instead of sharing one line as they do in the top bar.
 const STATUS_SX = {
   flex: "0 0 auto",
   ml: "auto",
   textAlign: "right",
-  fontSize: "0.6875rem",
-  lineHeight: 1.3,
-  color: "text.secondary",
-  whiteSpace: "nowrap",
 } as const;
 
 const EDIT_FIELD_SX = { minWidth: 140, flex: "0 0 auto" } as const;
@@ -210,10 +210,6 @@ function CartAccountTabsComponent({
     setActiveCart(id);
   };
 
-  // Split on the same separator the top bar joins with: the drawing stacks
-  // the two facts on two lines here.
-  const statusLines = storeStatus?.split(" · ");
-
   return (
     <Box sx={ROOT_SX}>
       <Box sx={SCROLLER_SX}>
@@ -277,12 +273,12 @@ function CartAccountTabsComponent({
         </ButtonBase>
       </Box>
 
-      {statusLines && (
-        <Typography component="div" sx={STATUS_SX}>
-          {statusLines.map((line) => (
-            <Box key={line}>{line}</Box>
-          ))}
-        </Typography>
+      {storeStatus && (
+        <SyncStatusLine
+          status={storeStatus}
+          direction="column"
+          sx={STATUS_SX}
+        />
       )}
 
       {endAdornment}

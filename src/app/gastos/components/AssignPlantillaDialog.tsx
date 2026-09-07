@@ -35,6 +35,8 @@ import {
 import { formatearCuandoAplica } from "@/utils/gastos";
 import MoneyField from "@/components/MoneyField";
 import PercentageField from "@/components/PercentageField";
+import { useMonedaOptions } from "@/hooks/useMonedaOptions";
+import { monedaSimbolo } from "@/utils/monedas";
 
 interface Props {
   open: boolean;
@@ -51,9 +53,12 @@ export default function AssignPlantillaDialog({
 }: Props) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const { monedaOptions, monedaBase, hasMultipleCurrencies } =
+    useMonedaOptions();
   const [step, setStep] = useState<1 | 2>(1);
   const [selected, setSelected] = useState<IGastoPlantilla | null>(null);
   const [monto, setMonto] = useState("");
+  const [monedaCode, setMonedaCode] = useState<string | null>(null);
   const [porcentaje, setPorcentaje] = useState("");
   const [diaMes, setDiaMes] = useState<number | "">("");
   const [mesAnio, setMesAnio] = useState<number | "">("");
@@ -66,6 +71,7 @@ export default function AssignPlantillaDialog({
       setStep(1);
       setSelected(null);
       setMonto("");
+      setMonedaCode(null);
       setPorcentaje("");
       setDiaMes("");
       setMesAnio("");
@@ -83,12 +89,20 @@ export default function AssignPlantillaDialog({
     setStep(2);
   };
 
+  const showMonto = selected?.tipoCalculo === "MONTO_FIJO";
+  const showPorcentaje = selected && selected.tipoCalculo !== "MONTO_FIJO";
+  const showDiaMes = selected?.recurrencia === "MENSUAL";
+  const showAnual = selected?.recurrencia === "ANUAL";
+
   const handleAssign = async () => {
     if (!selected) return;
 
     const raw: IAssignPlantilla = {
       plantillaId: selected.id,
       monto: monto !== "" ? Number(monto) : null,
+      // The template says what the expense is; the store says what it costs and
+      // in which currency — two stores may pay the same rent in different money.
+      monedaCode: showMonto ? monedaCode : null,
       porcentaje: porcentaje !== "" ? Number(porcentaje) : null,
       diaMes: diaMes !== "" ? Number(diaMes) : null,
       mesAnio: mesAnio !== "" ? Number(mesAnio) : null,
@@ -114,11 +128,6 @@ export default function AssignPlantillaDialog({
       setLoading(false);
     }
   };
-
-  const showMonto = selected?.tipoCalculo === "MONTO_FIJO";
-  const showPorcentaje = selected && selected.tipoCalculo !== "MONTO_FIJO";
-  const showDiaMes = selected?.recurrencia === "MENSUAL";
-  const showAnual = selected?.recurrencia === "ANUAL";
 
   return (
     <Dialog
@@ -207,6 +216,27 @@ export default function AssignPlantillaDialog({
 
             <Divider />
 
+            {showMonto && hasMultipleCurrencies && (
+              <FormControl fullWidth error={!!errors.monedaCode}>
+                <InputLabel>Moneda para esta tienda</InputLabel>
+                <Select
+                  value={monedaCode ?? monedaBase}
+                  label="Moneda para esta tienda"
+                  onChange={(e) => setMonedaCode(e.target.value || null)}
+                >
+                  {monedaOptions.map((m) => (
+                    <MenuItem key={m.monedaCode} value={m.monedaCode}>
+                      {m.moneda?.nombre ?? m.monedaCode}
+                      {m.monedaCode === monedaBase && " (base)"}
+                    </MenuItem>
+                  ))}
+                </Select>
+                {errors.monedaCode && (
+                  <FormHelperText>{errors.monedaCode}</FormHelperText>
+                )}
+              </FormControl>
+            )}
+
             {showMonto && (
               <MoneyField
                 label="Monto para esta tienda"
@@ -214,6 +244,10 @@ export default function AssignPlantillaDialog({
                 onChange={(e) => setMonto(e.target.value)}
                 error={!!errors.monto}
                 helperText={errors.monto}
+                currencySymbol={monedaSimbolo(
+                  monedaOptions,
+                  monedaCode ?? monedaBase,
+                )}
                 fullWidth
                 required
               />

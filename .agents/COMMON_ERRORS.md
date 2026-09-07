@@ -68,6 +68,7 @@ el área correspondiente, léelos antes de escribir código.
 | [E-046](errors/E-046-ruta-de-salida-compartida-entre-agentes-paralelos.md) | Dos agentes del paso 5 con la MISMA ruta de salida de verificación se pisan el archivo, y un `lint` de árbol completo durante el paso 5 sale en rojo por trabajo ajeno en curso. Hermano de E-040: el artefacto compartido no es la base, es el archivo | build | 1 |
 | [E-047](errors/E-047-un-replace-sobre-la-linea-ancla-borra-el-import-vecino.md) | Un `replace` que **sustituye** la línea-ancla en vez de insertar antes de ella borra el import vecino; el conteo de sustituciones cuadra igual, y el símbolo falla lejos de la edición —una de las tres víctimas estaba en la landing pública | build | 1 |
 | [E-048](errors/E-048-el-item-flex-atrapa-el-margen-de-su-hijo.md) | Envolver en un contenedor "sin estilos" un elemento que hoy es ítem flex directo de su padre **atrapa el margen propio de ese elemento**: el nuevo contenedor pasa a ser el ítem flex y su `height` deja de coincidir ±1px con el de su hijo, aunque el layout visual no se mueva ni un píxel. Hermano de E-037: la premisa física falla, no la medición | ui | 1 |
+| [E-049](errors/E-049-la-tabla-de-monedas-no-contiene-la-moneda-base.md) | `NegocioMoneda` **no contiene la moneda base** (vive en `Negocio.monedaBase`): un gate `monedasNegocio.length > 1` da 1 con base+una extra y el selector de moneda no se renderiza nunca; el backend rechaza la moneda propia del negocio. Sin síntoma: el control desaparece, no falla | ui | **3** |
 
 ---
 

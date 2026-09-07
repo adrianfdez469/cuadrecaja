@@ -1,4 +1,5 @@
 import { MESES } from "@/constants/gastos";
+import { formatCurrency, formatMontoEnMoneda } from "@/utils/formatters";
 
 interface GastoRecurrencia {
   recurrencia: string;
@@ -64,4 +65,32 @@ export function formatearCuandoAplica(gasto: GastoRecurrencia): string {
     default:
       return "Solo una vez (ad-hoc)";
   }
+}
+
+interface GastoValor {
+  tipoCalculo: string;
+  monto?: number | null;
+  porcentaje?: number | null;
+  monedaCode?: string | null;
+}
+
+/**
+ * The headline value of an expense: an amount for fixed ones, a rate for
+ * percentage ones.
+ *
+ * An amount in a currency other than the base is labelled with its code, the
+ * way `useDisplayCurrency` does it — a bare "$200" next to a base-currency
+ * "$200" would read as the same money and it is not.
+ */
+export function formatGastoValor(
+  gasto: GastoValor,
+  monedaBase?: string | null,
+): string {
+  if (gasto.tipoCalculo !== "MONTO_FIJO") {
+    return `${gasto.porcentaje ?? 0}%`;
+  }
+  const monto = gasto.monto ?? 0;
+  return !gasto.monedaCode || gasto.monedaCode === monedaBase
+    ? formatCurrency(monto)
+    : formatMontoEnMoneda(monto, gasto.monedaCode);
 }
