@@ -134,7 +134,17 @@ export async function PUT(
       where: { negocioId: user.negocio.id, activo: true },
       select: { monedaCode: true },
     });
-    const monedasActivasSet = new Set(monedasActivas.map((m) => m.monedaCode));
+    // `NegocioMoneda` holds only the EXTRA currencies: the base currency has no
+    // row there, yet it is the one the drawer is mostly counted in. Without it
+    // the business's own base was rejected as "not valid for this business".
+    const negocioBase = await prisma.negocio.findUnique({
+      where: { id: user.negocio.id },
+      select: { monedaBase: true },
+    });
+    const monedasActivasSet = new Set([
+      ...monedasActivas.map((m) => m.monedaCode),
+      ...(negocioBase?.monedaBase ? [negocioBase.monedaBase] : []),
+    ]);
     const monedasInvalidas = Object.keys(body.amounts).filter(
       (monedaCode) => !monedasActivasSet.has(monedaCode),
     );

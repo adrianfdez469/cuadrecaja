@@ -28,6 +28,8 @@ import {
   MenuItem,
   OutlinedInput,
   Checkbox,
+  FormControlLabel,
+  FormHelperText,
   ListItemText,
   SelectChangeEvent,
   Grid,
@@ -80,6 +82,7 @@ export default function RolesPage() {
   const { showMessage } = useMessageContext();
   const { user, loadingContext } = useAppContext();
   const [templates, setTemplates] = useState<IPlantillas>();
+  const esSuperAdmin = user?.rol === "SUPER_ADMIN";
 
   // Estados del formulario
   const [nombre, setNombre] = useState("");
@@ -89,6 +92,7 @@ export default function RolesPage() {
   );
   const [plantillaSeleccionada, setPlantillaSeleccionada] =
     useState<string>("");
+  const [isGlobal, setIsGlobal] = useState(false);
 
   const fetchRoles = async () => {
     if (!user) return;
@@ -137,12 +141,14 @@ export default function RolesPage() {
       setDescripcion(rol.descripcion || "");
       setPermisosSeleccionados(rol.permisos ? rol.permisos.split("|") : []);
       setPlantillaSeleccionada(""); // No hay plantilla para roles existentes
+      setIsGlobal(rol.isGlobal);
     } else {
       setSelectedRol(null);
       setNombre("");
       setDescripcion("");
       setPermisosSeleccionados([]);
       setPlantillaSeleccionada("");
+      setIsGlobal(false);
     }
     setOpen(true);
   };
@@ -154,6 +160,7 @@ export default function RolesPage() {
     setDescripcion("");
     setPermisosSeleccionados([]);
     setPlantillaSeleccionada("");
+    setIsGlobal(false);
   };
 
   const handleSubmit = async () => {
@@ -176,6 +183,7 @@ export default function RolesPage() {
           nombre: nombre.trim(),
           descripcion: descripcion.trim() || undefined,
           permisos: permisosString,
+          ...(esSuperAdmin ? { isGlobal } : {}),
         };
         await updateRol(selectedRol.id, rolData);
         showMessage("Rol actualizado correctamente", "success");
@@ -185,6 +193,7 @@ export default function RolesPage() {
           nombre: nombre.trim(),
           descripcion: descripcion.trim() || undefined,
           permisos: permisosString,
+          ...(esSuperAdmin && isGlobal ? { isGlobal: true } : {}),
         };
         await createRol(rolData);
         showMessage("Rol creado correctamente", "success");
@@ -282,7 +291,6 @@ export default function RolesPage() {
     );
   }
 
-  const esSuperAdmin = user?.rol === "SUPER_ADMIN";
   const nuevoRolButton = (
     <Button
       variant="contained"
@@ -435,6 +443,33 @@ export default function RolesPage() {
               rows={2}
               placeholder="Descripción opcional del rol..."
             />
+
+            {esSuperAdmin && (
+              <FormControl
+                sx={{
+                  border: 1,
+                  borderColor: "divider",
+                  borderRadius: 2,
+                  px: 2,
+                  py: 1,
+                }}
+              >
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={isGlobal}
+                      onChange={(e) => setIsGlobal(e.target.checked)}
+                    />
+                  }
+                  label="Rol global"
+                />
+                <FormHelperText sx={{ m: 0 }}>
+                  {selectedRol
+                    ? "Un rol global está disponible para todos los negocios y no se puede eliminar. Al quitarle el alcance global pasa a tu negocio, y solo se permite si ningún otro negocio lo tiene asignado."
+                    : "Un rol global queda disponible para todos los negocios y no se puede eliminar después. Solo los superadmins pueden crearlo."}
+                </FormHelperText>
+              </FormControl>
+            )}
 
             {!selectedRol && (
               <FormControl fullWidth>

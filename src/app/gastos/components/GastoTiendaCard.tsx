@@ -17,7 +17,8 @@ import {
   RECURRENCIA_LABELS,
   TIPO_CALCULO_LABELS,
 } from "@/constants/gastos";
-import { formatearCuandoAplica } from "@/utils/gastos";
+import { formatearCuandoAplica, formatGastoValor } from "@/utils/gastos";
+import { useMonedaOptions } from "@/hooks/useMonedaOptions";
 
 interface Props {
   gasto: IGastoTienda;
@@ -25,13 +26,6 @@ interface Props {
   onEdit: (gasto: IGastoTienda) => void;
   onDelete: (gasto: IGastoTienda) => void;
   onToggleActivo: (gasto: IGastoTienda) => void;
-}
-
-function formatValor(gasto: IGastoTienda): string {
-  if (gasto.tipoCalculo === "MONTO_FIJO") {
-    return `$${(gasto.monto ?? 0).toFixed(2)}`;
-  }
-  return `${gasto.porcentaje ?? 0}%`;
 }
 
 /** One label/value line inside the card. */
@@ -49,6 +43,8 @@ function MetaRow({ label, value }: { label: string; value: string }) {
 }
 
 export default function GastoTiendaCard({ gasto, canManage, onEdit, onDelete, onToggleActivo }: Props) {
+  const { monedaBase } = useMonedaOptions();
+
   return (
     <Card
       sx={{
@@ -80,7 +76,7 @@ export default function GastoTiendaCard({ gasto, canManage, onEdit, onDelete, on
               variant="h4"
               sx={{ flex: "0 0 auto", fontVariantNumeric: "tabular-nums" }}
             >
-              {formatValor(gasto)}
+              {formatGastoValor(gasto, monedaBase)}
             </Typography>
           </Box>
 

@@ -48,6 +48,8 @@ import {
 } from "@/constants/gastos";
 import MoneyField from "@/components/MoneyField";
 import PercentageField from "@/components/PercentageField";
+import { useMonedaOptions } from "@/hooks/useMonedaOptions";
+import { monedaSimbolo } from "@/utils/monedas";
 
 type Mode = "tienda" | "plantilla";
 
@@ -67,6 +69,7 @@ const emptyForm = {
   naturaleza: "OPERATIVO" as ICreateGastoTienda["naturaleza"],
   recurrencia: "DIARIO" as ICreateGastoTienda["recurrencia"],
   monto: "" as string | number,
+  monedaCode: null as string | null,
   porcentaje: "" as string | number,
   diaMes: "" as string | number,
   mesAnio: "" as string | number,
@@ -84,6 +87,8 @@ export default function GastoFormDialog({
 }: Props) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const { monedaOptions, monedaBase, hasMultipleCurrencies } =
+    useMonedaOptions();
   const [form, setForm] = useState(emptyForm);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
@@ -98,6 +103,7 @@ export default function GastoFormDialog({
           naturaleza: initial.naturaleza ?? "OPERATIVO",
           recurrencia: initial.recurrencia,
           monto: (initial as IGastoTienda).monto ?? "",
+          monedaCode: (initial as IGastoTienda).monedaCode ?? null,
           porcentaje: (initial as IGastoTienda).porcentaje ?? "",
           diaMes: initial.diaMes ?? "",
           mesAnio: initial.mesAnio ?? "",
@@ -122,6 +128,12 @@ export default function GastoFormDialog({
       naturaleza: form.naturaleza,
       recurrencia: form.recurrencia,
       monto: form.monto !== "" ? Number(form.monto) : null,
+      // Only a store-level fixed amount carries a currency; a template has no
+      // amount of its own, and a percentage is derived from base-currency totals.
+      monedaCode:
+        mode === "tienda" && form.tipoCalculo === "MONTO_FIJO"
+          ? form.monedaCode
+          : null,
       porcentaje: form.porcentaje !== "" ? Number(form.porcentaje) : null,
       diaMes: form.diaMes !== "" ? Number(form.diaMes) : null,
       mesAnio: form.mesAnio !== "" ? Number(form.mesAnio) : null,
@@ -325,6 +337,28 @@ export default function GastoFormDialog({
             )}
           </Box>
 
+          {showMonto && hasMultipleCurrencies && (
+            <FormControl fullWidth error={!!errors.monedaCode}>
+              <InputLabel>Moneda del gasto</InputLabel>
+              <Select
+                value={form.monedaCode ?? monedaBase}
+                label="Moneda del gasto"
+                onChange={(e) => set("monedaCode", e.target.value || null)}
+              >
+                {monedaOptions.map((m) => (
+                  <MenuItem key={m.monedaCode} value={m.monedaCode}>
+                    {m.moneda?.nombre ?? m.monedaCode}
+                    {m.monedaCode === monedaBase && " (base)"}
+                  </MenuItem>
+                ))}
+              </Select>
+              <FormHelperText>
+                {errors.monedaCode ??
+                  "El monto se registra en esta moneda y se convierte a la base al cerrar"}
+              </FormHelperText>
+            </FormControl>
+          )}
+
           {showMonto && (
             <MoneyField
               label="Monto"
@@ -332,6 +366,10 @@ export default function GastoFormDialog({
               onChange={(e) => set("monto", e.target.value)}
               error={!!errors.monto}
               helperText={errors.monto}
+              currencySymbol={monedaSimbolo(
+                monedaOptions,
+                form.monedaCode ?? monedaBase,
+              )}
               fullWidth
             />
           )}

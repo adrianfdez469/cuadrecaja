@@ -15,14 +15,12 @@ import {
   TableHead,
   TableRow,
   Paper,
-  CircularProgress,
   MenuItem,
   FormControl,
   InputLabel,
   Select,
   Grid,
   Chip,
-  Alert,
   useTheme,
   useMediaQuery,
   Collapse,
@@ -39,12 +37,22 @@ import { IMovimiento, ITipoMovimiento } from "@/schemas/movimiento";
 import { findMovimientos } from "@/services/movimientoService";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
-import { isMovimientoBaja } from "@/utils/tipoMovimiento";
 import {
   TIPOS_MOVIMIENTO,
   TIPO_MOVIMIENTO_LABELS,
 } from "@/constants/movimientos";
-import { formatDateTime } from "@/utils/formatters";
+import { formatDateTime, formatMovimientoMotivo } from "@/utils/formatters";
+import { EmptyState } from "@/components/EmptyState";
+import { LoadingState } from "@/components/LoadingState";
+import { MovimientoCantidad } from "@/components/movimientos/MovimientoCantidad";
+import { MovimientoTipoChip } from "@/components/movimientos/MovimientoTipoChip";
+import { MovimientosMobileList } from "@/components/movimientos/MovimientosMobileList";
+
+/**
+ * Placeholder for a table cell with nothing in it. A blank cell inside a grid
+ * reads as a render failure; on a card the missing line is the signal instead.
+ */
+const EMPTY_CELL = "—";
 
 interface ProductMovementsModalProps {
   open: boolean;
@@ -71,7 +79,19 @@ export const ProductMovementsModal: React.FC<ProductMovementsModalProps> = ({
   const { showMessage } = useMessageContext();
 
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+  /**
+   * Cards or table — the same threshold `/movimientos` uses, so "mobile" means
+   * the same thing in both files. It used to be `md` here, which handed a
+   * 700px tablet the cramped version while the general list, at that very
+   * width, showed the full table.
+   */
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  /**
+   * The dialog frame only. Between 600 and 900px is where the six-column table
+   * runs tightest, and giving up the dialog's margins is exactly what buys it
+   * back the width.
+   */
+  const isFullScreen = useMediaQuery(theme.breakpoints.down("md"));
 
   // Cargar movimientos cuando se abre el modal
   useEffect(() => {
@@ -135,65 +155,119 @@ export const ProductMovementsModal: React.FC<ProductMovementsModalProps> = ({
     setFilteredMovimientos(filtered);
   };
 
-  const getRowColor = (tipo: ITipoMovimiento) => {
-    if (isMovimientoBaja(tipo)) {
-      return "#ffebee"; // Rojo suave (salmon)
-    } else {
-      return "#e8f5e8"; // Verde suave (bien clarito)
-    }
-  };
-
-  const formatCantidad = (cantidad: number, tipo: ITipoMovimiento) => {
-    const isNegative = isMovimientoBaja(tipo);
-    return isNegative ? `-${cantidad}` : `+${cantidad}`;
-  };
-
-  const calcularExistenciaDespues = (
-    existenciaAnterior: number | null | undefined,
-    cantidad: number,
-    tipo: ITipoMovimiento,
-  ) => {
-    if (existenciaAnterior === null || existenciaAnterior === undefined)
-      return null;
-    const isNegative = isMovimientoBaja(tipo);
-    return isNegative
-      ? existenciaAnterior - cantidad
-      : existenciaAnterior + cantidad;
-  };
-
   const clearFilters = () => {
     setStartDate(null);
     setEndDate(null);
     setSelectedTipo("");
   };
 
-  const hasActiveFilters = startDate || endDate || selectedTipo;
+  const hasActiveFilters = Boolean(startDate || endDate || selectedTipo);
 
   if (!producto) return null;
+
+  /**
+   * Loading, empty and no-results, in that order. The first two used to be one
+   * `Alert` apiece, which told a store with no history and a filter that
+   * matched nothing exactly the same thing — and they call for opposite moves:
+   * one is fixed by registering movements, the other by dropping a filter.
+   */
+  const renderMovimientos = () => {
+    if (loading) {
+      return isMobile ? (
+        <LoadingState variant="cards" count={4} />
+      ) : (
+        <LoadingState variant="table" columns={5} count={6} />
+      );
+    }
+
+    if (filteredMovimientos.length === 0) {
+      return hasActiveFilters ? (
+        <EmptyState
+          variant="no-results"
+          title="Ningún movimiento coincide con los filtros"
+          description="Probá con otro rango de fechas o quitá el filtro de tipo."
+          action={{ label: "Limpiar filtros", onClick: clearFilters }}
+        />
+      ) : (
+        <EmptyState
+          title="Este producto no tiene movimientos registrados"
+          description="Se registran solos con cada venta, ajuste, compra o traspaso de este producto."
+        />
+      );
+    }
+
+    if (isMobile) {
+      // The product name is already in the dialog title: repeating it on every
+      // card pushes down the only data that changes between them.
+      return (
+        <MovimientosMobileList
+          movimientos={filteredMovimientos}
+          hideProductName
+        />
+      );
+    }
+
+    return (
+      <TableContainer component={Paper} sx={{ maxHeight: 500 }}>
+        <Table stickyHeader>
+          <TableHead>
+            <TableRow>
+              <TableCell>
+                <strong>Fecha</strong>
+              </TableCell>
+              <TableCell>
+                <strong>Tipo</strong>
+              </TableCell>
+              <TableCell align="center">
+                <strong>Cantidad</strong>
+              </TableCell>
+              <TableCell>
+                <strong>Observaciones</strong>
+              </TableCell>
+              <TableCell>
+                <strong>Usuario</strong>
+              </TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {filteredMovimientos.map((movimiento, index) => (
+              <TableRow key={`${movimiento.id}-${index}`}>
+                <TableCell>{formatDateTime(movimiento.fecha)}</TableCell>
+                <TableCell>
+                  <MovimientoTipoChip tipo={movimiento.tipo} />
+                </TableCell>
+                <TableCell align="center">
+                  <MovimientoCantidad movimiento={movimiento} size="table" />
+                </TableCell>
+                <TableCell>
+                  {formatMovimientoMotivo(movimiento.motivo) || EMPTY_CELL}
+                </TableCell>
+                <TableCell>{movimiento.usuario?.nombre || "Sistema"}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    );
+  };
 
   return (
     <Dialog
       open={open}
       onClose={onClose}
-      maxWidth={isMobile ? false : "lg"}
+      maxWidth={isFullScreen ? false : "lg"}
       fullWidth
-      fullScreen={isMobile}
+      fullScreen={isFullScreen}
       PaperProps={{
         sx: {
-          minHeight: isMobile ? "100vh" : "80vh",
-          m: isMobile ? 0 : undefined,
+          minHeight: isFullScreen ? "100vh" : "80vh",
+          m: isFullScreen ? 0 : undefined,
         },
       }}
     >
       <DialogTitle>
         <Box display="flex" justifyContent="space-between" alignItems="center">
-          <Typography
-            variant={isMobile ? "h6" : "h6"}
-            sx={{
-              fontSize: isMobile ? "1.1rem" : undefined,
-              pr: 1,
-            }}
-          >
+          <Typography variant="h6" sx={{ pr: 1 }}>
             Movimientos de: {producto.producto.nombre}
           </Typography>
           <IconButton onClick={onClose} edge="end">
@@ -202,7 +276,9 @@ export const ProductMovementsModal: React.FC<ProductMovementsModalProps> = ({
         </Box>
       </DialogTitle>
 
-      <DialogContent sx={{ p: isMobile ? 1 : 3 }}>
+      {/* On phones the card list brings its own padding: adding the dialog's on
+          top would make the card narrower here than on /movimientos. */}
+      <DialogContent sx={{ p: isMobile ? 0 : 3 }}>
         {/* Sección de filtros */}
         <Box mb={2}>
           {/* Header de filtros con botón para colapsar en móvil */}
@@ -211,9 +287,9 @@ export const ProductMovementsModal: React.FC<ProductMovementsModalProps> = ({
             justifyContent="space-between"
             alignItems="center"
             sx={{
-              p: isMobile ? 1 : 2,
+              p: isMobile ? 1.5 : 2,
               bgcolor: "grey.50",
-              borderRadius: 1,
+              borderRadius: isMobile ? 0 : 1,
               cursor: isMobile ? "pointer" : "default",
             }}
             onClick={
@@ -243,10 +319,9 @@ export const ProductMovementsModal: React.FC<ProductMovementsModalProps> = ({
           <Collapse in={filtersExpanded || !isMobile}>
             <Box
               sx={{
-                p: isMobile ? 1 : 2,
+                p: isMobile ? 1.5 : 2,
                 bgcolor: "grey.50",
-                borderRadius: 1,
-                mt: isMobile ? 0 : 0,
+                borderRadius: isMobile ? 0 : 1,
               }}
             >
               <Grid container spacing={isMobile ? 1 : 2} alignItems="center">
@@ -328,127 +403,7 @@ export const ProductMovementsModal: React.FC<ProductMovementsModalProps> = ({
           </Collapse>
         </Box>
 
-        {/* Tabla de movimientos */}
-        {loading ? (
-          <Box display="flex" justifyContent="center" p={4}>
-            <CircularProgress />
-          </Box>
-        ) : filteredMovimientos.length === 0 ? (
-          <Alert severity="info">
-            {movimientos.length === 0
-              ? "Este producto no tiene movimientos registrados"
-              : "No hay movimientos que coincidan con los filtros aplicados"}
-          </Alert>
-        ) : (
-          <TableContainer
-            component={Paper}
-            sx={{
-              maxHeight: isMobile ? "calc(100vh - 280px)" : 500,
-              "& .MuiTableCell-root": {
-                fontSize: isMobile ? "0.875rem" : undefined,
-                padding: isMobile ? "8px" : undefined,
-              },
-            }}
-          >
-            <Table stickyHeader size={isMobile ? "small" : "medium"}>
-              <TableHead>
-                <TableRow>
-                  <TableCell>
-                    <strong>Fecha</strong>
-                  </TableCell>
-                  <TableCell>
-                    <strong>Tipo</strong>
-                  </TableCell>
-                  <TableCell align="center">
-                    <strong>Cantidad</strong>
-                  </TableCell>
-                  <TableCell align="center">
-                    <strong>Anterior → Posterior</strong>
-                  </TableCell>
-                  {!isMobile && (
-                    <TableCell>
-                      <strong>Observaciones</strong>
-                    </TableCell>
-                  )}
-                  {!isMobile && (
-                    <TableCell>
-                      <strong>Usuario</strong>
-                    </TableCell>
-                  )}
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {filteredMovimientos.map((movimiento, index) => {
-                  const existenciaDespues = calcularExistenciaDespues(
-                    movimiento.existenciaAnterior,
-                    movimiento.cantidad,
-                    movimiento.tipo,
-                  );
-
-                  return (
-                    <TableRow
-                      key={`${movimiento.id}-${index}`}
-                      sx={{
-                        backgroundColor: getRowColor(movimiento.tipo),
-                        "&:hover": {
-                          opacity: 0.8,
-                        },
-                      }}
-                    >
-                      <TableCell>{formatDateTime(movimiento.fecha)}</TableCell>
-                      <TableCell>
-                        <Chip
-                          label={TIPO_MOVIMIENTO_LABELS[movimiento.tipo]}
-                          size="small"
-                          color={
-                            isMovimientoBaja(movimiento.tipo)
-                              ? "error"
-                              : "success"
-                          }
-                          variant="outlined"
-                          sx={{ fontSize: isMobile ? "0.7rem" : undefined }}
-                        />
-                      </TableCell>
-                      <TableCell align="center">
-                        <Typography
-                          fontWeight="bold"
-                          color={
-                            isMovimientoBaja(movimiento.tipo)
-                              ? "error.main"
-                              : "success.main"
-                          }
-                          fontSize={isMobile ? "0.875rem" : undefined}
-                        >
-                          {formatCantidad(movimiento.cantidad, movimiento.tipo)}
-                        </Typography>
-                      </TableCell>
-                      <TableCell align="center">
-                        <Typography
-                          fontSize={isMobile ? "0.75rem" : "0.875rem"}
-                          color="text.secondary"
-                        >
-                          {movimiento.existenciaAnterior !== null &&
-                          movimiento.existenciaAnterior !== undefined &&
-                          existenciaDespues !== null
-                            ? `${movimiento.existenciaAnterior} → ${existenciaDespues}`
-                            : "-"}
-                        </Typography>
-                      </TableCell>
-                      {!isMobile && (
-                        <TableCell>{movimiento.motivo || "-"}</TableCell>
-                      )}
-                      {!isMobile && (
-                        <TableCell>
-                          {movimiento.usuario?.nombre || "Sistema"}
-                        </TableCell>
-                      )}
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        )}
+        {renderMovimientos()}
       </DialogContent>
     </Dialog>
   );

@@ -4,6 +4,7 @@ import {
   ColorRole,
   SemanticTokens,
   darkTokens,
+  layout,
   lightTokens,
   shape,
   touch,
@@ -246,6 +247,38 @@ function buildTheme(mode: "light" | "dark", t: SemanticTokens): Theme {
           },
         },
       },
+      // Every table on a desktop screen scrolls inside its own box instead of
+      // taking the page with it, so the header row stays put. Thirteen tables
+      // already asked for `stickyHeader` and none of them stuck: the prop only
+      // does something when the container that holds the table has a height to
+      // scroll within, and none did. So the two halves ship together — the
+      // default prop below is useless without this cap, and this cap is a
+      // second scrollbar without the prop.
+      //
+      // Only `md` and up: a phone shows cards, not tables, and boxing a table
+      // inside a viewport-height scroller on a small screen means two nested
+      // scrolls in the space of one thumb.
+      //
+      // `maxHeight`, never `height`: a table with four rows stays four rows
+      // tall. Any screen that needs a different box (a dialog, a drawer, a
+      // fixed pane) overrides it with `sx`, which wins over this.
+      MuiTableContainer: {
+        styleOverrides: {
+          root: ({ theme }) => ({
+            [theme.breakpoints.up("md")]: {
+              maxHeight: `calc(100dvh - ${layout.tableViewportOffset}px)`,
+            },
+            // A scroll box prints as one screenful and drops the rest without
+            // saying so. Nothing prints a React table today (the printing
+            // feature builds its own HTML), but a browser's own Print is one
+            // keystroke away.
+            "@media print": { maxHeight: "none", overflow: "visible" },
+          }),
+        },
+      },
+      MuiTable: {
+        defaultProps: { stickyHeader: true },
+      },
       // 16px in every text field, one step above body1. Not a type choice:
       // iOS Safari zooms the whole page into any input set below 16px the
       // moment it is focused, and the POS's search field is tapped on a
@@ -377,6 +410,23 @@ function buildTheme(mode: "light" | "dark", t: SemanticTokens): Theme {
  * only for the ones the redesign actually draws as a bordered square
  * (refresh, clear filters, "+", more-actions…).
  */
+/**
+ * A product name is never clipped: it wraps onto as many lines as it needs.
+ *
+ * Half of this catalogue reads «Refresco de Cola 355 ml» and «Detergente en
+ * Polvo 1 kg» — the part an ellipsis eats is the size, which is exactly what
+ * tells two rows of the same product apart. A name that ends in «…» asks the
+ * cashier to tap the row to find out what it is.
+ *
+ * `overflowWrap: "anywhere"` is the half that is easy to forget: `normal`
+ * alone only breaks at spaces, so a single unbroken 40-character token (a
+ * code, a SKU) would push its column wider instead of wrapping.
+ */
+export const productNameSx = {
+  whiteSpace: "normal",
+  overflowWrap: "anywhere",
+} as const;
+
 export const squareIconButtonSx = {
   border: 1,
   borderColor: "divider",

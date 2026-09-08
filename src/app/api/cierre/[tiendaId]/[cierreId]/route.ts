@@ -162,6 +162,7 @@ export async function GET(
     const cierreData: ICierreData = {
       fechaInicio: cierre.fechaInicio,
       fechaFin: cierre.fechaFin ?? undefined,
+      etiqueta: cierre.etiqueta,
       tienda,
       ...totals,
       totalVentasPropiasNeto: computation.totalVentasPropiasNeto,

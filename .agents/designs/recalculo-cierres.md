@@ -10,6 +10,27 @@
 
 ---
 
+## ⚠ Cambio de decisión posterior — el aviso es solo para `SUPER_ADMIN`
+
+**Decisión del humano, tomada después de ver la pantalla en producción.** Sustituye a la premisa
+«el aviso debe ser perceptible para cualquier rol» que recorre el resto de este documento.
+
+> **Las cuatro superficies del desfase —banner de página, banda de la card, ranura 1 de la columna
+> `Acciones` y aviso del drawer— solo se dibujan si la sesión es `SUPER_ADMIN`.** Para cualquier
+> otro rol no existe ninguna de las cuatro: ni glifo, ni pill, ni texto.
+
+**Por qué.** El aviso nombra un desajuste que ese rol no puede resolver, y la frase de cierre era
+«pídeselo a un superadministrador» sin forma de pedirlo desde la pantalla (era la
+[pregunta abierta 1](#preguntas-abiertas) de este mismo contrato). Un cliente que ve «tus cifras no
+cuadran» y no puede hacer nada al respecto recibe alarma, no información.
+
+**Qué queda derogado de lo que sigue:** la variante «cualquier otro rol» de la ranura 1, la tercera
+línea `Solo un superadministrador puede recalcularlas.` del drawer, el bullet «se dibuja para todos
+los roles» del banner de página, y los criterios verificables **10** y **15**. Todo lo demás sigue
+vigente tal cual: para `SUPER_ADMIN` la pantalla no cambia en nada.
+
+---
+
 ## Fuentes
 
 - **[ADR 0036](../../docs/adr/0036-las-cifras-guardadas-de-un-cierre-son-la-fuente-de-verdad.md)
@@ -167,11 +188,11 @@ La rama móvil (`isMobile`) sigue siendo `Card` por cierre. Cambia esto, y solo 
 ┌───────────────────────────────────────┐
 │ 01/09/2025 - 07/09/2025          [🔍] │  ← cabecera (tappable, abre el detalle)
 ├───────────────────────────────────────┤
-│ ⚠ Totales desactualizados             │  ← BANDA, ancho completo, solo si desactualizado
+│ ⚠ Totales desactualizados             │  ← BANDA, ancho completo, solo si desactualizado + SUPER_ADMIN
 │ Las cifras de abajo son las guardadas │
 │ y no coinciden con las ventas.        │
 │ ┌───────────────────────────────────┐ │
-│ │           Recalcular              │ │  ← solo SUPER_ADMIN, alto 44, ancho completo
+│ │           Recalcular              │ │  ← alto 44, ancho completo
 │ └───────────────────────────────────┘ │
 ├───────────────────────────────────────┤
 │ Ventas          Bruto                 │  ← la rejilla de cifras, INTACTA
@@ -190,7 +211,7 @@ La rama móvil (`isMobile`) sigue siendo `Card` por cierre. Cambia esto, y solo 
 | Ancho | **Completo dentro de la card**, sin `flexWrap` que la pueda recortar |
 | Línea 1 | `StatusPill` `hue="caution"`, `icon={<WarningAmber/>}`, label `Totales desactualizados` |
 | Línea 2 | `body2` en `semantic.hue.caution.main`: `Las cifras de abajo son las guardadas y no coinciden con las ventas actuales del período.` |
-| Línea 3 | Solo `SUPER_ADMIN`: `Button` `variant="outlined"` `color="warning"`, **`fullWidth`**, alto ≥ 44, label `Recalcular` |
+| Línea 3 | `Button` `variant="outlined"` `color="warning"`, **`fullWidth`**, alto ≥ 44, label `Recalcular` |
 
 **Por qué la banda va antes de las cifras y no al final de la card.** Lo que declara es que **las
 doce cifras de debajo están en duda**. Debajo de ellas sería una nota al pie de algo que el lector
@@ -233,7 +254,7 @@ pantalla pequeña, es la garantía de que el estado y su acción no dependen del
 
 | Ranura | Cuándo aparece | Qué es |
 |---|---|---|
-| 1 — Estado y acción | Solo si `row.totalesDesactualizados` | Ver la tabla de abajo. **La ranura existe para todos los roles** |
+| 1 — Estado y acción | Solo si `row.totalesDesactualizados` **y la sesión es `SUPER_ADMIN`** | Ver la tabla de abajo |
 | 2 — Ver detalles | Siempre | `IconButton` 44×44, glifo `ZoomIn`, `color="primary"`, tooltip y `aria-label` `Ver detalles del cierre` |
 
 **La ranura 1 es un solo glifo que cambia de naturaleza, no dos controles distintos:**
@@ -241,7 +262,7 @@ pantalla pequeña, es la garantía de que el estado y su acción no dependen del
 | Rol | Qué se dibuja | Semántica |
 |---|---|---|
 | `SUPER_ADMIN` | `IconButton` 44×44, glifo `WarningAmber`, ink `semantic.hue.caution.main`, tooltip `Totales desactualizados — recalcular`, `aria-label` `Recalcular las cifras de este cierre` | **Pulsable.** Abre el diálogo |
-| Cualquier otro rol | Una caja de 44×44 con el **mismo glifo, el mismo ink y la misma posición**, sin ripple, `cursor: "default"`, envuelta en el mismo `Tooltip` con el texto explicativo largo, y con `role="img"` + `aria-label` `Totales desactualizados` | **No pulsable.** Solo declara el estado |
+| ~~Cualquier otro rol~~ | ~~Una caja de 44×44 no pulsable con el mismo glifo~~ — **derogado**: la ranura 1 no se dibuja para ningún otro rol. La celda solo contiene `Ver detalles` | — |
 
 **Por qué el mismo glifo en el mismo sitio para todos los roles.** El encargo pide dos cosas a la
 vez: que el aviso sea perceptible para cualquiera, y que la acción sea solo del superadministrador.
@@ -292,8 +313,7 @@ una** de las filas de la página tiene `totalesDesactualizados`:
   - N filas → `{N} cierres de esta página tienen cifras desactualizadas: sus ventas cambiaron después de cerrarlos.`
 - **Sin acción.** El recálculo es por cierre y no existe un «recalcular todos» en la interfaz (el
   lote es un script). Un botón aquí prometería algo que no hay.
-- **Se dibuja para todos los roles.** Es la mitad de la respuesta al encargo «el aviso debe seguir
-  siendo perceptible para cualquier rol»: la otra mitad es la ranura 1 de cada fila.
+- **Solo se dibuja para `SUPER_ADMIN`** (ver el cambio de decisión al principio de este contrato).
 
 **Por qué además del aviso por fila.** El aviso por fila responde *cuál*; el banner responde
 *hay algo que mirar*. En un teléfono, doce cifras por card y veinte cards significan que el aviso
@@ -347,7 +367,7 @@ calculadas estas cifras» sobre unas cifras de las que aún no se ha dicho que n
 | Cuerpo | `Las cifras de este cierre son las que se guardaron al cerrarlo, y no coinciden con las ventas actuales del período.` |
 | Acción, `SUPER_ADMIN`, ≥ `sm` | En la ranura `action` del `Alert`: `Button` `variant="outlined"` `color="warning"`, alto ≥ 44, label `Recalcular` |
 | Acción, `SUPER_ADMIN`, 320 px | **Fuera de la ranura `action`**: el mismo botón, `fullWidth`, debajo del cuerpo. La ranura `action` del `Alert` de MUI le roba el ancho al texto, y a 280 px útiles el cuerpo quedaría en columna de dos palabras |
-| Sin permiso, cualquier ancho | Sin botón, y una tercera línea en `body2`: `Solo un superadministrador puede recalcularlas.` |
+| ~~Sin permiso, cualquier ancho~~ | **Derogado**: sin `SUPER_ADMIN` el aviso del drawer no se dibuja |
 
 **Tras un recálculo aplicado desde el drawer, el drawer se cierra y la lista se recarga.** Es lo que
 ya hace hoy y es correcto: los datos que el drawer tiene en memoria acaban de dejar de ser válidos,
@@ -700,12 +720,12 @@ contenido de la columna de acciones, no el `size` de la tabla.
 7. Pasando el ratón por encima de una fila a **1440 px**, el `backgroundColor` computado de su celda de `Acciones` **es el mismo que el del `<tr>`** de esa fila. (Se compara contra la fila, no contra las celdas de datos: esas no tienen fondo propio y su valor computado es siempre transparente, así que compararlas nunca podría dar igual — **E-016**.)
 8. Cada `IconButton` de la columna `Acciones` mide **≥ 44 × 44 px** en `768` y `1440 px`, incluido el rango 600–900 px donde la tabla usa `size="small"`.
 9. En una fila con `totalesDesactualizados`, sesión **`SUPER_ADMIN`**: la celda `Acciones` contiene **dos** destinos de ≥ 44 × 44 y el primero abre el diálogo `Recalcular cierre` al pulsarlo.
-10. La misma fila, sesión **sin `SUPER_ADMIN`**: la celda `Acciones` sigue mostrando el glifo de aviso en la misma posición y del mismo color, **no responde al clic**, y su tooltip contiene la subcadena `Solo un superadministrador`.
+10. La misma fila, sesión **sin `SUPER_ADMIN`**: la celda `Acciones` contiene **un solo** destino, `Ver detalles`; no hay glifo de aviso en ninguna parte de la fila.
 11. En una fila **sin** `totalesDesactualizados`, la celda `Acciones` contiene **un solo** destino táctil y ningún glifo de aviso.
 12. A **320 px**, en una card con `totalesDesactualizados`, la banda de aviso está **entre la fila de fechas y la primera cifra** de la rejilla (su `getBoundingClientRect().top` es mayor que el de la fila de fechas y menor que el de la celda «Ventas»).
 13. A **320 px**, esa banda ocupa **todo el ancho interior de la card** (± 2 px) y su texto no se recorta: `scrollWidth ≤ clientWidth` en el elemento de la banda.
 14. A **320 px**, sesión `SUPER_ADMIN`: el botón `Recalcular` de la banda mide **≥ 44 px de alto** y ocupa el ancho completo de la banda.
-15. A **320 px**, sesión sin `SUPER_ADMIN`: la banda existe y **no contiene ningún `<button>`**.
+15. A **320 px**, sesión sin `SUPER_ADMIN`: **la banda no existe**, y la página no muestra el banner de desfase ni el aviso del drawer.
 16. Cuando al menos una fila de la página tiene `totalesDesactualizados`, existe un `Alert` de severidad `warning` cuyo texto contiene la subcadena `de esta página`, situado **entre el `TasasBanner` y la tarjeta de filtros** (comparación de `top`), en los tres anchos. Cuando ninguna la tiene, ese `Alert` **no existe en el DOM**.
 16b. A **320 px**, con la página sin desplazar (`scrollY = 0`), ese `Alert` está **completamente dentro del viewport**.
 17. En el drawer de un cierre desactualizado, el `Alert` de desfase es **el primer** elemento del cuerpo desplazable: su `top` es menor que el del `TasasBanner` y que el del selector de moneda, en los tres anchos.

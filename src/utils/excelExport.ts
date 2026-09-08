@@ -2,19 +2,16 @@ import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import { ICierreData } from "@/schemas/cierre";
 import { convertToBase } from "@/lib/currency";
+import { buildCierreFileNameSlug } from "@/utils/cierreLabel";
 
 interface ExportProductosVendidosOptions {
   cierreData: ICierreData;
   tiendaNombre: string;
-  fechaInicio: Date;
-  fechaFin?: Date;
 }
 
 export const exportProductosVendidosToExcel = async ({
   cierreData,
   tiendaNombre,
-  fechaInicio,
-  fechaFin,
 }: ExportProductosVendidosOptions) => {
   try {
     const workbook = XLSX.utils.book_new();
@@ -153,11 +150,10 @@ export const exportProductosVendidosToExcel = async ({
       type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     });
 
-    const fechaInicioStr = fechaInicio.toISOString().split("T")[0];
-    const fechaFinStr = fechaFin
-      ? fechaFin.toISOString().split("T")[0]
-      : fechaInicioStr;
-    const fileName = `Productos_Vendidos_${tiendaNombre.replace(/\s+/g, "_")}_${fechaInicioStr}_${fechaFinStr}.xlsx`;
+    // Named after the period itself, not after the moment of the export: two
+    // closings downloaded the same afternoon must not collide.
+    const periodo = buildCierreFileNameSlug(cierreData);
+    const fileName = `Productos_Vendidos_${tiendaNombre.replace(/\s+/g, "_")}_${periodo}.xlsx`;
 
     saveAs(blob, fileName);
 
@@ -172,8 +168,6 @@ export const exportProductosVendidosToExcel = async ({
 export const exportProductosProveedorToExcel = async ({
   cierreData,
   tiendaNombre,
-  fechaInicio,
-  fechaFin,
   proveedorId,
 }: ExportProductosVendidosOptions & { proveedorId: string }) => {
   try {
@@ -220,11 +214,8 @@ export const exportProductosProveedorToExcel = async ({
       type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     });
 
-    const fechaInicioStr = fechaInicio.toISOString().split("T")[0];
-    const fechaFinStr = fechaFin
-      ? fechaFin.toISOString().split("T")[0]
-      : fechaInicioStr;
-    const fileName = `Productos_${proveedorNombre.replace(/\s+/g, "_")}_${tiendaNombre.replace(/\s+/g, "_")}_${fechaInicioStr}_${fechaFinStr}.xlsx`;
+    const periodo = buildCierreFileNameSlug(cierreData);
+    const fileName = `Productos_${proveedorNombre.replace(/\s+/g, "_")}_${tiendaNombre.replace(/\s+/g, "_")}_${periodo}.xlsx`;
 
     saveAs(blob, fileName);
 

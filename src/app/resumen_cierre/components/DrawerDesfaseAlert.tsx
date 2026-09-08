@@ -1,14 +1,9 @@
 "use client";
 
-import { Alert, AlertTitle, Button, Typography } from "@mui/material";
-import {
-  DESFASE_DRAWER_CUERPO,
-  DESFASE_LABEL,
-  DESFASE_SOLO_SUPERADMIN,
-} from "./desfaseCopy";
+import { Alert, AlertTitle, Button } from "@mui/material";
+import { DESFASE_DRAWER_CUERPO, DESFASE_LABEL } from "./desfaseCopy";
 
 interface Props {
-  canRecalculate: boolean;
   isMobile: boolean;
   onRecalculate: () => void;
 }
@@ -17,9 +12,9 @@ interface Props {
  * First element of the detail drawer when the period's stored figures are
  * stale: everything below it is read through this warning. On a phone the
  * action leaves the Alert's `action` slot, which would starve the text.
+ * Rendered only for a superadmin — the only role that can recalculate.
  */
 export default function DrawerDesfaseAlert({
-  canRecalculate,
   isMobile,
   onRecalculate,
 }: Readonly<Props>) {
@@ -39,16 +34,11 @@ export default function DrawerDesfaseAlert({
     <Alert
       severity="warning"
       sx={{ mb: 2 }}
-      action={canRecalculate && !isMobile ? button : undefined}
+      action={!isMobile ? button : undefined}
     >
       <AlertTitle>{DESFASE_LABEL}</AlertTitle>
       {DESFASE_DRAWER_CUERPO}
-      {!canRecalculate && (
-        <Typography variant="body2" sx={{ mt: 0.5 }}>
-          {DESFASE_SOLO_SUPERADMIN}
-        </Typography>
-      )}
-      {canRecalculate && isMobile && button}
+      {isMobile && button}
     </Alert>
   );
 }

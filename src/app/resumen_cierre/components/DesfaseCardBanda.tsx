@@ -6,7 +6,6 @@ import { StatusPill } from "@/components/StatusPill";
 import { DESFASE_CARD_CUERPO, DESFASE_LABEL } from "./desfaseCopy";
 
 interface Props {
-  canRecalculate: boolean;
   onRecalculate: () => void;
 }
 
@@ -14,11 +13,9 @@ interface Props {
  * Full-width band of a mobile card whose stored figures are stale. Sits
  * between the dates and the figures: it warns before the numbers are read,
  * not after. Stops propagation so tapping it never opens the drawer behind.
+ * Rendered only for a superadmin — the only role that can recalculate.
  */
-export default function DesfaseCardBanda({
-  canRecalculate,
-  onRecalculate,
-}: Readonly<Props>) {
+export default function DesfaseCardBanda({ onRecalculate }: Readonly<Props>) {
   return (
     <Box
       onClick={(e) => e.stopPropagation()}
@@ -38,17 +35,15 @@ export default function DesfaseCardBanda({
         <Typography variant="body2" sx={{ color: "semantic.hue.caution.main" }}>
           {DESFASE_CARD_CUERPO}
         </Typography>
-        {canRecalculate && (
-          <Button
-            variant="outlined"
-            color="warning"
-            fullWidth
-            onClick={onRecalculate}
-            sx={{ minHeight: 44 }}
-          >
-            Recalcular
-          </Button>
-        )}
+        <Button
+          variant="outlined"
+          color="warning"
+          fullWidth
+          onClick={onRecalculate}
+          sx={{ minHeight: 44 }}
+        >
+          Recalcular
+        </Button>
       </Stack>
     </Box>
   );

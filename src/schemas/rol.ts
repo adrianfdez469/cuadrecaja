@@ -11,7 +11,10 @@ export const rolSchema = z.object({
   updatedAt: z.coerce.date(),
 });
 
-export const createRolSchema = rolSchema.omit({ id: true, negocioId: true, isGlobal: true, createdAt: true, updatedAt: true });
+export const createRolSchema = rolSchema
+  .omit({ id: true, negocioId: true, isGlobal: true, createdAt: true, updatedAt: true })
+  // Only a SUPER_ADMIN may set this; the API rejects it for anyone else.
+  .extend({ isGlobal: z.boolean().optional() });
 export const updateRolSchema = createRolSchema.partial();
 
 export const permisoSchema = z.object({

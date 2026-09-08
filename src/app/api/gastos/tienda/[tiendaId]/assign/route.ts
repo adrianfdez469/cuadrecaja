@@ -90,6 +90,14 @@ export async function POST(
         { status: 400 },
       );
     }
+    // Mirrors `monedaSoloMontoFijoRefinement`, checked here because the
+    // tipoCalculo the rule depends on lives on the template, not on the body.
+    if (plantilla.tipoCalculo !== "MONTO_FIJO" && parsed.data.monedaCode) {
+      return NextResponse.json(
+        { error: "La moneda solo aplica a gastos de monto fijo" },
+        { status: 400 },
+      );
+    }
 
     const gasto = await prisma.gastoTienda.create({
       data: {
@@ -106,6 +114,10 @@ export async function POST(
         diaAnio: parsed.data.diaAnio ?? plantilla.diaAnio,
         monto: parsed.data.monto ?? null,
         porcentaje: parsed.data.porcentaje ?? null,
+        monedaCode:
+          plantilla.tipoCalculo === "MONTO_FIJO"
+            ? (parsed.data.monedaCode ?? null)
+            : null,
         activo: true,
       },
       include: { plantilla: true },

@@ -58,6 +58,23 @@ export const recalculateCierre = async (
   return response.data;
 };
 
+/**
+ * Renames a period. `null` clears the label and the period goes back to being
+ * shown by its date range. Returns the label as it was stored — normalized,
+ * so the caller shows what the database holds, not what was typed.
+ */
+export const updateCierreEtiqueta = async (
+  tiendaId: string,
+  cierreId: string,
+  etiqueta: string | null,
+): Promise<string | null> => {
+  const response = await axios.patch<{ etiqueta: string | null }>(
+    `${API_URL(tiendaId)}/${cierreId}/etiqueta`,
+    { etiqueta },
+  );
+  return response.data.etiqueta;
+};
+
 export const fetchCashBreakdown = async (
   tiendaId: string,
   cierreId: string,

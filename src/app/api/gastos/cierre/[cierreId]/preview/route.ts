@@ -135,6 +135,9 @@ export async function POST(
         porcentaje: g.porcentaje,
         recurrencia: g.recurrencia,
         esAdHoc: false,
+        // Percentage-based amounts derive from base-currency totals, so they
+        // are already in base no matter what the row says.
+        monedaCode: g.tipoCalculo === "MONTO_FIJO" ? g.monedaCode : null,
         motivoAplica: motivo,
       };
 
@@ -151,10 +154,22 @@ export async function POST(
       orderBy: { createdAt: "asc" },
     });
 
-    // Solo naturaleza OPERATIVO resta de ganancia (INVERSION resta solo de caja)
+    // Solo naturaleza OPERATIVO resta de ganancia (INVERSION resta solo de caja).
+    // Recurring expenses may carry their own currency too — convert before
+    // summing, or a 20 USD rent would be added as if it were 20 CUP.
     const totalGastosRecurrentes = gastosRecurrentes
       .filter((g) => g.naturaleza === "OPERATIVO")
-      .reduce((s, g) => s + g.montoCalculado, 0);
+      .reduce(
+        (s, g) =>
+          s +
+          convertToBase(
+            g.montoCalculado,
+            g.monedaCode ?? monedaBase,
+            tasasActuales,
+            monedaBase,
+          ),
+        0,
+      );
     // Ad-hoc gastos may be in a foreign currency — convert to base before summing
     const totalGastosAdHoc = gastosAdHoc
       .filter((g) => g.naturaleza === "OPERATIVO")

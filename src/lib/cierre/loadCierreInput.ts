@@ -19,6 +19,8 @@ export interface CierrePeriodoHeader {
   fechaInicio: Date;
   fechaFin: Date | null;
   totalsComputedAt: Date | null;
+  /** Display name of the period. Header metadata: it computes nothing. */
+  etiqueta: string | null;
 }
 
 export interface LoadedCierreInput {
@@ -51,6 +53,7 @@ export async function loadCierreComputationInput(
       fechaInicio: true,
       fechaFin: true,
       totalsComputedAt: true,
+      etiqueta: true,
       tienda: {
         select: { negocio: { select: { id: true, monedaBase: true } } },
       },
@@ -178,6 +181,7 @@ export async function loadCierreComputationInput(
       fechaInicio: cierre.fechaInicio,
       fechaFin: cierre.fechaFin,
       totalsComputedAt: cierre.totalsComputedAt,
+      etiqueta: cierre.etiqueta,
     },
     input: {
       monedaBase,

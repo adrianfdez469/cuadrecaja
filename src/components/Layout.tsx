@@ -35,6 +35,7 @@ import {
   useMediaQuery,
   useTheme,
 } from "@mui/material";
+import type { Theme } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import CloseIcon from "@mui/icons-material/Close";
 import SupervisedUserCircleIcon from "@mui/icons-material/SupervisedUserCircle";
@@ -928,6 +929,20 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
           top: 0,
           backgroundColor: "background.paper",
           color: "text.primary",
+          // Offline, the bar's own hairline is the signal: it costs nothing of
+          // the crowded row, crosses the whole screen, and does not depend on
+          // anyone reading 12px of text. Only for offline — a queue of sales is
+          // a claim about data, not about the till, and a rule that outlived
+          // its cause would stop meaning what it says.
+          //
+          // An inner shadow, never a border: the theme's own MuiAppBar comment
+          // records that a border made the bar 57/65px while every screen that
+          // fills the viewport subtracts 56/64. A conditional border would be
+          // that bug appearing and vanishing with the network.
+          ...(storeStatus?.offline && {
+            boxShadow: (theme: Theme) =>
+              `inset 0 -2px 0 ${theme.palette.semantic.sync.offline.main}`,
+          }),
           zIndex: (theme) =>
             isBlockingActive ? theme.zIndex.appBar : theme.zIndex.drawer - 1,
         }}

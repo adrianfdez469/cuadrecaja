@@ -16,6 +16,7 @@ import { formatCurrency, formatMontoEnMoneda } from "@/utils/formatters";
 import NumberSpinner from "@/components/NumberSpinner";
 import NumberField from "@/components/NumberField";
 import StockBadge from "./StockBadge";
+import { productNameSx } from "@/theme";
 
 interface ProductSelectedCardProps {
   name: string;
@@ -74,7 +75,7 @@ const ProductSelectedCard: React.FC<ProductSelectedCardProps> = ({
           {/* Fila 1: nombre + stock + eliminar */}
           <Box display="flex" alignItems="center" gap={1}>
             <Box flex={1} minWidth={0}>
-              <Typography variant="body2" fontWeight={700} noWrap>
+              <Typography variant="body2" fontWeight={700} sx={productNameSx}>
                 {name}
               </Typography>
               {providerName && (

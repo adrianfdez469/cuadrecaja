@@ -116,8 +116,6 @@ export const TablaProductosCierre: FC<IProps> = ({
       await exportProductosVendidosToExcel({
         cierreData,
         tiendaNombre: user.localActual.nombre,
-        fechaInicio: new Date(), // Esto debería venir del cierre
-        fechaFin: new Date(),
       });
       showMessage("Archivo Excel exportado exitosamente", "success");
     } catch (error) {
@@ -136,8 +134,6 @@ export const TablaProductosCierre: FC<IProps> = ({
       await exportProductosProveedorToExcel({
         cierreData,
         tiendaNombre: user.localActual.nombre,
-        fechaInicio: new Date(),
-        fechaFin: new Date(),
         proveedorId,
       });
       showMessage("Productos del proveedor exportados exitosamente", "success");

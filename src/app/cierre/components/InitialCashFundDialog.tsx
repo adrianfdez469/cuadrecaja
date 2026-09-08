@@ -25,14 +25,14 @@ import {
   saveInitialCashFund,
 } from "@/services/cierrePeriodService";
 import { IInitialCashFundEntry } from "@/schemas/initialCashFund";
-import { INegocioMoneda } from "@/schemas/moneda";
 import { formatDateTime, formatMontoEnMoneda } from "@/utils/formatters";
+import { useMonedaOptions } from "@/hooks/useMonedaOptions";
+import { monedaSimbolo } from "@/utils/monedas";
 
 interface Props {
   open: boolean;
   tiendaId: string;
   cierreId: string;
-  monedasActivas: INegocioMoneda[];
   onClose: () => void;
   onSaved: () => void;
 }
@@ -41,19 +41,27 @@ export default function InitialCashFundDialog({
   open,
   tiendaId,
   cierreId,
-  monedasActivas,
   onClose,
   onSaved,
 }: Props) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const { monedaOptions } = useMonedaOptions();
   const [history, setHistory] = useState<IInitialCashFundEntry[]>([]);
   const [amounts, setAmounts] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
 
-  const monedasConEfectivo = monedasActivas.filter((m) => m.admiteEfectivo);
+  /**
+   * The base currency is what the drawer is mostly counted in, and it has no
+   * `NegocioMoneda` row to carry an `admiteEfectivo` flag — `buildMonedaOptions`
+   * defaults it to true. Filtering the raw list instead dropped the base
+   * currency's field entirely, so its opening float could not be entered.
+   */
+  const monedasConEfectivo = monedaOptions.filter(
+    (m) => m.admiteEfectivo !== false,
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -131,7 +139,7 @@ export default function InitialCashFundDialog({
                   [m.monedaCode]: e.target.value,
                 }))
               }
-              currencySymbol={m.moneda?.simbolo ?? m.monedaCode}
+              currencySymbol={monedaSimbolo(monedaOptions, m.monedaCode)}
               disabled={loading}
               fullWidth
             />

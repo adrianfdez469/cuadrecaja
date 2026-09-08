@@ -36,6 +36,7 @@ import ProductCard from "@/components/ProductcSelectionModal/ProductCard";
 import ProductProcessorData from "@/components/ProductProcessorData/ProductProcessorData";
 import { IProcessedData } from "@/schemas/processedData";
 import SelectableTextField from "@/components/SelectableTextField";
+import { productNameSx } from "@/theme";
 
 interface IProps {
   operacion: OperacionTipo;
@@ -385,12 +386,7 @@ const TableProductosDisponibles: React.FC<IProps> = ({
                                   <Typography
                                     variant="body2"
                                     fontWeight="medium"
-                                    sx={{
-                                      overflow: "hidden",
-                                      textOverflow: "ellipsis",
-                                      whiteSpace: "nowrap",
-                                      display: "block",
-                                    }}
+                                    sx={{ display: "block", ...productNameSx }}
                                   >
                                     {producto.proveedor
                                       ? `${producto.nombre} - ${producto.proveedor.nombre}`
