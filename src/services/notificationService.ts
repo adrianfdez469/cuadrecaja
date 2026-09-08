@@ -7,6 +7,16 @@ import {
   Usuario,
 } from "@prisma/client";
 import { tienePermiso } from "@/utils/getPermisosUsuario";
+import { QAB_ALERT_TITLES } from "@/constants/qab";
+import {
+  aggregateQabBusinessAlertState,
+  planQabAlertNotifications,
+} from "@/lib/qab/qabReconciliationPlan";
+import { readQabSyncStalenessRows } from "@/lib/qab/qabReconciliationQuery";
+import type {
+  IQabAlertDescriptor,
+  IQabAlertSyncReport,
+} from "@/schemas/qabReconciliation";
 
 export interface NotificationData {
   titulo: string;
@@ -685,6 +695,103 @@ export class NotificationService {
   }
 
   /**
+   * Projects the persisted reconciliation state onto the two `Notificacion` rows
+   * of each business. Reads that state and nothing else: it makes NO HTTP request,
+   * so it is safe on the interactive `POST /api/notificaciones/auto-check` path.
+   *
+   * `negocioId` undefined runs over every eligible business, the same convention
+   * every other check of this class follows.
+   *
+   * Per business: `readQabStoreNames` is not needed — `readQabSyncStalenessRows`
+   * already carries `nombre`. `aggregateQabBusinessAlertState` then
+   * `planQabAlertNotifications`, and for each of the two descriptors:
+   *   - descriptor null + a row exists  -> `deleteNotification`
+   *   - descriptor + no row             -> `createAutomaticNotification`
+   *   - descriptor + a row whose `descripcion` differs -> `updateNotification`
+   *   - descriptor + a row whose `descripcion` is equal -> nothing at all
+   * The lookup is `findExistingNotification(titulo, negocioId)`, which matches
+   * `titulo: { contains }` AND `negociosDestino = negocioId` AND `fechaFin >= now`.
+   * Doing nothing when the content is unchanged is not an optimisation: it is what
+   * keeps `updateNotification`, which resets `leidoPor`, from re-marking the alert
+   * unread every ten minutes.
+   */
+  static async checkQabSyncAlerts(negocioId?: string): Promise<IQabAlertSyncReport> {
+    const report: IQabAlertSyncReport = {
+      businesses: 0,
+      stalled: 0,
+      diverged: 0,
+      created: 0,
+      updated: 0,
+      deleted: 0,
+    };
+
+    const now = new Date();
+    const rows = await readQabSyncStalenessRows({
+      negocioIds: negocioId === undefined ? undefined : [negocioId],
+    });
+    const states = aggregateQabBusinessAlertState({ rows, now });
+    report.businesses = states.length;
+
+    for (const state of states) {
+      // The schema forbids it, but this is the branch whose cost is a cross-tenant
+      // leak: an empty `negociosDestino` means EVERY business. Nothing is written.
+      if (state.negocioId.length === 0) continue;
+
+      if (state.stale) report.stalled += 1;
+      if (state.divergedTiendaIds.length > 0) report.diverged += 1;
+
+      const plan = planQabAlertNotifications({ state, now });
+      const pending: Array<{ titulo: string; descriptor: IQabAlertDescriptor | null }> = [
+        { titulo: QAB_ALERT_TITLES.syncStalled, descriptor: plan.stalled },
+        { titulo: QAB_ALERT_TITLES.hashDiverged, descriptor: plan.diverged },
+      ];
+
+      for (const { titulo, descriptor } of pending) {
+        const existente = await this.findExistingNotification(titulo, state.negocioId);
+
+        if (descriptor === null) {
+          if (existente) {
+            await this.deleteNotification(existente.id);
+            report.deleted += 1;
+          }
+          continue;
+        }
+
+        if (!existente) {
+          await this.createAutomaticNotification({
+            titulo: descriptor.titulo,
+            descripcion: descriptor.descripcion,
+            fechaInicio: descriptor.fechaInicio,
+            fechaFin: descriptor.fechaFin,
+            nivelImportancia: descriptor.nivelImportancia,
+            tipo: descriptor.tipo,
+            // Explicit, never inherited from the helper's `|| ""` default.
+            negociosDestino: descriptor.negociosDestino,
+            usuariosDestino: descriptor.usuariosDestino,
+            accionUrl: descriptor.accionUrl,
+          });
+          report.created += 1;
+          continue;
+        }
+
+        if (existente.descripcion !== descriptor.descripcion) {
+          await this.updateNotification(existente.id, {
+            descripcion: descriptor.descripcion,
+            nivelImportancia: descriptor.nivelImportancia,
+            negociosDestino: descriptor.negociosDestino,
+            usuariosDestino: descriptor.usuariosDestino,
+            accionUrl: descriptor.accionUrl,
+            fechaFin: descriptor.fechaFin,
+          });
+          report.updated += 1;
+        }
+      }
+    }
+
+    return report;
+  }
+
+  /**
    * Ejecutar todas las verificaciones automáticas
    */
   static async runAutomaticChecks(negocioId?: string) {
@@ -694,6 +801,7 @@ export class NotificationService {
       this.checkUserLimits(negocioId),
       this.checkProductExpiration(negocioId),
       this.checkPendingReception(negocioId),
+      this.checkQabSyncAlerts(negocioId),
       this.deleteExpiredNotifications(),
     ]);
   }

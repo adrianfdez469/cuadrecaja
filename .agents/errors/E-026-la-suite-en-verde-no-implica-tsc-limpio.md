@@ -1,7 +1,7 @@
 # E-026: `npm test` en verde no implica `npx tsc --noEmit` limpio
 
 **Área:** tests
-**Apariciones:** 1 — F-006
+**Apariciones:** 2 — F-006, F-008
 
 ## Síntoma
 
@@ -52,3 +52,38 @@ Y la regla de verificación, que es la que de verdad falló aquí: **una comprob
 vale como evidencia — hay que volver a ejecutarlo, no citarlo.
 
 Vale para `lint` igual que para `tsc`.
+
+---
+
+## Adenda F-008: la dirección contraria — `tsc` y `lint` en verde con la suite en rojo
+
+En F-006 el hueco fue «suite verde, tipos rotos». En F-008 fue **el espejo exacto**: el
+`implementer` dejó `npx tsc --noEmit` **exit 0** y `npm run lint` **exit 0**, y la suite en
+**rojo**.
+
+Lo que la tumbó: añadió `src/app/api/crons/qab-reconciliation/route.ts` y no registró la entrada en
+el censo de rutas (`src/constants/routeGuards/routeGuards.json`, ADR 0079). El test
+`routeGuardInventory.test.ts` compara **pareja por pareja (ruta, verbo)** contra lo que el disco
+exporta, y falla igual por una entrada que falte, que sobre, o que declare otro verbo.
+
+**Por qué ninguna de las dos herramientas lo ve:** con la entrada ausente no hay nada mal tipado ni
+mal escrito. `tsc` y `lint` dan exit 0 **correctamente**. Un censo por `(ruta, verbo)` es
+precisamente el test que **solo** puede fallar por trabajo de otro, y por tanto el que menos se
+deduce de una comprobación local.
+
+**El agravante, y es de proceso:** al `implementer` se le dice «no corras la suite completa, la está
+escribiendo el `dev-tester` en paralelo». Esa instrucción existe para que no se juzgue con tests
+ajenos a medio escribir — **no** para eximirlo de un test **preexistente y estable** que su cambio
+rompe desde fuera. Aquí `routeGuardInventory.test.ts` llevaba en verde desde F-021.
+
+Y un segundo agravante: la lista de testabilidad del contrato de F-008 era exhaustiva sobre lo que
+el feature **añade** y no mencionaba el censo, así que programar contra ella al pie de la letra deja
+el agujero abierto. Es la forma de E-035 un escalón más arriba.
+
+**La regla:** cuando un feature **añade un archivo que un censo del repositorio enumera** —una
+`route.ts`, y probablemente también un permiso o una migración— hay que ejecutar **ese test
+concreto** antes de cerrar, aunque la suite completa sea territorio ajeno:
+
+```bash
+npx vitest run src/__tests__/routeGuardInventory.test.ts
+```

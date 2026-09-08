@@ -1,7 +1,7 @@
 # E-047: un `replace` sobre la línea-ancla borra el import vecino
 
 **Área:** build
-**Apariciones:** 1 — F-023
+**Apariciones:** 2 — F-023, F-027
 
 ## Síntoma
 
@@ -46,3 +46,28 @@ Para insertar un import, inserta —`i\` de `sed`, o una edición que conserve l
 sustituyas la línea que usas como referencia. Y si el árbol compila después de una edición masiva,
 eso tampoco basta: un símbolo borrado de un `.tsx` de una ruta que nadie compila en ese momento
 puede pasar `tsc` y romper en el navegador. Corre `npm run build`, no solo `npx tsc --noEmit`.
+
+---
+
+## Adenda F-027: la misma forma con un ancla que tiene docstring — y `tsc` no la ve
+
+Reapareció al **insertar una función nueva** (`logQabWithheldOutbox`) en `src/lib/qab/qabOutboxLog.ts`,
+usando como ancla la línea de la firma vecina:
+
+```
+export function logQabOutboxPurgeRun(...)
+```
+
+La inserción quedó **entre el docstring de `logQabOutboxPurgeRun` y su propia firma**. Resultado:
+la función del purgado descrita por un comentario que hablaba de otra cosa, y la función nueva con
+dos docstrings encima.
+
+**Por qué es peor que la variante de F-023, no mejor:** no borra nada, así que **no hay ningún
+símbolo indefinido**. El árbol compila perfecto — `npx tsc --noEmit` exit 0 y `npm run lint` exit 0
+— y `npm run build`, que la ficha original recomienda como red, **tampoco lo detectaría**. El daño
+es documentación que miente, y la documentación no la compila nadie. Se vio releyendo el archivo.
+
+**La regla que faltaba:** cuando la línea-ancla es una firma que **tiene docstring**, el ancla
+correcta es el **docstring completo**, no la firma. Una firma exportada de este repo casi siempre
+lleva docstring, así que anclar en la línea `export function ...` es anclar dentro del bloque de
+otra cosa.

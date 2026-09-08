@@ -8,6 +8,7 @@ import {
   convertToBase,
   convertFromBase,
 } from "@/lib/currency";
+import { emitQabBusinessDisplayCurrencies } from "@/lib/qab/qabCatalogEmitters";
 
 /** GET — preview de cuántos precios/costos se convertirán y a qué valores */
 export async function GET(
@@ -174,6 +175,10 @@ export async function POST(
       );
     }
 
+    // The instant of the mutation, shared by the payload and by
+    // `OutboxEvento.ocurridoAt`. Taken ONCE per request, before the transaction.
+    const occurredAt = new Date();
+
     // Transacción: convierte precios/costos y actualiza Negocio.
     // DEBE ser atómica y una sola transacción: un fallo parcial dejaría el negocio
     // con parte de los precios en la moneda nueva y parte en la vieja, y reintentar
@@ -266,6 +271,13 @@ export async function POST(
         where: { id },
         data: { monedaBase: monedaNueva },
       });
+
+      // LAST statement of the transaction, and it has to stay last: the emitter
+      // re-reads `Negocio.monedaBase` itself, so calling it before the update
+      // above would enqueue the OLD base's list without anything failing.
+      // Always owed here: the route already answered 400 when the new base
+      // equals the current one, so reaching this point means the base changed.
+      await emitQabBusinessDisplayCurrencies(tx, { negocioId: id, occurredAt });
     },
       { timeout: 60000, maxWait: 15000 },
     );

@@ -28,6 +28,7 @@ export const QAB_OUTBOX_ENTITIES = [
   "PRODUCT",
   "CURRENCY",
   "EXCHANGE_RATE",
+  "BUSINESS",
 ] as const;
 
 export const QAB_OUTBOX_OPERATIONS = ["CREATE", "UPDATE", "DELETE"] as const;
@@ -342,6 +343,9 @@ export const QAB_PRODUCT_ENTITY = "PRODUCT" satisfies (typeof QAB_OUTBOX_ENTITIE
 export const QAB_CATEGORY_ENTITY = "CATEGORY" satisfies (typeof QAB_OUTBOX_ENTITIES)[number];
 export const QAB_CURRENCY_ENTITY = "CURRENCY" satisfies (typeof QAB_OUTBOX_ENTITIES)[number];
 export const QAB_EXCHANGE_RATE_ENTITY = "EXCHANGE_RATE" satisfies (typeof QAB_OUTBOX_ENTITIES)[number];
+
+/** Sixth entity of the outbox (contract v12). The one place this literal is written. */
+export const QAB_BUSINESS_ENTITY = "BUSINESS" satisfies (typeof QAB_OUTBOX_ENTITIES)[number];
 
 /**
  * Dependency order of ONE emission, and the ONE place it is written.
@@ -746,3 +750,218 @@ export const QAB_ORDER_STATUS_MAX_RESPONSE_BYTES = 1_024;
  * every address on the internet (ADR 0066).
  */
 export const QAB_ORDER_WHATSAPP_HOST = "wa.me";
+
+/* -------------------------------------------------------------------------- */
+/* F-027 — the currency list the storefront shows                              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Entities the drain WITHHOLDS: they are enqueued like any other event, they are
+ * never claimed, and they wait untouched. EMPTYING THIS LIST IS THE WHOLE SWITCH.
+ *
+ * BUSINESS is here because QAB's `entity` does not admit it yet: such an event
+ * answers `400 INVALID_BATCH` and takes THE WHOLE BATCH with it, the PRODUCT
+ * events travelling in it included (contract v12.1, § Cambios requeridos en
+ * cuadrecaja ①).
+ *
+ * TO TURN IT ON, the day QAB says the applier is up: remove QAB_BUSINESS_ENTITY
+ * from this array. Nothing else — no test pins it here, on purpose.
+ *
+ * The backlog then drains on its own, claimed in `id` order, which for this
+ * entity is also `updatedAt` order: each event of a business is newer than the
+ * one before it, so each one applies and overwrites the previous, and the list
+ * that stays is the newest. The anti-stale guard is what covers the OTHER order —
+ * an event delivered late by a retry answers `stale`, which the contract reports
+ * in `ok` (§ Respuesta: everything that is not `failed` goes in `ok`), so
+ * `planOutboxAck` marks it processed instead of retrying it forever. No
+ * re-emission and no manual cleanup either way.
+ *
+ * WHILE IT IS NOT EMPTY, every drain run reports how many events are waiting and
+ * since when: `IQabOutboxDrainReport.withheld` and one QAB_OUTBOX_WITHHELD_LOG
+ * line per entity. See ADR 0092 § 1.
+ */
+export const QAB_OUTBOX_WITHHELD_ENTITIES = [QAB_BUSINESS_ENTITY] as const;
+
+/**
+ * What the claim of `outboxDrain.ts` may pick up. DERIVED, never written by hand:
+ * the two lists cannot disagree, and emptying the one above is enough.
+ */
+export const QAB_OUTBOX_DRAINABLE_ENTITIES = QAB_OUTBOX_ENTITIES.filter(
+  (entity) => !(QAB_OUTBOX_WITHHELD_ENTITIES as readonly string[]).includes(entity),
+);
+
+/** Log prefix of the withheld backlog. Entity, count and one instant: never a payload. */
+export const QAB_OUTBOX_WITHHELD_LOG = "qab.outbox.withheld";
+
+/* -------------------------------------------------------------------------- */
+/* F-008 — Reconciliation against QAB's catalog hash                           */
+/* -------------------------------------------------------------------------- */
+
+/** Eighth route of the contract. Appended to QAB_API_BASE_URL; never inline. */
+export const QAB_RECONCILIATION_PATH = "/api/internal/reconciliation";
+
+/** Query parameter of that route. */
+export const QAB_RECONCILIATION_STORE_ID_PARAM = "storeId";
+
+/** The contract version QAB_RECONCILIATION_MIRROR_SQL was copied from. */
+export const QAB_RECONCILIATION_MIRROR_CONTRACT_VERSION = "v11";
+
+/** Separators of one hashed row, and the ONE place each is written. */
+export const QAB_RECONCILIATION_FIELD_SEPARATOR = ":";
+export const QAB_RECONCILIATION_ROW_SEPARATOR = "|";
+
+/**
+ * What a NULL `dispPublicada` counts as inside the hash. Declared FROM
+ * QAB_AVAILABILITY with `satisfies`, never as a loose literal.
+ */
+export const QAB_RECONCILIATION_DEFAULT_AVAILABILITY =
+  "AVAILABLE" satisfies (typeof QAB_AVAILABILITY)[number];
+
+/** Digest of the mirror. The contract's `md5`, and the one place it is named. */
+export const QAB_RECONCILIATION_HASH_ALGORITHM = "md5";
+
+/** Shape of every hash the contract publishes: 32 lowercase hex characters. */
+export const QAB_RECONCILIATION_HASH_PATTERN = /^[0-9a-f]{32}$/;
+
+/** Response cap of the reconciliation client. The 200 carries two scalars. */
+export const QAB_RECONCILIATION_MAX_RESPONSE_BYTES = 1_024;
+
+/**
+ * Rows of ONE store the mirror read is willing to hash. Over it the store is
+ * reported `too_large` and NOTHING is written: hashing a truncated set produces
+ * a false divergence, and a false divergence wipes `dispPublicada` of the whole
+ * store.
+ */
+export const QAB_RECONCILIATION_MAX_ROWS_PER_STORE = 20_000;
+
+/** Stores one run compares. Two caps, because they bound different things. */
+export const QAB_RECONCILIATION_MAX_STORES_PER_BUSINESS_PER_RUN = 4;
+export const QAB_RECONCILIATION_MAX_STORES_PER_RUN = 50;
+
+/** Budget of a whole run. The route's maxDuration is 60 s. */
+export const QAB_RECONCILIATION_RUN_DEADLINE_MS = 45_000;
+
+/**
+ * How long a business may go without reaching QAB before its sync counts as
+ * stalled. The threshold of acceptance criterion 5, and the ONE place the
+ * number is written: the alert copy derives its minutes from here.
+ */
+export const QAB_SYNC_STALE_THRESHOLD_MS = 30 * 60 * 1_000;
+
+/** How ONE store's comparison ended. Closed vocabulary. */
+export const QAB_RECONCILIATION_STORE_OUTCOMES = [
+  "match", // both sides answered the same `products` and `hash`
+  "diverged", // both answered and the values differ: recovery applied
+  "unknown_store", // 404 with the documented body: nothing written
+  "upstream_error", // no comparable answer: nothing written
+  "too_large", // over QAB_RECONCILIATION_MAX_ROWS_PER_STORE local rows
+  "skipped_deadline", // out of run budget; picked up by the next run
+] as const;
+
+/**
+ * Outcomes that PROVE QAB answered this business. `unknown_store` is one of
+ * them on purpose: the token authenticated and the other side replied, so the
+ * sync path is alive even though that store could not be compared.
+ */
+export const QAB_RECONCILIATION_REACHABLE_OUTCOMES = [
+  "match",
+  "diverged",
+  "unknown_store",
+] as const satisfies ReadonlyArray<(typeof QAB_RECONCILIATION_STORE_OUTCOMES)[number]>;
+
+/** The two verdicts of a comparison, and the ONE place they are written. */
+export const QAB_RECONCILIATION_VERDICTS = ["match", "diverged"] as const;
+
+/** Why one reconciliation request produced no comparable answer. Closed. */
+export const QAB_RECONCILIATION_UPSTREAM_CODES = [
+  "MISSING_STORE_ID", // 400
+  "UNAUTHORIZED", // 401
+  "BUSINESS_INACTIVE", // 403
+  "UNKNOWN_STORE", // 404 carrying the documented body
+  "SYNC_NOT_CONFIGURED", // 503
+  "TRANSPORT", // no HTTP response at all
+  "INVALID_RESPONSE_BODY", // a 200 whose body does not satisfy the schema
+  "UNEXPECTED_STATUS", // any other status, and a 404 with another body
+] as const;
+
+/** The only body a 404 of this route is allowed to carry. */
+export const QAB_RECONCILIATION_UNKNOWN_STORE_ERROR = "UNKNOWN_STORE";
+
+/** Log prefix of the run. Ids, counts and codes only: never a hash, never a body. */
+export const QAB_RECONCILIATION_LOG = "qab.reconciliation";
+
+/** Error code of the cron endpoint's 500 response. */
+export const QAB_RECONCILIATION_API_ERRORS = {
+  reconciliationFailed: "QAB_RECONCILIATION_FAILED",
+} as const;
+
+/* -- The alert. Copy in Spanish: this text is read by the merchant. -------- */
+
+/** Safety cap on `Notificacion.fechaFin`, in days. Same shape as F-021's checks. */
+export const QAB_ALERT_NOTIFICATION_TTL_DAYS = 30;
+
+/** Internal route the notification's action button opens. */
+export const QAB_ALERT_ACTION_URL = "/tienda-online/configuracion";
+
+/**
+ * Titles of the two alerts. They are CONSTANT — no store name, no id, no
+ * elapsed time — because `NotificationService.findExistingNotification`
+ * (`src/services/notificationService.ts`) matches with `titulo: { contains }`,
+ * and a title carrying a store name would match another store whose name is a
+ * prefix of it.
+ */
+export const QAB_ALERT_TITLES = {
+  syncStalled: "Tienda online: sincronización detenida",
+  hashDiverged: "Tienda online: catálogo desincronizado",
+} as const;
+
+/**
+ * The mirror of § ⑤, copied CHARACTER BY CHARACTER from the contract
+ * (QAB_RECONCILIATION_MIRROR_CONTRACT_VERSION). It is NOT executed: the local
+ * hash is computed by `computeQabCatalogHash` over the rows
+ * `readQabMirrorRows` returns. This constant is the ORIGIN both halves are tied
+ * to, and the static drift checks of the F-008 contract § 3 are what tie them.
+ */
+export const QAB_RECONCILIATION_MIRROR_SQL = `SELECT count(*) AS products,
+       md5(coalesce(string_agg(
+              pt."id" || ':' ||
+              trim(trailing '.' from
+                   trim(trailing '0' from round(pt."precio"::numeric, 2)::text)) || ':' ||
+              pt."monedaPrecioCode" || ':' ||
+              coalesce(pt."dispPublicada", 'AVAILABLE') || '|',
+              '' ORDER BY pt."id" COLLATE "C"
+            ), '')) AS hash
+FROM "ProductoTienda" pt
+JOIN "Producto" p ON p.id = pt."productoId"
+WHERE pt."tiendaId" = $1
+  AND p."publicarEnTienda" = true
+  AND pt."precio" IS NOT NULL
+  AND pt."monedaPrecioCode" IS NOT NULL
+  AND p."deletedAt" IS NULL
+  AND pt."deletedAt" IS NULL`;
+
+/**
+ * The row-selection half of the mirror, in TWO fragments split exactly where the
+ * contract writes its `$1`. Both are copied verbatim from
+ * QAB_RECONCILIATION_MIRROR_SQL.
+ *
+ * Two and not one because the store id must reach the database as a BOUND
+ * parameter of a Prisma tagged template, and a tagged template numbers its own
+ * placeholders: a literal `$1` inside a `Prisma.raw` fragment would collide with
+ * the one Prisma emits. Splitting around it keeps the contract's text
+ * byte-identical AND the parameter bound.
+ *
+ * Reassembling them as `FROM_JOIN + "$1" + WHERE_TAIL` reproduces the contract's
+ * text, and that is exactly what the drift check asserts, so the WHERE cannot
+ * diverge from the contract's without turning a test red.
+ */
+export const QAB_RECONCILIATION_MIRROR_FROM_JOIN_SQL = `FROM "ProductoTienda" pt
+JOIN "Producto" p ON p.id = pt."productoId"
+WHERE pt."tiendaId" = `;
+
+export const QAB_RECONCILIATION_MIRROR_WHERE_TAIL_SQL = `
+  AND p."publicarEnTienda" = true
+  AND pt."precio" IS NOT NULL
+  AND pt."monedaPrecioCode" IS NOT NULL
+  AND p."deletedAt" IS NULL
+  AND pt."deletedAt" IS NULL`;

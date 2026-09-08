@@ -1064,6 +1064,20 @@
     "corregidaPor": null
   },
   {
+    "route": "crons/qab-reconciliation/route.ts",
+    "verb": "GET",
+    "clasificacion": "protegida",
+    "kind": "sin-fila",
+    "motivo": "isValidCronAuth con CRON_SECRET; reconcilia el catálogo de toda la plataforma contra QAB. El ?tiendaId= opcional solo filtra candidatos ya acotados por Tienda.negocioId, no direcciona ninguna fila",
+    "helper": "isValidCronAuth",
+    "tenantModel": null,
+    "tenantParam": null,
+    "permiso": null,
+    "permisoAusenteMotivo": "no-aplica",
+    "devuelveDatosDeNegocio": true,
+    "corregidaPor": null
+  },
+  {
     "route": "crons/sync-tienda/route.ts",
     "verb": "GET",
     "clasificacion": "protegida",

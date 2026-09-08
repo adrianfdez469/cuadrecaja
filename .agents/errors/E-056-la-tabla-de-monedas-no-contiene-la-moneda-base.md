@@ -1,4 +1,4 @@
-# E-049: la tabla de monedas del negocio no contiene la moneda base
+# E-056: la tabla de monedas del negocio no contiene la moneda base
 
 **Área:** ui
 **Apariciones:** 3 — gastos ad-hoc del cierre, fondo inicial (frontend), fondo inicial (backend)

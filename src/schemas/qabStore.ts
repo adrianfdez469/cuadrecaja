@@ -1,4 +1,10 @@
 import { z } from "zod";
+import {
+  LATITUDE_MAX,
+  LATITUDE_MIN,
+  LONGITUDE_MAX,
+  LONGITUDE_MIN,
+} from "@/constants/map";
 import { QAB_UNPUBLISH_REASON_MAX_LENGTH } from "@/constants/qab";
 import { openingHoursSchema } from "@/schemas/qabOpeningHours";
 import { qabCurrencyCodeSchema } from "@/schemas/qabCurrency";
@@ -14,11 +20,6 @@ export type {
 
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const SLUG_MAX_LENGTH = 80;
-
-const LATITUDE_MIN = -90;
-const LATITUDE_MAX = 90;
-const LONGITUDE_MIN = -180;
-const LONGITUDE_MAX = 180;
 
 /** URL slug: lowercase, digits and single hyphens. */
 export const qabSlugSchema: z.ZodType<string, unknown> = z

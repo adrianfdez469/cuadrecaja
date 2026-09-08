@@ -7,7 +7,10 @@ import {
   assertNegocioConfigAccess,
   assertNegocioConfigReadAccess,
 } from "@/lib/negocioConfigAccess";
-import { emitQabCurrencyForNegocio } from "@/lib/qab/qabCatalogEmitters";
+import {
+  emitQabBusinessDisplayCurrencies,
+  emitQabCurrencyForNegocio,
+} from "@/lib/qab/qabCatalogEmitters";
 
 export async function GET(
   req: NextRequest,
@@ -124,6 +127,8 @@ export async function POST(
           include: { moneda: true },
         });
         await emitQabCurrency(tx, id, row.moneda, occurredAt);
+        // `activo` went false -> true, so the storefront's currency list changed.
+        await emitQabBusinessDisplayCurrencies(tx, { negocioId: id, occurredAt });
         return row;
       });
       return NextResponse.json(reactivated, { status: 200 });
@@ -134,6 +139,10 @@ export async function POST(
         include: { moneda: true },
       });
       await emitQabCurrency(tx, id, row.moneda, occurredAt);
+      // A brand new row: `activo` takes the column default `true`
+      // (`negocioMonedaCreateSchema` does not declare the key), so the list
+      // changed.
+      await emitQabBusinessDisplayCurrencies(tx, { negocioId: id, occurredAt });
       return row;
     });
     return NextResponse.json(negocioMoneda, { status: 201 });

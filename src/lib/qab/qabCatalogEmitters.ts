@@ -1,11 +1,13 @@
 import {
+  QAB_BUSINESS_ENTITY,
   QAB_CATEGORY_CASCADE_MAX_BUSINESSES,
   QAB_CURRENCY_ENTITY,
   QAB_CURRENCY_FANOUT_MAX_BUSINESSES,
   QAB_EXCHANGE_RATE_ENTITY,
 } from "@/constants/qab";
 import type { PrismaClientLike } from "@/lib/prisma";
-import { enqueueOutboxEvents } from "@/lib/qab/outboxEnqueue";
+import { enqueueOutboxEvent, enqueueOutboxEvents } from "@/lib/qab/outboxEnqueue";
+import { buildQabBusinessPayload } from "@/lib/qab/qabBusinessPayload";
 import {
   planQabCategoryCascade,
   planQabCurrencyFanout,
@@ -230,4 +232,83 @@ export async function emitQabExchangeRateEvent(
 
   await enqueueOutboxEvents(tx, events);
   return { emitted: events.length, truncated: false };
+}
+
+/**
+ * `operacion` of every BUSINESS event. CREATE and UPDATE do the same thing
+ * because the list travels complete, and a DELETE is never emitted: QAB rejects
+ * it with BUSINESS_DELETE_NOT_SUPPORTED, and no mutation of this repository asks
+ * for one — the DELETE of `/monedas/[code]` only sets `activo: false`.
+ */
+const BUSINESS_OPERATION: IQabOutboxOperation = "UPDATE";
+
+/**
+ * ONE BUSINESS event in ONE business's outbox: the complete list of currencies
+ * the storefront must show, never a delta.
+ *
+ * It reads what it needs ITSELF, inside the caller's transaction and AFTER the
+ * mutation has been applied, so it can never be handed a pre-mutation set:
+ *
+ *  - the switch, through `isNegocioTiendaOnlineEnabled` (ADR 0021): nothing is
+ *    enqueued when it is off, and a business that does not exist is not enabled.
+ *    That costs one extra primary-key read of `Negocio` per emission and buys ONE
+ *    definition of the switch, shared with the four sibling emitters.
+ *  - `Negocio.monedaBase`.
+ *  - EVERY `NegocioMoneda` row of `negocioId`: `where: { negocioId }`,
+ *    `select: { monedaCode: true, activo: true }`. The `activo` filter is
+ *    deliberately NOT in the `where`: it belongs to `buildQabDisplayCurrencies`,
+ *    which is the single definition (E-014). No `orderBy` either — the builder
+ *    sorts.
+ *
+ * WHETHER the list changed is the caller's decision, not this function's: each
+ * mutating route works it out from its own pre/post state. Calling it when
+ * nothing changed enqueues a redundant but harmless event.
+ *
+ * It enqueues WHATEVER `buildQabDisplayCurrencies` returns, `[]` included, and
+ * suppresses nothing: an empty list is the degenerate case documented in
+ * `buildQabDisplayCurrencies`, and the row says so honestly. The only thing that
+ * stops the enqueue is the switch.
+ *
+ * Returns `{ emitted: 0, truncated: false }` when the switch is off or the
+ * business row is gone. `truncated` is always false: there is no fan-out here —
+ * one business is one event (contract v12.1: `BUSINESS` is not repeated per
+ * store).
+ */
+export async function emitQabBusinessDisplayCurrencies(
+  tx: PrismaClientLike,
+  args: { negocioId: string; occurredAt: Date },
+): Promise<IQabFanoutResult> {
+  const enabled = await isNegocioTiendaOnlineEnabled(tx, args.negocioId);
+  if (!enabled) return NOTHING_EMITTED;
+
+  const negocio = await tx.negocio.findUnique({
+    where: { id: args.negocioId },
+    select: { monedaBase: true },
+  });
+  if (negocio === null) return NOTHING_EMITTED;
+
+  const monedas = await tx.negocioMoneda.findMany({
+    where: { negocioId: args.negocioId },
+    select: { monedaCode: true, activo: true },
+  });
+
+  // `negocioId`, `entidadId` and `payload.businessId` all come from the SAME
+  // parameter, read once: `entidadId` is the `Negocio.id`, duplicating the
+  // column ON PURPOSE so `@@index([entidad, entidadId])` answers "the BUSINESS
+  // events of this business".
+  await enqueueOutboxEvent(tx, {
+    negocioId: args.negocioId,
+    entidad: QAB_BUSINESS_ENTITY,
+    entidadId: args.negocioId,
+    operacion: BUSINESS_OPERATION,
+    payload: buildQabBusinessPayload({
+      negocioId: args.negocioId,
+      monedas,
+      monedaBase: negocio.monedaBase,
+      occurredAt: args.occurredAt,
+    }),
+    ocurridoAt: args.occurredAt,
+  });
+
+  return { emitted: 1, truncated: false };
 }

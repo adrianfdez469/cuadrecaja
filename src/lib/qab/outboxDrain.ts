@@ -1,8 +1,13 @@
-import type { Prisma } from "@prisma/client";
+// `Prisma` is imported as a VALUE and not `import type`: `Prisma.join` below is a
+// function, not a type. `Prisma.TransactionClient` keeps working as a type off the
+// same namespace binding.
+import { Prisma } from "@prisma/client";
 import {
   QAB_OUTBOX_BATCH_SIZE,
+  QAB_OUTBOX_DRAINABLE_ENTITIES,
   QAB_OUTBOX_ERROR_CODES,
   QAB_OUTBOX_MAX_ATTEMPTS,
+  QAB_OUTBOX_WITHHELD_ENTITIES,
   QAB_SYNC_RUN_DEADLINE_MS,
   QAB_SYNC_TX_MAX_WAIT_MS,
   QAB_SYNC_TX_TIMEOUT_MS,
@@ -16,7 +21,8 @@ import {
   toQabCatalogBatch,
 } from "@/lib/qab/outboxAck";
 import { collectQabAppliedStorePublishes } from "@/lib/qab/qabStoreOutboxFilters";
-import { logQabPermanentFailure } from "@/lib/qab/qabOutboxLog";
+import { readQabWithheldOutboxPending } from "@/lib/qab/qabCatalogOutboxFilters";
+import { logQabPermanentFailure, logQabWithheldOutbox } from "@/lib/qab/qabOutboxLog";
 import type { IQabPostOutcome } from "@/lib/qab/qabCatalogClient";
 import type { IOutboxEvento, IQabOutboxEntity, IQabOutboxOperation } from "@/schemas/qabOutbox";
 import type {
@@ -53,12 +59,19 @@ interface IOutboxEventoRow {
  *
  * `FOR UPDATE OF o` is mandatory: without the `OF o` the `EXISTS` subquery risks
  * locking `Negocio` rows for the whole duration of the drain transaction.
+ *
+ * The WITHHELD entities are filtered HERE too, and for the same reason: the
+ * allow-list is QAB_OUTBOX_DRAINABLE_ENTITIES, DERIVED from
+ * QAB_OUTBOX_WITHHELD_ENTITIES. Their rows stay pending and untouched — no
+ * `intentos++`, no `ultimoError`, no `procesadoAt` — and walk in on their own the
+ * day that list is emptied. See ADR 0092 § 1.
  */
 export async function claimOutboxBatch(tx: Prisma.TransactionClient): Promise<IOutboxEvento[]> {
   const rows = await tx.$queryRaw<IOutboxEventoRow[]>`
     SELECT o.* FROM "OutboxEvento" o
     WHERE o."procesadoAt" IS NULL
       AND o.intentos < ${QAB_OUTBOX_MAX_ATTEMPTS}
+      AND o.entidad IN (${Prisma.join(QAB_OUTBOX_DRAINABLE_ENTITIES)})
       AND EXISTS (SELECT 1 FROM "Negocio" n
                   WHERE n.id = o."negocioId" AND n."tiendaOnlineHabilitada" = true)
     ORDER BY o.id LIMIT ${QAB_OUTBOX_BATCH_SIZE}
@@ -130,7 +143,17 @@ export async function drainQabOutbox(
   return qabPrisma.$transaction<IQabOutboxDrainReport>(
     async (tx) => {
       const rows = await claimOutboxBatch(tx);
-      if (rows.length === 0) return emptyQabOutboxDrainReport();
+
+      // BEFORE the early return below, and that ordering IS the mechanism: in the
+      // steady state the withheld rows are the ONLY pending ones, the claim comes
+      // back empty, and a cut placed above this read would silence the alarm
+      // exactly when it matters (ADR 0092 § 1).
+      const withheld = await readQabWithheldOutboxPending(tx, {
+        entidades: QAB_OUTBOX_WITHHELD_ENTITIES,
+      });
+      for (const entry of withheld) logQabWithheldOutbox(entry);
+
+      if (rows.length === 0) return { ...emptyQabOutboxDrainReport(), withheld };
 
       const groups = groupOutboxEventsByNegocio(rows);
       const tokens = await loadQabTokens(
@@ -230,6 +253,7 @@ export async function drainQabOutbox(
         // ONLY reorders the slug-learning phase's eligible set, never widens it
         // (ADR 0036b). The phase queries its own eligibility.
         appliedStoreEvents: collectQabAppliedStorePublishes(rows, processedIds),
+        withheld,
       };
     },
     { timeout: QAB_SYNC_TX_TIMEOUT_MS, maxWait: QAB_SYNC_TX_MAX_WAIT_MS },

@@ -1,3 +1,11 @@
+import {
+  LATITUDE_MAX,
+  LATITUDE_MIN,
+  LONGITUDE_MAX,
+  LONGITUDE_MIN,
+  MAP_COORDINATE_DECIMALS,
+} from "@/constants/map";
+import type { IMapPoint } from "@/schemas/map";
 import type { IOpeningHours } from "@/schemas/qabOpeningHours";
 import type {
   ITiendaOnlineLocal,
@@ -172,4 +180,85 @@ export function hasNoContactAtAll(draft: ITiendaOnlineDraft): boolean {
     draft.telefono.trim().length === 0 &&
     draft.whatsapp.trim().length === 0
   );
+}
+
+/* -------------------------------------------------------------------------- */
+/* F-025 — the draft is the only owner of the coordinate (ADR 0098)            */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The coordinate rounded to `MAP_COORDINATE_DECIMALS`.
+ *
+ * Exported so the suite can pin it alone. `Number(v.toFixed(6))` cannot produce a
+ * non-zero magnitude below 1e-6, and JavaScript only switches `String` to
+ * exponential notation below 1e-6, so for every value in [-180, 180] the text
+ * this feeds into the draft stays plain decimal.
+ *
+ * The `+ 0` collapses a negative zero into a positive one: a click just west of
+ * Greenwich rounds to `-0`, and two drafts that differ only by that sign are the
+ * same place.
+ */
+export function roundCoordinate(value: number): number {
+  return Number(value.toFixed(MAP_COORDINATE_DECIMALS)) + 0;
+}
+
+/**
+ * The point the draft currently describes, or `null` when it describes none.
+ *
+ * THE ONLY reader of `latitud`/`longitud` for map purposes. Returns `null` when
+ * either string is blank, when either does not parse to a finite number, or when
+ * either falls outside its range — so an out-of-range value typed by hand draws
+ * no marker, which is the honest answer, since `tiendaOnlineLocalUpdateSchema`
+ * would reject it with a 400 on save anyway.
+ *
+ * Its relation to `hasLonelyCoordinate`, stated here so implementation and tests
+ * cannot disagree about it: whenever `hasLonelyCoordinate(draft)` is `true` this
+ * returns `null` — but NOT only then. It also returns `null` for both-blank, for
+ * unparseable and for out-of-range. Neither is the inverse of the other.
+ */
+export function draftToMapPoint(draft: ITiendaOnlineDraft): IMapPoint | null {
+  const lat = toNullableNumber(draft.latitud);
+  const lon = toNullableNumber(draft.longitud);
+  if (lat === null || lon === null) return null;
+  if (lat < LATITUDE_MIN || lat > LATITUDE_MAX) return null;
+  if (lon < LONGITUDE_MIN || lon > LONGITUDE_MAX) return null;
+  return { lat, lon };
+}
+
+/**
+ * A new draft carrying `point` as its two coordinates, rounded.
+ *
+ * THE ONLY writer of `latitud`/`longitud` from the map. It takes an `IMapPoint`,
+ * and neither `MAP_DEFAULT_VIEW` nor `IMapView` is assignable to that: this
+ * signature is the compile-time half of acceptance criterion 5 (ADR 0098).
+ *
+ * The two strings it produces are in the same textual form `draftFromLocal`
+ * rebuilds from the saved row — `String(number)` on both sides — so the save bar
+ * goes away after a save instead of staying up over a draft that only LOOKS
+ * different from the stored one.
+ *
+ * Every other field of `draft` is carried through untouched.
+ */
+export function applyMapPointToDraft(
+  draft: ITiendaOnlineDraft,
+  point: IMapPoint,
+): ITiendaOnlineDraft {
+  return {
+    ...draft,
+    latitud: String(roundCoordinate(point.lat)),
+    longitud: String(roundCoordinate(point.lon)),
+  };
+}
+
+/**
+ * A new draft with both coordinates blank, i.e. back to "no point at all".
+ *
+ * The state acceptance criterion 5 describes is not only an initial state: it has
+ * to stay reachable, or one mis-click becomes permanent. Every other field is
+ * carried through untouched.
+ */
+export function clearMapPointFromDraft(
+  draft: ITiendaOnlineDraft,
+): ITiendaOnlineDraft {
+  return { ...draft, latitud: "", longitud: "" };
 }

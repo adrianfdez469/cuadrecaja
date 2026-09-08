@@ -254,6 +254,8 @@ model Tienda {
   horarios             Json?
   motivoDespublicacion String? @db.VarChar(160)
 
+  qabReconciliacion QabReconciliacionTienda?
+
   pedidosEntrantes PedidoEntrante[]
 
   // Índice de unicidad compuesto: nombre único por negocio
@@ -1205,7 +1207,7 @@ model OutboxEvento {
   id          BigInt    @id @default(autoincrement())
   negocio     Negocio   @relation(fields: [negocioId], references: [id])
   negocioId   String
-  /// Wire value: STORE | CATEGORY | PRODUCT | CURRENCY | EXCHANGE_RATE.
+  /// Wire value: STORE | CATEGORY | PRODUCT | CURRENCY | EXCHANGE_RATE | BUSINESS.
   entidad     String
   entidadId   String
   /// Wire value: CREATE | UPDATE | DELETE.
@@ -1318,4 +1320,26 @@ model PedidoEntranteLinea {
 
   @@index([pedidoId])
   @@index([negocioId])
+}
+
+/// Per-store reconciliation state (F-008). One row per Tienda, created on first
+/// sight by the reconciliation run. The health of a business is AGGREGATED from
+/// its stores' rows: there is deliberately no per-business row and no global one.
+model QabReconciliacionTienda {
+  id       String @id @default(uuid())
+  tienda   Tienda @relation(fields: [tiendaId], references: [id], onDelete: Cascade)
+  tiendaId String @unique
+
+  /// When a comparison was last ATTEMPTED. Orders the round robin.
+  ultimaComparacionAt DateTime?
+  /// When QAB last answered for this store with a 200 or a documented 404.
+  /// The staleness alert of criterion 5 is measured on this, per business.
+  ultimoContactoOkAt  DateTime?
+  /// When the hash divergence was FIRST seen, and still not cleared. NULL = agreed.
+  hashDivergenteAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ultimaComparacionAt])
 }

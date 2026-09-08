@@ -1,6 +1,14 @@
-import { QAB_OUTBOX_PURGE_LOG, QAB_SLUG_LEARN_LOG } from "@/constants/qab";
+import {
+  QAB_OUTBOX_PURGE_LOG,
+  QAB_OUTBOX_WITHHELD_LOG,
+  QAB_SLUG_LEARN_LOG,
+} from "@/constants/qab";
 import type { IQabOutboxPurgeReport } from "@/schemas/qabOutboxPurge";
-import type { IQabPermanentFailure, IQabSlugLearnResult } from "@/schemas/qabSync";
+import type {
+  IQabOutboxWithheld,
+  IQabPermanentFailure,
+  IQabSlugLearnResult,
+} from "@/schemas/qabSync";
 
 /** The one outcome that is an invariant violation, not an ordinary result. */
 const TENANT_MISMATCH_OUTCOME: IQabSlugLearnResult["outcome"] = "tenant_mismatch";
@@ -28,6 +36,22 @@ export function logQabSlugLearnOutcome(result: IQabSlugLearnResult): void {
   // the one outcome loud enough for an error channel.
   if (result.outcome === TENANT_MISMATCH_OUTCOME) console.error(line);
   else console.info(line);
+}
+
+/**
+ * One line per withheld entity with a backlog. Counts and one instant only: no
+ * negocioId, no event id, no payload — same rule as `logQabPermanentFailure`.
+ * `qab.outbox.withheld entidad=BUSINESS pending=12 oldest=2026-09-06T14:03:00.000Z`
+ *
+ * `warn` and not `info`: withholding is deliberate, so it is not an error, and it
+ * is not routine either — it is a backlog waiting for a switch.
+ */
+export function logQabWithheldOutbox(entry: IQabOutboxWithheld): void {
+  const oldest =
+    entry.oldestOcurridoAt === null ? "null" : entry.oldestOcurridoAt.toISOString();
+  console.warn(
+    `${QAB_OUTBOX_WITHHELD_LOG} entidad=${entry.entidad} pending=${entry.pending} oldest=${oldest}`,
+  );
 }
 
 /**
