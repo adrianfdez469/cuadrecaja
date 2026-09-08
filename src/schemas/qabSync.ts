@@ -4,6 +4,7 @@ import {
   QAB_ORDER_POLL_LOCK_STATES,
   QAB_ORDER_PULL_OUTCOMES,
   QAB_OUTBOX_BATCH_SIZE,
+  QAB_OUTBOX_DEFERRED_ERROR_CODES,
   QAB_OUTBOX_PERMANENT_ERROR_CODES,
   QAB_SLUG_LEARN_OUTCOMES,
 } from "@/constants/qab";
@@ -38,10 +39,33 @@ export const qabCatalogSyncResponseSchema = z.object({
 });
 export type IQabCatalogSyncResponse = z.infer<typeof qabCatalogSyncResponseSchema>;
 
+/**
+ * One event QAB reported in `failed[]` blaming ANOTHER event of the same batch.
+ * Sibling of `qabPermanentFailureSchema`, and its opposite in the two dimensions
+ * that matter: this one is not permanent AND does not spend an attempt. Reported
+ * because the row itself records nothing (ADR 0102).
+ *
+ * Declared ABOVE `qabOutboxAckPlanSchema` and not next to its sibling below
+ * because that plan embeds it: a `z.object` is evaluated when the module loads,
+ * so the referenced schema has to exist by then.
+ */
+export const qabOutboxDeferralSchema = z.object({
+  eventId: z.string().min(1),
+  negocioId: z.string().min(1),
+  entidad: qabOutboxEntitySchema,
+  entidadId: z.string().min(1),
+  /** The member of the closed list that matched. NEVER the received string. */
+  code: z.enum(QAB_OUTBOX_DEFERRED_ERROR_CODES),
+});
+export type IQabOutboxDeferral = z.infer<typeof qabOutboxDeferralSchema>;
+export type IQabOutboxDeferralCode = IQabOutboxDeferral["code"];
+
 /** What has to be written back to the outbox after a send. */
 export const qabOutboxAckPlanSchema = z.object({
   processedIds: z.array(z.string()),
   failedAcks: z.array(z.object({ id: z.string(), ultimoError: z.string() })),
+  /** Rows to leave EXACTLY as they are: no ack, no attempt spent (ADR 0102). */
+  deferrals: z.array(qabOutboxDeferralSchema).default([]),
 });
 export type IQabOutboxAckPlan = z.infer<typeof qabOutboxAckPlanSchema>;
 
@@ -137,6 +161,8 @@ export const qabOutboxDrainReportSchema = z.object({
     }),
   ),
   permanentFailures: z.array(qabPermanentFailureSchema).default([]),
+  /** Events QAB blamed on another event of the same batch. Not counted as `failed`. */
+  deferrals: z.array(qabOutboxDeferralSchema).default([]),
   /**
    * The STORE publishes this run got acknowledged for. ONLY reorders the
    * learning phase's eligible set; it never widens it (ADR 0036b).

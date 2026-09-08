@@ -965,3 +965,35 @@ export const QAB_RECONCILIATION_MIRROR_WHERE_TAIL_SQL = `
   AND pt."monedaPrecioCode" IS NOT NULL
   AND p."deletedAt" IS NULL
   AND pt."deletedAt" IS NULL`;
+
+/* -------------------------------------------------------------------------- */
+/* F-028 (part A) — Cancellation of superseded EXCHANGE_RATE events            */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Rows one cancellation may consider. Bounds the work done inside a merchant's
+ * mutation transaction. See ADR 0101 for why a cap and what a reached cap means.
+ */
+export const QAB_OUTBOX_CANCEL_MAX_ROWS = 100;
+
+/** Log prefix of one cancellation. Ids and counts only: no payload, no token. */
+export const QAB_OUTBOX_CANCEL_LOG = "qab.outbox.cancel";
+
+/* -------------------------------------------------------------------------- */
+/* F-028 (part B) — Failures QAB attributes to another event of the same batch */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Errors that mean "not yet", not "wrong": the event never got applied, so it is
+ * retried UNCHANGED and does NOT spend one of QAB_OUTBOX_MAX_ATTEMPTS. Matched by
+ * EXACT equality, never by substring - see ADR 0103 § 1.
+ *
+ * This is a DIFFERENT classification from QAB_OUTBOX_PERMANENT_ERROR_CODES: "not
+ * permanent" and "does not count" are not the same thing, and every code in
+ * QAB_OUTBOX_ERROR_CODES is an example of one that is not permanent and still
+ * counts.
+ */
+export const QAB_OUTBOX_DEFERRED_ERROR_CODES = ["DEPENDENCY_FAILED_IN_BATCH"] as const;
+
+/** Log prefix of one deferred event. Ids and the closed code only. */
+export const QAB_OUTBOX_DEFERRED_LOG = "qab.outbox.deferred";

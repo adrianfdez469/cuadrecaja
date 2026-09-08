@@ -1,10 +1,14 @@
 import {
+  QAB_EXCHANGE_RATE_ENTITY,
+  QAB_OUTBOX_CANCEL_LOG,
+  QAB_OUTBOX_DEFERRED_LOG,
   QAB_OUTBOX_PURGE_LOG,
   QAB_OUTBOX_WITHHELD_LOG,
   QAB_SLUG_LEARN_LOG,
 } from "@/constants/qab";
 import type { IQabOutboxPurgeReport } from "@/schemas/qabOutboxPurge";
 import type {
+  IQabOutboxDeferral,
   IQabOutboxWithheld,
   IQabPermanentFailure,
   IQabSlugLearnResult,
@@ -64,5 +68,43 @@ export function logQabOutboxPurgeRun(report: IQabOutboxPurgeReport): void {
   // A normal run is not an error, so it goes to the info channel.
   console.info(
     `${QAB_OUTBOX_PURGE_LOG} deleted=${report.deleted} exhausted=${report.exhausted.deleted} processed=${report.processed.deleted} batches=${batches} exhaustedStop=${report.exhausted.stopReason} processedStop=${report.processed.stopReason} durationMs=${report.durationMs}`,
+  );
+}
+
+/**
+ * One line per cancellation. Ids and counts only: no payload, no business token,
+ * no QAB response body - same rule as `logQabPermanentFailure`. The three ids
+ * are the ones acceptance criterion 11 allows.
+ * `qab.outbox.cancel entidad=EXCHANGE_RATE negocioId=<id> entidadId=<code> cancelled=<n> capReached=<bool>`
+ *
+ * `info` for a normal cancellation, which is a deliberate outcome and not an
+ * error; `warn` when the cap was reached, which is not routine. Same split as
+ * `logQabSlugLearnOutcome`.
+ */
+export function logQabExchangeRateCancel(entry: {
+  negocioId: string;
+  entidadId: string;
+  cancelled: number;
+  capReached: boolean;
+}): void {
+  const line = `${QAB_OUTBOX_CANCEL_LOG} entidad=${QAB_EXCHANGE_RATE_ENTITY} negocioId=${entry.negocioId} entidadId=${entry.entidadId} cancelled=${entry.cancelled} capReached=${entry.capReached}`;
+  if (entry.capReached) console.warn(line);
+  else console.info(line);
+}
+
+/**
+ * One line per deferred event. Ids and the CLOSED code only: no payload, no
+ * business token, no QAB response body - same rule as `logQabPermanentFailure`.
+ * `code` comes from `IQabOutboxDeferral`, which carries the constant that
+ * matched and never the received string (ADR 0103 § 1).
+ * `qab.outbox.deferred entidad=PRODUCT entidadId=<id> negocioId=<id> code=<code> eventId=<id>`
+ *
+ * `warn` and not `error`: a deferral is not a failure of this event, it is a
+ * backlog waiting for its dependency - the same reading `logQabWithheldOutbox`
+ * gives a backlog waiting for a switch. And not `info` either: it is not routine.
+ */
+export function logQabOutboxDeferral(deferral: IQabOutboxDeferral): void {
+  console.warn(
+    `${QAB_OUTBOX_DEFERRED_LOG} entidad=${deferral.entidad} entidadId=${deferral.entidadId} negocioId=${deferral.negocioId} code=${deferral.code} eventId=${deferral.eventId}`,
   );
 }
