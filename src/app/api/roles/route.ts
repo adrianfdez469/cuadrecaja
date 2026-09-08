@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { nombre, descripcion, permisos } = body;
+    const { nombre, descripcion, permisos, isGlobal } = body;
 
     // Validaciones básicas
     if (!nombre || !permisos) {
@@ -73,19 +73,37 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verificar que el nombre no exista en el negocio
-    const existingRol = await prisma.rol.findUnique({
-      where: {
-        nombre_negocioId: {
-          nombre: nombre,
-          negocioId: user.negocio.id
-        }
-      }
-    });
+    // Solo un SUPER_ADMIN puede crear roles globales
+    const createGlobal = isGlobal === true;
+    if (createGlobal && user.rol !== "SUPER_ADMIN") {
+      return NextResponse.json(
+        { error: "Solo un superadmin puede crear roles globales" },
+        { status: 403 }
+      );
+    }
+
+    // Verificar que el nombre no exista. Los roles globales viven con
+    // negocioId null, fuera del unique compuesto, así que se buscan aparte.
+    const existingRol = createGlobal
+      ? await prisma.rol.findFirst({
+          where: { nombre: nombre, negocioId: null }
+        })
+      : await prisma.rol.findUnique({
+          where: {
+            nombre_negocioId: {
+              nombre: nombre,
+              negocioId: user.negocio.id
+            }
+          }
+        });
 
     if (existingRol) {
       return NextResponse.json(
-        { error: "Ya existe un rol con ese nombre en este negocio" },
+        {
+          error: createGlobal
+            ? "Ya existe un rol global con ese nombre"
+            : "Ya existe un rol con ese nombre en este negocio"
+        },
         { status: 400 }
       );
     }
@@ -95,8 +113,8 @@ export async function POST(request: NextRequest) {
         nombre,
         descripcion,
         permisos,
-        isGlobal: false,
-        negocioId: user.negocio.id
+        isGlobal: createGlobal,
+        negocioId: createGlobal ? null : user.negocio.id
       }
     });
 

@@ -1,11 +1,15 @@
 import { z } from "zod";
 import { tiendaSchema } from "./tienda";
 import { initialCashFundEntrySchema } from "./initialCashFund";
+import { CIERRE_ETIQUETA_MAX_LENGTH } from "@/constants/cierre";
 
 export const cierrePeriodoSchema = z.object({
   id: z.string().uuid(),
   fechaInicio: z.coerce.date(),
   fechaFin: z.coerce.date().optional(),
+  // The operator's own name for the period. NULL/absent means unnamed: the
+  // readers show the fechaInicio-fechaFin range instead (`resolveCierreLabel`).
+  etiqueta: z.string().nullable().optional(),
   tiendaId: z.string().uuid(),
   tienda: tiendaSchema,
   initialCashFund: initialCashFundEntrySchema.optional(),
@@ -86,6 +90,7 @@ export type IDeduccionItem = z.infer<typeof deduccionItemSchema>;
 export const cierreDataSchema = z.object({
   fechaInicio: z.coerce.date().optional(),
   fechaFin: z.coerce.date().optional(),
+  etiqueta: z.string().nullable().optional(),
   tienda: tiendaSchema.optional(),
   productosVendidos: z.array(cierreProductoVendidosSchema),
   totalVentas: z.number(),
@@ -221,6 +226,18 @@ export type ICierreStoredTotals = z.infer<typeof cierreStoredTotalsSchema>;
 export type IRecalculateCierreResult = z.infer<
   typeof recalculateCierreResultSchema
 >;
+/**
+ * Body of `PATCH /api/cierre/[tiendaId]/[cierreId]/etiqueta`.
+ *
+ * `null` — or a blank string, which the route normalizes to `null` — clears the
+ * label: that is how the operator goes back to seeing the date range.
+ */
+export const updateCierreEtiquetaSchema = z.object({
+  etiqueta: z.string().max(CIERRE_ETIQUETA_MAX_LENGTH).nullable(),
+});
+
+export type IUpdateCierreEtiqueta = z.infer<typeof updateCierreEtiquetaSchema>;
+
 export type ICierrePeriodo = z.infer<typeof cierrePeriodoSchema>;
 export type ICierreData = z.infer<typeof cierreDataSchema>;
 export type ISummaryCierre = z.infer<typeof summaryCierreSchema>;

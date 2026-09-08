@@ -79,6 +79,10 @@ export const movimientoSchema = z.object({
   existenciaAnterior: z.number().optional(),
   formaPago: FormaPagoCompraEnum.optional(),
   montoReembolso: z.number().optional(),
+  // The supplier of this particular entry, which GET /api/movimiento has
+  // always included at this level. Distinct from `productoTienda.proveedor`,
+  // the product's default one.
+  proveedor: proveedorSchema.optional(),
   productoTienda: z.object({
     id: z.string().uuid(),
     costo: z.number(),

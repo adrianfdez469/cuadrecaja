@@ -63,7 +63,7 @@ export async function PUT(
     const { id } = await params;
 
     const body = await request.json();
-    const { nombre, descripcion, permisos } = body;
+    const { nombre, descripcion, permisos, isGlobal } = body;
 
     // Verificar que el rol existe y pertenece al negocio del usuario
     const existingRol = await prisma.rol.findUnique({
@@ -85,20 +85,65 @@ export async function PUT(
       return NextResponse.json({ error: "Los roles globales solo pueden ser modificados por un superadmin" }, { status: 403 });
     }
 
-    // Si se está cambiando el nombre, verificar que no exista otro con el mismo nombre
-    if (nombre && nombre !== existingRol.nombre) {
-      const duplicateRol = await prisma.rol.findUnique({
+    // Solo un SUPER_ADMIN puede cambiar el alcance de un rol
+    const scopeChanged =
+      typeof isGlobal === "boolean" && isGlobal !== existingRol.isGlobal;
+    if (scopeChanged && user.rol !== "SUPER_ADMIN") {
+      return NextResponse.json(
+        { error: "Solo un superadmin puede cambiar el alcance de un rol" },
+        { status: 403 }
+      );
+    }
+
+    const targetIsGlobal = scopeChanged ? isGlobal : existingRol.isGlobal;
+    // Al dejar de ser global, el rol pasa al negocio del superadmin que lo edita.
+    const targetNegocioId = targetIsGlobal
+      ? null
+      : (existingRol.negocioId ?? user.negocio.id);
+
+    // Un rol global puede estar asignado en varios negocios. Restringirlo a uno
+    // solo dejaría a los demás usuarios sin rol, así que se bloquea.
+    if (scopeChanged && !targetIsGlobal) {
+      const asignacionesFuera = await prisma.usuarioTienda.count({
         where: {
-          nombre_negocioId: {
-            nombre: nombre,
-            negocioId: existingRol.negocioId
-          }
+          rolId: id,
+          tienda: { negocioId: { not: targetNegocioId } }
         }
       });
 
+      if (asignacionesFuera > 0) {
+        return NextResponse.json(
+          {
+            error:
+              "Este rol global está asignado a usuarios de otros negocios y no puede dejar de ser global"
+          },
+          { status: 409 }
+        );
+      }
+    }
+
+    // Verificar que el nombre no choque dentro del alcance de destino
+    const targetNombre = nombre || existingRol.nombre;
+    if (targetNombre !== existingRol.nombre || scopeChanged) {
+      const duplicateRol = targetIsGlobal
+        ? await prisma.rol.findFirst({
+            where: { nombre: targetNombre, negocioId: null, id: { not: id } }
+          })
+        : await prisma.rol.findFirst({
+            where: {
+              nombre: targetNombre,
+              negocioId: targetNegocioId,
+              id: { not: id }
+            }
+          });
+
       if (duplicateRol) {
         return NextResponse.json(
-          { error: "Ya existe un rol con ese nombre en este negocio" },
+          {
+            error: targetIsGlobal
+              ? "Ya existe un rol global con ese nombre"
+              : "Ya existe un rol con ese nombre en este negocio"
+          },
           { status: 400 }
         );
       }
@@ -111,7 +156,11 @@ export async function PUT(
       data: {
         ...(nombre && { nombre }),
         ...(descripcion !== undefined && { descripcion }),
-        ...(permisos && { permisos })
+        ...(permisos && { permisos }),
+        ...(scopeChanged && {
+          isGlobal: targetIsGlobal,
+          negocioId: targetNegocioId
+        })
       }
     });
 

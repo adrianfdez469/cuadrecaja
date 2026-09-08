@@ -63,7 +63,7 @@ import StorefrontOutlinedIcon from "@mui/icons-material/StorefrontOutlined";
 import HandshakeOutlinedIcon from "@mui/icons-material/HandshakeOutlined";
 
 const CierreCajaPage = () => {
-  const { user, loadingContext, gotToPath, monedasNegocio, monedaBase } =
+  const { user, loadingContext, gotToPath, monedasNegocio } =
     useAppContext();
   const { showMessage } = useMessageContext();
   const [currentPeriod, setCurrentPeriod] = useState<ICierrePeriodo>();
@@ -690,7 +690,6 @@ const CierreCajaPage = () => {
             open={initialFundDialogOpen}
             tiendaId={user.localActual.id}
             cierreId={currentPeriod.id}
-            monedasActivas={monedasNegocio}
             onClose={() => setInitialFundDialogOpen(false)}
             onSaved={getInitData}
           />
@@ -702,8 +701,6 @@ const CierreCajaPage = () => {
             totalVentas={cierreData.totalVentasBrutas ?? totales.totalMonto}
             totalGanancia={totales.totalGanancia}
             categoriasExistentes={categoriasGastos}
-            monedasActivas={monedasNegocio}
-            monedaBase={monedaBase}
             onClose={() => setAdHocOpen(false)}
             onSave={handleSaveAdHoc}
           />

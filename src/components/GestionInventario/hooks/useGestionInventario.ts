@@ -19,6 +19,12 @@ import { cretateBatchMovimientos } from "@/services/movimientoService";
 import { IProductoDeleteInfo, IProductoTiendaV2 } from "@/schemas/producto";
 import { ICategory } from "@/schemas/categoria";
 import { normalizeSearch } from "@/utils/formatters";
+import {
+  SEARCH_RANK,
+  SearchRank,
+  rankBySearch,
+  scoreMatch,
+} from "@/utils/searchRanking";
 import { roundQuantity } from "@/utils/quantityInput";
 import { useOnboardingStore } from "@/features/onboarding";
 
@@ -29,6 +35,24 @@ export type ExpiryFilter = "todos" | "proximos" | "vencidos";
 // control covers "any consignment" and "this supplier's consignment" without a
 // second dropdown competing for room in the filter bar.
 export const CONSIGNMENT_SUPPLIER_PREFIX = "proveedor:";
+
+// Two chips fit under the search box on the narrowest phone without pushing
+// the table below the fold; beyond that the shortcut stops being a shortcut.
+const MAX_CATEGORY_SUGGESTIONS = 2;
+
+// A single letter matches nearly every category name, so the shortcut would
+// flicker into view on the first keystroke of any search.
+const MIN_CATEGORY_SUGGESTION_LENGTH = 2;
+
+/** A category offered as a shortcut into the dedicated category filter. */
+export interface CategoriaSugerida {
+  /** Normalized category name — unique per suggestion. */
+  key: string;
+  nombre: string;
+  color: string;
+  /** Every category id sharing this name, applied together. */
+  ids: string[];
+}
 
 export type ConsignmentFilter =
   | "todos"
@@ -153,16 +177,27 @@ export function useGestionInventario() {
     if (!loadingContext) reload();
   }, [loadingContext, reload]);
 
+  const normalizedSearch = useMemo(
+    () => normalizeSearch(searchTerm),
+    [searchTerm],
+  );
+
   const filteredProductos = useMemo(() => {
     let result = productos;
 
-    if (searchTerm.trim()) {
-      const q = normalizeSearch(searchTerm);
-      result = result.filter(
-        (p) =>
-          normalizeSearch(p.producto.nombre).includes(q) ||
-          normalizeSearch(p.producto.categoria?.nombre ?? "").includes(q),
-      );
+    // The search box looks up products only — name and barcode. Matching the
+    // category name here too used to mix rows the user could not tell apart
+    // ("cola" returned "Coca Cola" next to every soft drink) and could not
+    // undo separately, while the category filter below already does that job
+    // explicitly. Categories are surfaced instead as a suggestion chip that
+    // applies that filter — see `categoriasSugeridas`.
+    if (normalizedSearch) {
+      result = rankBySearch(result, normalizedSearch, (p) => [
+        normalizeSearch(p.producto.nombre),
+        ...(p.producto.codigosProducto ?? []).map((c) =>
+          normalizeSearch(c.codigo),
+        ),
+      ]);
     }
 
     if (selectedCategorias.length > 0) {
@@ -207,7 +242,7 @@ export function useGestionInventario() {
     return result;
   }, [
     productos,
-    searchTerm,
+    normalizedSearch,
     selectedCategorias,
     stockFilter,
     expiryFilter,
@@ -232,6 +267,69 @@ export function useGestionInventario() {
 
     return [...porId.values()].sort((a, b) => a.nombre.localeCompare(b.nombre));
   }, [productos]);
+
+  /**
+   * Categories whose name matches what is typed in the search box, offered as
+   * a shortcut into the dedicated category filter.
+   *
+   * Built from the loaded products rather than from `categorias` for two
+   * reasons: suggesting a category with nothing on this store's shelf would
+   * only lead to an empty table, and a name can exist twice (a global category
+   * and the shop's own), in which case both ids must be applied together or
+   * half the rows would drop out.
+   */
+  const categoriasSugeridas = useMemo(() => {
+    if (normalizedSearch.length < MIN_CATEGORY_SUGGESTION_LENGTH) return [];
+
+    const porNombre = new Map<string, CategoriaSugerida>();
+
+    for (const { producto } of productos) {
+      const categoria = producto.categoria;
+      if (!categoria) continue;
+
+      const key = normalizeSearch(categoria.nombre);
+      const entry = porNombre.get(key);
+
+      if (entry) {
+        if (!entry.ids.includes(categoria.id)) entry.ids.push(categoria.id);
+      } else {
+        porNombre.set(key, {
+          key,
+          nombre: categoria.nombre,
+          color: categoria.color,
+          ids: [categoria.id],
+        });
+      }
+    }
+
+    // Only an anchored match is offered: "ola" hitting the middle of
+    // "Chocolates" is a coincidence, not an intent worth acting on.
+    const candidatos: { categoria: CategoriaSugerida; rank: SearchRank }[] = [];
+
+    for (const categoria of porNombre.values()) {
+      const rank = scoreMatch(categoria.key, normalizedSearch);
+      if (rank === null || rank > SEARCH_RANK.WORD_PREFIX) continue;
+      if (categoria.ids.every((id) => selectedCategorias.includes(id))) continue;
+      candidatos.push({ categoria, rank });
+    }
+
+    return candidatos
+      .sort((a, b) => a.rank - b.rank)
+      .slice(0, MAX_CATEGORY_SUGGESTIONS)
+      .map((c) => c.categoria);
+  }, [productos, normalizedSearch, selectedCategorias]);
+
+  /**
+   * Moves the intent from the search box into the category filter: the term is
+   * cleared so the results have a single, visible reason for being there.
+   */
+  const aplicarCategoriaSugerida = useCallback((ids: string[]) => {
+    setSelectedCategorias((prev) => [
+      ...prev,
+      ...ids.filter((id) => !prev.includes(id)),
+    ]);
+    setSearchTerm("");
+  }, []);
 
   const resolveCategoria = async (data: {
     categoriaId: string;
@@ -494,6 +592,8 @@ export function useGestionInventario() {
     consignmentFilter,
     setConsignmentFilter,
     proveedoresConsignacion,
+    categoriasSugeridas,
+    aplicarCategoriaSugerida,
 
     editTarget,
     openEdit: setEditTarget,

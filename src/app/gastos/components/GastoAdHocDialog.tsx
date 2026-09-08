@@ -35,17 +35,14 @@ import {
 } from "@/constants/gastos";
 import MoneyField from "@/components/MoneyField";
 import PercentageField from "@/components/PercentageField";
+import { useMonedaOptions } from "@/hooks/useMonedaOptions";
+import { monedaSimbolo } from "@/utils/monedas";
 
 interface Props {
   open: boolean;
   totalVentas?: number;
   totalGanancia?: number;
   categoriasExistentes?: string[];
-  monedasActivas?: {
-    monedaCode: string;
-    moneda?: { nombre: string; simbolo: string };
-  }[];
-  monedaBase?: string;
   onClose: () => void;
   onSave: (data: IGastoAdHocCreate) => Promise<void>;
 }
@@ -55,13 +52,13 @@ export default function GastoAdHocDialog({
   totalVentas = 0,
   totalGanancia = 0,
   categoriasExistentes = [],
-  monedasActivas,
-  monedaBase,
   onClose,
   onSave,
 }: Props) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const { monedaOptions, monedaBase, hasMultipleCurrencies } =
+    useMonedaOptions();
   const [nombre, setNombre] = useState("");
   const [categoria, setCategoria] = useState("");
   const [tipoCalculo, setTipoCalculo] =
@@ -234,18 +231,18 @@ export default function GastoAdHocDialog({
 
           {tipoCalculo === "MONTO_FIJO" ? (
             <>
-              {(monedasActivas?.length ?? 0) > 1 && (
+              {hasMultipleCurrencies && (
                 <FormControl fullWidth>
                   <InputLabel>Moneda del gasto</InputLabel>
                   <Select
-                    value={monedaCode ?? monedaBase ?? ""}
+                    value={monedaCode ?? monedaBase}
                     label="Moneda del gasto"
                     onChange={(e) => setMonedaCode(e.target.value || null)}
                   >
-                    {monedasActivas!.map((m) => (
+                    {monedaOptions.map((m) => (
                       <MenuItem key={m.monedaCode} value={m.monedaCode}>
                         {m.moneda?.nombre ?? m.monedaCode}
-                        {m.monedaCode === (monedaBase ?? "") && " (base)"}
+                        {m.monedaCode === monedaBase && " (base)"}
                       </MenuItem>
                     ))}
                   </Select>
@@ -257,11 +254,10 @@ export default function GastoAdHocDialog({
                 onChange={(e) => setMonto(e.target.value)}
                 error={!!errors.monto || !!errors.montoCalculado}
                 helperText={errors.monto ?? errors.montoCalculado}
-                currencySymbol={
-                  monedasActivas?.find(
-                    (m) => m.monedaCode === (monedaCode ?? monedaBase),
-                  )?.moneda?.simbolo ?? "$"
-                }
+                currencySymbol={monedaSimbolo(
+                  monedaOptions,
+                  monedaCode ?? monedaBase,
+                )}
                 fullWidth
               />
             </>

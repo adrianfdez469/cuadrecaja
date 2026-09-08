@@ -565,7 +565,18 @@ export default function Proveedores() {
                 value={usuarioId}
                 onChange={(e) => setUsuarioId(e.target.value as string)}
                 label="Usuario Asociado (Opcional)"
-                displayEmpty
+                renderValue={(selected) => {
+                  const usuario = usuarios.find((u) => u.id === selected);
+                  if (!usuario) return null;
+                  return (
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                      <Avatar sx={{ width: 24, height: 24 }}>
+                        {usuario.nombre.charAt(0)}
+                      </Avatar>
+                      <Typography variant="body2">{usuario.nombre}</Typography>
+                    </Stack>
+                  );
+                }}
               >
                 <MenuItem value="">
                   <Stack direction="row" alignItems="center" spacing={1}>

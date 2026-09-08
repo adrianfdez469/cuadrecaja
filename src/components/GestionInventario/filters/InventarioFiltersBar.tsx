@@ -35,11 +35,13 @@ import {
   ExpiryFilter,
   ConsignmentFilter,
   CONSIGNMENT_SUPPLIER_PREFIX,
+  CategoriaSugerida,
 } from "../hooks/useGestionInventario";
 import { uniqueBy } from "@/utils/arrayUtils";
 import SelectableTextField from "@/components/SelectableTextField";
 import { ActionSheet } from "@/components/ActionSheet";
 import { squareIconButtonSx } from "@/theme";
+import { CategorySuggestions } from "./CategorySuggestions";
 
 interface InventarioFiltersBarProps {
   searchTerm: string;
@@ -54,6 +56,9 @@ interface InventarioFiltersBarProps {
   consignmentFilter: ConsignmentFilter;
   onConsignmentChange: (v: ConsignmentFilter) => void;
   proveedoresConsignacion: { id: string; nombre: string }[];
+  /** Categorías cuyo nombre coincide con lo buscado, ofrecidas como atajo. */
+  categoriasSugeridas: CategoriaSugerida[];
+  onAplicarCategoriaSugerida: (ids: string[]) => void;
   /** Solo se usa en mobile: en desktop "Nuevo producto" vive en el header. */
   onCreateProduct: () => void;
   onRefresh: () => void;
@@ -113,6 +118,8 @@ export function InventarioFiltersBar({
   consignmentFilter,
   onConsignmentChange,
   proveedoresConsignacion,
+  categoriasSugeridas,
+  onAplicarCategoriaSugerida,
   onCreateProduct,
   onRefresh,
   loading,
@@ -251,6 +258,11 @@ export function InventarioFiltersBar({
             </IconButton>
           </Tooltip>
         </Box>
+
+        <CategorySuggestions
+          sugerencias={categoriasSugeridas}
+          onApply={onAplicarCategoriaSugerida}
+        />
 
         {/* "Limpiar filtros", "Detalles" e Importar/Exportar Excel/Etiquetas
             viven en la hoja "Más acciones" — el mockup mobile ya no les da
@@ -429,7 +441,7 @@ export function InventarioFiltersBar({
       <Box display="flex" gap={1} alignItems="center" flexWrap="wrap">
         <SelectableTextField
           size="small"
-          placeholder="Buscar producto o categoría..."
+          placeholder="Buscar producto o código..."
           value={searchTerm}
           onChange={(e) => onSearchChange(e.target.value)}
           InputProps={{
@@ -529,6 +541,11 @@ export function InventarioFiltersBar({
           </IconButton>
         </Tooltip>
       </Box>
+
+      <CategorySuggestions
+        sugerencias={categoriasSugeridas}
+        onApply={onAplicarCategoriaSugerida}
+      />
 
       {(onImportExcel || onExportExcel || onPrintLabels) && (
         <Box display="flex" gap={1} flexWrap="wrap" alignItems="center">

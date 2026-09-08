@@ -16,6 +16,26 @@ export const isMovimientoBaja = (tipo: ITipoMovimiento) => {
 };
 
 /**
+ * Stock the product was left with once the movement was applied.
+ *
+ * The row only stores the count BEFORE it (`existenciaAnterior`, nullable for
+ * rows written before that column existed) and a `cantidad` that is always
+ * positive — the direction lives in the type, not in the sign. Returns null
+ * when the count before is unknown, so the caller prints its fallback instead
+ * of a number it made up.
+ */
+export const getStockAfterMovement = (
+  stockBefore: number | null | undefined,
+  quantity: number,
+  tipo: ITipoMovimiento,
+): number | null => {
+  if (stockBefore === null || stockBefore === undefined) return null;
+  return isMovimientoBaja(tipo)
+    ? stockBefore - quantity
+    : stockBefore + quantity;
+};
+
+/**
  * Movement types a consigned row must never take. The goods on those rows
  * belong to the supplier, and what the business owes for them is derived from
  * `ProductoTienda.existencia` plus the period's sales — a purchase would buy

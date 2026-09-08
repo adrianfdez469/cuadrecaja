@@ -80,6 +80,8 @@ export function GestionInventarioPage() {
     consignmentFilter,
     setConsignmentFilter,
     proveedoresConsignacion,
+    categoriasSugeridas,
+    aplicarCategoriaSugerida,
 
     editTarget,
     openEdit,
@@ -221,6 +223,8 @@ export function GestionInventarioPage() {
                 consignmentFilter={consignmentFilter}
                 onConsignmentChange={setConsignmentFilter}
                 proveedoresConsignacion={proveedoresConsignacion}
+                categoriasSugeridas={categoriasSugeridas}
+                onAplicarCategoriaSugerida={aplicarCategoriaSugerida}
                 onCreateProduct={openCreateProduct}
                 onRefresh={reload}
                 loading={loading}

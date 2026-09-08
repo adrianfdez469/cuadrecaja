@@ -37,6 +37,7 @@ import {
 import { formatCurrency } from "@/utils/formatters";
 import useConfirmDialog from "@/components/confirmDialog";
 import SelectableTextField from "@/components/SelectableTextField";
+import { productNameSx } from "@/theme";
 
 interface IProps {
   dialogOpen: boolean;
@@ -248,7 +249,7 @@ export const DevolucionVentaDialog: FC<IProps> = ({
                       gap={1}
                     >
                       <Box flex={1} minWidth={0}>
-                        <Typography variant="body2" noWrap>
+                        <Typography variant="body2" sx={productNameSx}>
                           {p.nombre}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">

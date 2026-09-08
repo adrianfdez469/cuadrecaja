@@ -22,7 +22,8 @@ import {
   RECURRENCIA_LABELS,
   TIPO_CALCULO_LABELS,
 } from "@/constants/gastos";
-import { formatearCuandoAplica } from "@/utils/gastos";
+import { formatearCuandoAplica, formatGastoValor } from "@/utils/gastos";
+import { useMonedaOptions } from "@/hooks/useMonedaOptions";
 
 interface Props {
   gastos: IGastoTienda[];
@@ -32,14 +33,9 @@ interface Props {
   onToggleActivo: (gasto: IGastoTienda) => void;
 }
 
-function formatValor(gasto: IGastoTienda): string {
-  if (gasto.tipoCalculo === "MONTO_FIJO") {
-    return `$${(gasto.monto ?? 0).toFixed(2)}`;
-  }
-  return `${gasto.porcentaje ?? 0}%`;
-}
-
 export default function GastoTiendaTable({ gastos, canManage, onEdit, onDelete, onToggleActivo }: Props) {
+  const { monedaBase } = useMonedaOptions();
+
   if (gastos.length === 0) {
     return (
       <Box py={4} textAlign="center">
@@ -95,7 +91,7 @@ export default function GastoTiendaTable({ gastos, canManage, onEdit, onDelete, 
                   fontWeight={700}
                   sx={{ fontVariantNumeric: "tabular-nums" }}
                 >
-                  {formatValor(gasto)}
+                  {formatGastoValor(gasto, monedaBase)}
                 </Typography>
               </TableCell>
               <TableCell>

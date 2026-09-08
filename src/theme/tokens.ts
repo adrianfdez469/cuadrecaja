@@ -164,13 +164,24 @@ const stockRoles: Record<StockRole, keyof Hues> = {
   expired: "negative",
 };
 
-export type SyncRole = "online" | "offline" | "syncing" | "failed";
+export type SyncRole =
+  | "online"
+  | "offline"
+  | "syncing"
+  | "failed"
+  /** Sales registered on this device that are not on the server yet. */
+  | "pending";
 
 const syncRoles: Record<SyncRole, keyof Hues> = {
   online: "positive",
   offline: "caution",
   syncing: "info",
   failed: "negative",
+  // The same ink as `offline`, on purpose: a queue of sales is not a failure,
+  // it is the design working. It gets its own name rather than its own colour
+  // because the case that matters most — a queue *with* a connection — would
+  // be a lie painted with a role called `offline`.
+  pending: "caution",
 };
 
 export type SubscriptionRole = "active" | "grace" | "expired" | "suspended";
@@ -261,4 +272,24 @@ export const touch = {
   row: 56,
   /** A catalogue row, which carries a name, stock, price and two conversions. */
   rowLarge: 72,
+} as const;
+
+/**
+ * Vertical layout, in px.
+ *
+ * `tableViewportOffset` is what a desktop table's scroll box gives back to the
+ * page: its height is `100dvh` minus this, so the table can never be taller
+ * than the screen and its own header row does the sticking instead of
+ * scrolling away with the page.
+ *
+ * The number is not the chrome above the table — that varies per screen — it
+ * is where the header row comes to rest once the page is scrolled to the
+ * bottom. It has to clear the sticky `AppBar` (64px on desktop) with room for
+ * whatever each page draws *below* its table (pagination, card padding, the
+ * page's bottom padding: ~100px at worst), because that content pushes the
+ * table up by exactly its own height.
+ */
+export const layout = {
+  /** Subtracted from `100dvh` for a table's scroll box, `md` and up. */
+  tableViewportOffset: 220,
 } as const;

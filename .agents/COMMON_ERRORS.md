@@ -75,6 +75,7 @@ el área correspondiente, léelos antes de escribir código.
 | [E-053](errors/E-053-un-script-suelto-no-es-el-entorno-de-modulos-del-repo.md) | Un script desechable fuera del árbol del proyecto **no hereda su entorno de módulos**: por ubicación (`node_modules` sube desde el script) o por cargador (`tsx` no expone exports nombrados que `vitest` sí ve), y el mensaje señala al import, no a la causa | tests | 1 |
 | [E-054](errors/E-054-una-recarga-completa-no-es-volver-en-la-misma-sesion.md) | `page.goto`/`reload` prueban **el arranque en frío, no la vuelta**: en una pantalla que navega con `router.replace`, medir el caché con una recarga da `fromDiskCache:false` **las dos veces** y un falso rechazo plausible. Primo de E-008 | tests | 1 |
 | [E-055](errors/E-055-medir-un-hijo-al-100-contra-la-cifra-del-contenedor-con-borde.md) | Un criterio da la cifra del **contenedor** y la medición es del **contenido**: con `border:1px` y `box-sizing:border-box`, un hijo `height:100%` mide 238 donde el criterio dice 240. No es E-037 (la premisa es correcta) ni E-020 (sí se midió). Hermano de E-048 | ui | 1 |
+| [E-056](errors/E-056-la-tabla-de-monedas-no-contiene-la-moneda-base.md) | `NegocioMoneda` **no contiene la moneda base** (vive en `Negocio.monedaBase`): un gate `monedasNegocio.length > 1` da 1 con base+una extra y el selector de moneda no se renderiza nunca; el backend rechaza la moneda propia del negocio. Sin síntoma: el control desaparece, no falla | ui | **3** |
 
 ---
 
