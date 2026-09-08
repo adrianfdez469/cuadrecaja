@@ -545,6 +545,15 @@ model CierrePeriodo {
   tiendaId    String
   ventas      Venta[]
 
+  // Free-text label the operator gives the period so a closing registered late
+  // is identifiable at a glance ("03/09/2026 - cierre atrasado"). Purely a
+  // display name: it never takes part in any computation, and the period's real
+  // clock stays fechaInicio/fechaFin — which is what drives the open-period
+  // detection, the window of cash movements and the exchange rate at the close.
+  // NULL means "unnamed": every reader falls back to the fechaInicio-fechaFin
+  // range, which is exactly what the history showed before this column existed.
+  etiqueta    String?
+
   // Campos denormalizados para resumen.
   //
   // Once the period is closed these columns ARE the figures of the period

@@ -4,10 +4,24 @@ import { IconButton, Stack, Tooltip } from "@mui/material";
 import type { SxProps, Theme } from "@mui/material";
 import ZoomInIcon from "@mui/icons-material/ZoomIn";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
+import EditIcon from "@mui/icons-material/Edit";
 import { DESFASE_TOOLTIP_RECALCULAR } from "./desfaseCopy";
 
-/** Two 44 px targets + 8 px gap + 8 px padding each side. */
-export const ACTIONS_COLUMN_WIDTH = 112;
+/**
+ * Minimum comfortable touch target, in px. Exported because the mobile cards
+ * draw the same actions outside this table: the size of a row action is decided
+ * once, here, or the two views drift apart.
+ */
+export const ACTION_TOUCH_TARGET = 44;
+
+/** Every row action, on any viewport, is exactly this size. */
+export const actionButtonSx: SxProps<Theme> = {
+  width: ACTION_TOUCH_TARGET,
+  height: ACTION_TOUCH_TARGET,
+};
+
+/** Three 44 px targets + 8 px gaps + 8 px padding each side. */
+export const ACTIONS_COLUMN_WIDTH = 164;
 
 const stickyBase: SxProps<Theme> = {
   position: "sticky",
@@ -49,18 +63,22 @@ interface Props {
   desactualizado: boolean;
   onRecalculate: () => void;
   onVerDetalles: () => void;
+  /** Omitted when the user may not rename the period. */
+  onEditarEtiqueta?: () => void;
 }
 
 /**
- * Contents of the fixed «Acciones» cell: one slot that states the stale
- * figures and opens the recalculation dialog, plus the «Ver detalles»
- * button. The stale slot is only ever rendered for a superadmin — the only
- * role that can act on it — so the caller decides whether it appears.
+ * Contents of the fixed «Acciones» cell: a slot that states the stale figures
+ * and opens the recalculation dialog, a slot that renames the period, and the
+ * «Ver detalles» button. The first two are conditional — the stale one is only
+ * ever rendered for a superadmin, and the rename only for whoever may close a
+ * period — so the caller decides whether each appears.
  */
 export default function AccionesCierreCell({
   desactualizado,
   onRecalculate,
   onVerDetalles,
+  onEditarEtiqueta,
 }: Readonly<Props>) {
   return (
     <Stack direction="row" spacing={1} justifyContent="center">
@@ -69,9 +87,20 @@ export default function AccionesCierreCell({
           <IconButton
             onClick={onRecalculate}
             aria-label="Recalcular las cifras de este cierre"
-            sx={{ color: "semantic.hue.caution.main" }}
+            sx={{ ...actionButtonSx, color: "semantic.hue.caution.main" }}
           >
             <WarningAmberIcon />
+          </IconButton>
+        </Tooltip>
+      )}
+      {onEditarEtiqueta && (
+        <Tooltip title="Editar la identificación de este cierre">
+          <IconButton
+            onClick={onEditarEtiqueta}
+            aria-label="Editar la identificación de este cierre"
+            sx={actionButtonSx}
+          >
+            <EditIcon />
           </IconButton>
         </Tooltip>
       )}
@@ -80,6 +109,7 @@ export default function AccionesCierreCell({
           onClick={onVerDetalles}
           color="primary"
           aria-label="Ver detalles del cierre"
+          sx={actionButtonSx}
         >
           <ZoomInIcon />
         </IconButton>

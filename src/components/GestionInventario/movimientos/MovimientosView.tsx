@@ -25,10 +25,7 @@ import {
   Stack,
   Alert,
   InputAdornment,
-  Card,
-  CardContent,
   Tooltip,
-  Chip,
   useTheme,
   useMediaQuery,
   IconButton,
@@ -70,12 +67,11 @@ import {
   formatNumber,
   formatDateTime,
   formatMovimientoMotivo,
-  formatQuantity,
 } from "@/utils/formatters";
-import {
-  TIPO_MOVIMIENTO_FLOW,
-  TIPO_MOVIMIENTO_LABELS,
-} from "@/constants/movimientos";
+import { TIPO_MOVIMIENTO_LABELS } from "@/constants/movimientos";
+import { MovimientoCantidad } from "@/components/movimientos/MovimientoCantidad";
+import { MovimientoTipoChip } from "@/components/movimientos/MovimientoTipoChip";
+import { MovimientosMobileList } from "@/components/movimientos/MovimientosMobileList";
 import {
   IProductoDisponible,
   OperacionTipo,
@@ -133,7 +129,6 @@ export default function MovimientosView({ tabs }: MovimientosViewProps) {
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-  const isTablet = useMediaQuery(theme.breakpoints.down("md"));
   // An empty table means two different things, and they need opposite answers:
   // a filter that matched nothing offers a way to clear it, a store with no
   // history explains where movements come from.
@@ -503,35 +498,6 @@ export default function MovimientosView({ tabs }: MovimientosViewProps) {
     </Stack>
   ) : undefined;
 
-  // Componente de estadística móvil optimizado
-  /**
-   * The chip printed the raw enum — `DESAGREGACION_ALTA` — even though readable
-   * labels already existed and the filter dropdown right above it used them.
-   *
-   * Colour follows the movement's flow role rather than a rises/falls boolean.
-   * Under the old rule the two halves of one disaggregation came out green and
-   * red, reading as a success beside a failure when they are a single operation:
-   * opening a box to sell its loose units.
-   */
-  const getMovimientoChip = (tipo: string) => {
-    const flow =
-      theme.palette.semantic.flow[
-        TIPO_MOVIMIENTO_FLOW[tipo as ITipoMovimiento]
-      ];
-    return (
-      <Chip
-        label={TIPO_MOVIMIENTO_LABELS[tipo as ITipoMovimiento] ?? tipo}
-        size="small"
-        variant="filled"
-        sx={{
-          fontWeight: 500,
-          bgcolor: flow.surface,
-          color: flow.main,
-        }}
-      />
-    );
-  };
-
   return (
     <PageContainer
       title="Movimientos de Stock"
@@ -853,92 +819,10 @@ export default function MovimientosView({ tabs }: MovimientosViewProps) {
             />
           )
         ) : isMobile ? (
-          // Vista móvil: `rediseno/movimientos-stock-movil.html` — nombre y
-          // pill apilados a la izquierda, la cantidad es el dato grande a la
-          // derecha; motivo y usuario van sin etiquetas ("Motivo:"/"Por:"
-          // eran redundantes, el texto ya se explica solo).
-          <Box sx={{ p: 1.5 }}>
-            <Stack spacing={1.25}>
-              {movimientos.map((movimiento, i) => (
-                <Card key={i} variant="outlined">
-                  <CardContent sx={{ p: 1.75, "&:last-child": { pb: 1.75 } }}>
-                    <Box
-                      display="flex"
-                      justifyContent="space-between"
-                      alignItems="flex-start"
-                      gap={1.5}
-                    >
-                      <Box sx={{ minWidth: 0 }}>
-                        <Typography
-                          sx={{
-                            fontSize: "1rem",
-                            fontWeight: 700,
-                            lineHeight: 1.35,
-                          }}
-                        >
-                          {movimiento.proveedor?.nombre
-                            ? `${movimiento.productoTienda?.producto?.nombre} - ${movimiento.proveedor.nombre}`
-                            : movimiento.productoTienda?.producto?.nombre ||
-                              "Producto no encontrado"}
-                        </Typography>
-                        <Box sx={{ mt: 0.75 }}>
-                          {getMovimientoChip(movimiento.tipo)}
-                        </Box>
-                      </Box>
-                      <Typography
-                        sx={{
-                          flexShrink: 0,
-                          fontSize: "1.375rem",
-                          fontWeight: 700,
-                          letterSpacing: "-0.02em",
-                          color: isMovimientoBaja(movimiento.tipo)
-                            ? "error.main"
-                            : "success.main",
-                        }}
-                      >
-                        {isMovimientoBaja(movimiento.tipo) ? "-" : "+"}
-                        {formatNumber(Math.abs(movimiento.cantidad))}
-                      </Typography>
-                    </Box>
-
-                    {movimiento?.motivo && (
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                        sx={{ mt: 1.25 }}
-                      >
-                        {formatMovimientoMotivo(movimiento.motivo)}
-                      </Typography>
-                    )}
-
-                    <Stack
-                      direction="row"
-                      alignItems="center"
-                      sx={{
-                        mt: 1.5,
-                        pt: 1.25,
-                        borderTop: 1,
-                        borderColor: "divider",
-                      }}
-                    >
-                      <Typography variant="caption" color="text.secondary">
-                        {formatDateTime(movimiento.fecha)}
-                      </Typography>
-                      {movimiento.usuario?.nombre && (
-                        <Typography
-                          variant="caption"
-                          color="text.secondary"
-                          sx={{ ml: "auto" }}
-                        >
-                          {movimiento.usuario.nombre}
-                        </Typography>
-                      )}
-                    </Stack>
-                  </CardContent>
-                </Card>
-              ))}
-            </Stack>
-          </Box>
+          // The same card the per-product history draws in /inventario: name
+          // and pill on the left, quantity and the before → after count on the
+          // right, reason and author below.
+          <MovimientosMobileList movimientos={movimientos} />
         ) : (
           // Vista desktop con tabla
           <TableContainer sx={{ flex: 1 }}>
@@ -950,7 +834,7 @@ export default function MovimientosView({ tabs }: MovimientosViewProps) {
                   <TableCell>Producto</TableCell>
                   <TableCell>Motivo</TableCell>
                   <TableCell align="center">Cantidad</TableCell>
-                  {!isTablet && <TableCell>Usuario</TableCell>}
+                  <TableCell>Usuario</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -966,7 +850,9 @@ export default function MovimientosView({ tabs }: MovimientosViewProps) {
                         {formatDateTime(movimiento.fecha)}
                       </Typography>
                     </TableCell>
-                    <TableCell>{getMovimientoChip(movimiento.tipo)}</TableCell>
+                    <TableCell>
+                      <MovimientoTipoChip tipo={movimiento.tipo} />
+                    </TableCell>
                     <TableCell>
                       <Typography variant="body2" fontWeight="medium">
                         {movimiento.proveedor?.nombre
@@ -979,26 +865,16 @@ export default function MovimientosView({ tabs }: MovimientosViewProps) {
                       {formatMovimientoMotivo(movimiento.motivo)}
                     </TableCell>
                     <TableCell align="center">
-                      <Typography
-                        variant="body2"
-                        fontWeight="bold"
-                        color={
-                          isMovimientoBaja(movimiento.tipo)
-                            ? "error.main"
-                            : "success.main"
-                        }
-                      >
-                        {isMovimientoBaja(movimiento.tipo) ? "-" : "+"}
-                        {formatQuantity(Math.abs(movimiento.cantidad))}
+                      <MovimientoCantidad
+                        movimiento={movimiento}
+                        size="table"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2">
+                        {movimiento.usuario?.nombre || "Sistema"}
                       </Typography>
                     </TableCell>
-                    {!isTablet && (
-                      <TableCell>
-                        <Typography variant="body2">
-                          {movimiento.usuario?.nombre || "Sistema"}
-                        </Typography>
-                      </TableCell>
-                    )}
                   </TableRow>
                 ))}
               </TableBody>

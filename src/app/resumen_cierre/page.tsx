@@ -34,7 +34,7 @@ import {
   ToggleButton,
 } from "@mui/material";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
-import dayjs, { Dayjs } from "dayjs";
+import { Dayjs } from "dayjs";
 import { getResumenCierres } from "@/services/resumenCierreService";
 import { useAppContext } from "@/context/AppContext";
 import { ICierreData, ICierrePeriodo, ISummaryCierre } from "@/schemas/cierre";
@@ -44,6 +44,7 @@ import {
   TablaProductosCierre,
 } from "@/components/tablaProductosCierre";
 import ZoomInIcon from "@mui/icons-material/ZoomIn";
+import EditIcon from "@mui/icons-material/Edit";
 import {
   Close,
   Refresh,
@@ -67,12 +68,21 @@ import { TasasBanner } from "@/components/TasasBanner";
 import GananciaCard from "@/app/cierre/components/GananciaCard";
 import CajaPorMonedaHistorico from "./components/CajaPorMonedaHistorico";
 import AccionesCierreCell, {
+  actionButtonSx,
   stickyActionsCellSx,
 } from "./components/AccionesCierreCell";
 import DesfaseCardBanda from "./components/DesfaseCardBanda";
 import DesfaseBanner from "./components/DesfaseBanner";
 import DrawerDesfaseAlert from "./components/DrawerDesfaseAlert";
 import RecalcularCierreDialog from "./components/RecalcularCierreDialog";
+import EditarEtiquetaCierreDialog, {
+  type EtiquetaTarget,
+} from "./components/EditarEtiquetaCierreDialog";
+import {
+  buildCierreDateRangeLabel,
+  hasCierreEtiqueta,
+  resolveCierreLabel,
+} from "@/utils/cierreLabel";
 import { roles } from "@/utils/roles";
 
 export default function ResumenCierrePage() {
@@ -131,6 +141,12 @@ export default function ResumenCierrePage() {
   const [recalcCierreId, setRecalcCierreId] = useState<string | null>(null);
   const canRecalculate = user?.rol === roles.SUPER_ADMIN;
 
+  // Same shape as the recalculation dialog: the page owns it, and each row only
+  // says which period it is naming.
+  const [etiquetaTarget, setEtiquetaTarget] = useState<EtiquetaTarget | null>(
+    null,
+  );
+
   const [showProducts, setShowProducts] = useState(false);
   const [cierreProducData, setCierreProductData] = useState<{
     cierreId: string;
@@ -187,6 +203,33 @@ export default function ResumenCierrePage() {
     setShowProducts(false);
     setRateMode("current");
     setHistoricalTasas(null);
+  };
+
+  // Naming a period is part of closing the till, so it rides the same
+  // permission: whoever can close can say what the closing is called.
+  const canEditEtiqueta = verificarPermiso("operaciones.cierre.cerrar");
+
+  /**
+   * Writes the stored label back into the two places that hold a copy — the
+   * history row and the open drawer — instead of refetching: nothing else about
+   * the period changed, and a refetch would throw away the drawer's state.
+   */
+  const handleEtiquetaSaved = (cierreId: string, etiqueta: string | null) => {
+    setData((prev) =>
+      prev
+        ? {
+            ...prev,
+            cierres: prev.cierres.map((c) =>
+              c.id === cierreId ? { ...c, etiqueta } : c,
+            ),
+          }
+        : prev,
+    );
+    setCierreProductData((prev) =>
+      prev && prev.cierreId === cierreId
+        ? { ...prev, ciereData: { ...prev.ciereData, etiqueta } }
+        : prev,
+    );
   };
 
   const fetchData = async () => {
@@ -632,6 +675,13 @@ export default function ResumenCierrePage() {
 
       {(!data || data.cierres.length === 0) && <EmptyData />}
 
+      <EditarEtiquetaCierreDialog
+        tiendaId={user?.localActual?.id ?? ""}
+        target={etiquetaTarget}
+        onClose={() => setEtiquetaTarget(null)}
+        onSaved={handleEtiquetaSaved}
+      />
+
       <RecalcularCierreDialog
         open={recalcCierreId !== null}
         tiendaId={user?.localActual?.id ?? ""}
@@ -827,18 +877,68 @@ export default function ResumenCierrePage() {
                             justifyContent="space-between"
                             alignItems="flex-start"
                           >
-                            <Typography variant="subtitle1" fontWeight="medium">
-                              {dayjs(row.fechaInicio).format("DD/MM/YYYY")} -{" "}
-                              {row.fechaFin
-                                ? dayjs(row.fechaFin).format("DD/MM/YYYY")
-                                : "Actual"}
-                            </Typography>
-                            <IconButton
-                              color="primary"
-                              aria-label="Ver detalles del cierre"
+                            <Box sx={{ minWidth: 0 }}>
+                              <Typography
+                                variant="subtitle1"
+                                fontWeight="medium"
+                              >
+                                {resolveCierreLabel(row)}
+                              </Typography>
+                              {/* Only when the label replaced them: otherwise
+                                  the dates would be printed twice. */}
+                              {hasCierreEtiqueta(row.etiqueta) && (
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                >
+                                  Registrado el{" "}
+                                  {buildCierreDateRangeLabel(
+                                    row.fechaInicio,
+                                    row.fechaFin,
+                                  )}
+                                </Typography>
+                              )}
+                            </Box>
+                            {/* Real buttons with real touch targets: the
+                                magnifier used to be a decorative IconButton
+                                riding the card's own onClick, which left it
+                                undersized and unreachable by keyboard. */}
+                            <Stack
+                              direction="row"
+                              spacing={0.5}
+                              sx={{ flexShrink: 0 }}
                             >
-                              <ZoomInIcon />
-                            </IconButton>
+                              {canEditEtiqueta && (
+                                <IconButton
+                                  aria-label="Editar la identificación de este cierre"
+                                  sx={actionButtonSx}
+                                  onClick={(e) => {
+                                    // The whole card opens the detail; this one
+                                    // must not.
+                                    e.stopPropagation();
+                                    setEtiquetaTarget({
+                                      cierreId: row.id,
+                                      etiqueta: row.etiqueta ?? null,
+                                      fechaInicio: row.fechaInicio,
+                                      fechaFin: row.fechaFin,
+                                    });
+                                  }}
+                                >
+                                  <EditIcon />
+                                </IconButton>
+                              )}
+                              <IconButton
+                                color="primary"
+                                aria-label="Ver detalles del cierre"
+                                sx={actionButtonSx}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleViewMore(row);
+                                }}
+                              >
+                                <ZoomInIcon />
+                              </IconButton>
+                            </Stack>
                           </Box>
 
                           {row.totalesDesactualizados && canRecalculate && (
@@ -1074,8 +1174,7 @@ export default function ResumenCierrePage() {
                 <Table stickyHeader size={isTablet ? "small" : "medium"}>
                   <TableHead>
                     <TableRow>
-                      <TableCell>Inicio</TableCell>
-                      <TableCell>Fin</TableCell>
+                      <TableCell>Período</TableCell>
                       <TableCell align="right">Inversión</TableCell>
                       <TableCell align="right">Venta</TableCell>
                       <TableCell align="right">Bruto</TableCell>
@@ -1120,15 +1219,22 @@ export default function ResumenCierrePage() {
                       >
                         <TableCell>
                           <Typography variant="body2">
-                            {dayjs(row.fechaInicio).format("DD/MM/YYYY")}
+                            {resolveCierreLabel(row)}
                           </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2">
-                            {row.fechaFin
-                              ? dayjs(row.fechaFin).format("DD/MM/YYYY")
-                              : "Actual"}
-                          </Typography>
+                          {/* Only when the label replaced them: otherwise the
+                              dates would be printed twice. */}
+                          {hasCierreEtiqueta(row.etiqueta) && (
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                              display="block"
+                            >
+                              {buildCierreDateRangeLabel(
+                                row.fechaInicio,
+                                row.fechaFin,
+                              )}
+                            </Typography>
+                          )}
                         </TableCell>
                         <TableCell align="right">
                           <Typography variant="body2">
@@ -1224,6 +1330,17 @@ export default function ResumenCierrePage() {
                             }
                             onRecalculate={() => setRecalcCierreId(row.id)}
                             onVerDetalles={() => handleViewMore(row)}
+                            onEditarEtiqueta={
+                              canEditEtiqueta
+                                ? () =>
+                                    setEtiquetaTarget({
+                                      cierreId: row.id,
+                                      etiqueta: row.etiqueta ?? null,
+                                      fechaInicio: row.fechaInicio,
+                                      fechaFin: row.fechaFin,
+                                    })
+                                : undefined
+                            }
                           />
                         </TableCell>
                       </TableRow>
@@ -1236,7 +1353,7 @@ export default function ResumenCierrePage() {
                         fontWeight: "bold",
                       }}
                     >
-                      <TableCell colSpan={2}>
+                      <TableCell>
                         <Typography variant="body2" fontWeight="bold">
                           Totales
                         </Typography>
@@ -1400,13 +1517,47 @@ export default function ResumenCierrePage() {
                     flexWrap="wrap"
                     gap={1}
                   >
-                    <Typography
-                      variant={isMobile ? "h6" : "h5"}
-                      fontWeight="bold"
-                      sx={{ flex: 1, minWidth: 0 }}
-                    >
-                      Detalle del Cierre
-                    </Typography>
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography
+                        variant={isMobile ? "h6" : "h5"}
+                        fontWeight="bold"
+                      >
+                        {resolveCierreLabel(cierreProducData.ciereData)}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Registrado el{" "}
+                        {buildCierreDateRangeLabel(
+                          cierreProducData.ciereData.fechaInicio,
+                          cierreProducData.ciereData.fechaFin,
+                        )}
+                      </Typography>
+                    </Box>
+                    {/* The rename lives here too, so a phone — where the table's
+                        actions column does not exist — can still reach it. */}
+                    {canEditEtiqueta && (
+                      <Tooltip title="Editar la identificación de este cierre">
+                        <IconButton
+                          size={isMobile ? "small" : "medium"}
+                          aria-label="Editar la identificación de este cierre"
+                          onClick={() =>
+                            setEtiquetaTarget({
+                              cierreId: cierreProducData.cierreId,
+                              etiqueta:
+                                cierreProducData.ciereData.etiqueta ?? null,
+                              fechaInicio:
+                                cierreProducData.ciereData.fechaInicio,
+                              fechaFin: cierreProducData.ciereData.fechaFin,
+                            })
+                          }
+                          sx={{
+                            bgcolor: "semantic.surface.sunken",
+                            "&:hover": { bgcolor: "semantic.surface.border" },
+                          }}
+                        >
+                          <EditIcon fontSize={isMobile ? "small" : "medium"} />
+                        </IconButton>
+                      </Tooltip>
+                    )}
                     <IconButton
                       onClick={handleCloseDetail}
                       size={isMobile ? "small" : "medium"}
