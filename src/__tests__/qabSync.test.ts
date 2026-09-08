@@ -8,6 +8,7 @@ import {
   qabOrderPollPhaseReportSchema,
   qabSyncRunReportSchema,
   qabPermanentFailureSchema,
+  qabOutboxDeferralSchema,
   QAB_BUSINESS_OUTCOMES,
   qabSlugLearningTargetSchema,
   qabAppliedStorePublishSchema,
@@ -17,6 +18,7 @@ import {
 import {
   QAB_OUTBOX_BATCH_SIZE,
   QAB_OUTBOX_PERMANENT_ERROR_CODES,
+  QAB_OUTBOX_DEFERRED_ERROR_CODES,
   QAB_SLUG_LEARN_OUTCOMES,
   QAB_ORDER_POLL_LOCK_STATES,
   QAB_ORDER_PULL_OUTCOMES,
@@ -136,9 +138,13 @@ describe("qabCatalogSyncResponseSchema", () => {
 
 describe("qabOutboxAckPlanSchema", () => {
   it("should accept an empty plan", () => {
+    // F-028 (part B), contract § 11.3: `deferrals` gets `.default([])`, so the schema's OUTPUT
+    // type carries the key even for input that omits it — the exact preexisting assertion the
+    // contract names, updated in place (dev-tester's job, not softened).
     expect(qabOutboxAckPlanSchema.parse({ processedIds: [], failedAcks: [] })).toEqual({
       processedIds: [],
       failedAcks: [],
+      deferrals: [],
     });
   });
 
@@ -154,6 +160,95 @@ describe("qabOutboxAckPlanSchema", () => {
     expect(
       qabOutboxAckPlanSchema.safeParse({ processedIds: [], failedAcks: [{ id: "1" }] }).success
     ).toBe(false);
+  });
+
+  it("should default deferrals to [] when absent (F-028 part B)", () => {
+    const parsed = qabOutboxAckPlanSchema.parse({ processedIds: [], failedAcks: [] });
+    expect(parsed.deferrals).toEqual([]);
+  });
+
+  it("should accept an explicit deferrals entry carrying the closed deferral code", () => {
+    const plan = {
+      processedIds: [],
+      failedAcks: [],
+      deferrals: [
+        {
+          eventId: "1",
+          negocioId: "negocio-1",
+          entidad: "PRODUCT",
+          entidadId: "producto-1",
+          code: QAB_OUTBOX_DEFERRED_ERROR_CODES[0],
+        },
+      ],
+    };
+    expect(qabOutboxAckPlanSchema.safeParse(plan).success).toBe(true);
+  });
+
+  it("should reject a deferrals entry whose code is outside QAB_OUTBOX_DEFERRED_ERROR_CODES — closed vocabulary, not any QAB error string", () => {
+    const plan = {
+      processedIds: [],
+      failedAcks: [],
+      deferrals: [
+        {
+          eventId: "1",
+          negocioId: "negocio-1",
+          entidad: "PRODUCT",
+          entidadId: "producto-1",
+          code: "NOT_A_REAL_DEFERRAL_CODE",
+        },
+      ],
+    };
+    expect(qabOutboxAckPlanSchema.safeParse(plan).success).toBe(false);
+  });
+});
+
+/**
+ * F-028 (part B), contract § 4 — `qabOutboxDeferralSchema`, the wire/entry shape of the third
+ * disposition `planOutboxAck` can put a row into (ADR 0102). Sibling of `qabPermanentFailureSchema`
+ * and its opposite in the two dimensions that matter: not permanent, and does not spend an attempt.
+ */
+describe("qabOutboxDeferralSchema", () => {
+  function baseDeferral() {
+    return {
+      eventId: "1",
+      negocioId: "negocio-1",
+      entidad: "PRODUCT",
+      entidadId: "producto-1",
+      code: QAB_OUTBOX_DEFERRED_ERROR_CODES[0],
+    };
+  }
+
+  it("should accept a well formed deferral carrying the closed code", () => {
+    expect(qabOutboxDeferralSchema.safeParse(baseDeferral()).success).toBe(true);
+  });
+
+  it("should reject a code outside QAB_OUTBOX_DEFERRED_ERROR_CODES — this is the closed vocabulary of criterion 10, not every possible QAB error string", () => {
+    expect(
+      qabOutboxDeferralSchema.safeParse({ ...baseDeferral(), code: "DEPENDENCY_FAILED_IN_BATCH_V2" })
+        .success
+    ).toBe(false);
+  });
+
+  it("should reject an empty eventId", () => {
+    expect(qabOutboxDeferralSchema.safeParse({ ...baseDeferral(), eventId: "" }).success).toBe(false);
+  });
+
+  it("should reject an empty negocioId", () => {
+    expect(qabOutboxDeferralSchema.safeParse({ ...baseDeferral(), negocioId: "" }).success).toBe(
+      false
+    );
+  });
+
+  it("should reject an empty entidadId", () => {
+    expect(qabOutboxDeferralSchema.safeParse({ ...baseDeferral(), entidadId: "" }).success).toBe(
+      false
+    );
+  });
+
+  it("should reject an entidad outside the outbox entity vocabulary", () => {
+    expect(qabOutboxDeferralSchema.safeParse({ ...baseDeferral(), entidad: "PRODUCTO" }).success).toBe(
+      false
+    );
   });
 });
 
@@ -238,6 +333,43 @@ describe("qabOutboxDrainReportSchema", () => {
 
   it("should reject an appliedStoreEvents entry missing tiendaId", () => {
     const report = { ...validReport, appliedStoreEvents: [{ negocioId: "negocio-1" }] };
+    expect(qabOutboxDrainReportSchema.safeParse(report).success).toBe(false);
+  });
+
+  it("should default deferrals to [] when absent (F-028 part B)", () => {
+    const parsed = qabOutboxDrainReportSchema.parse(validReport);
+    expect(parsed.deferrals).toEqual([]);
+  });
+
+  it("should accept an explicit deferrals entry", () => {
+    const report = {
+      ...validReport,
+      deferrals: [
+        {
+          eventId: "1",
+          negocioId: "negocio-1",
+          entidad: "PRODUCT",
+          entidadId: "producto-1",
+          code: QAB_OUTBOX_DEFERRED_ERROR_CODES[0],
+        },
+      ],
+    };
+    expect(qabOutboxDrainReportSchema.safeParse(report).success).toBe(true);
+  });
+
+  it("should reject a deferrals entry with a code outside the closed vocabulary", () => {
+    const report = {
+      ...validReport,
+      deferrals: [
+        {
+          eventId: "1",
+          negocioId: "negocio-1",
+          entidad: "PRODUCT",
+          entidadId: "producto-1",
+          code: "NOT_A_REAL_DEFERRAL_CODE",
+        },
+      ],
+    };
     expect(qabOutboxDrainReportSchema.safeParse(report).success).toBe(false);
   });
 });

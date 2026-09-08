@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import {
   QAB_BUSINESS_ENTITY,
   QAB_CATEGORY_CASCADE_MAX_BUSINESSES,
@@ -6,6 +7,7 @@ import {
   QAB_EXCHANGE_RATE_ENTITY,
 } from "@/constants/qab";
 import type { PrismaClientLike } from "@/lib/prisma";
+import { cancelSupersededExchangeRateEvents } from "@/lib/qab/outboxCancel";
 import { enqueueOutboxEvent, enqueueOutboxEvents } from "@/lib/qab/outboxEnqueue";
 import { buildQabBusinessPayload } from "@/lib/qab/qabBusinessPayload";
 import {
@@ -175,7 +177,7 @@ export async function emitQabCurrencyForNegocio(
  * online store is disabled, and never for QAB_ANCHOR_CURRENCY_CODE.
  */
 export async function emitQabExchangeRateEvent(
-  tx: PrismaClientLike,
+  tx: Prisma.TransactionClient,
   args: {
     negocioId: string;
     moneda: IQabCurrencyEmissionRow | null;
@@ -228,6 +230,14 @@ export async function emitQabExchangeRateEvent(
       occurredAt: args.occurredAt,
     }),
     ocurridoAt: args.occurredAt,
+  });
+
+  // BEFORE the enqueue, so the replacement row does not exist yet and needs no
+  // exclusion by id; and AFTER both guards, so nothing is cancelled unless a
+  // replacement is enqueued in this same transaction (ADR 0101 § 3).
+  await cancelSupersededExchangeRateEvents(tx, {
+    negocioId: args.negocioId,
+    code: args.tasa.code,
   });
 
   await enqueueOutboxEvents(tx, events);

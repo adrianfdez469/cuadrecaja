@@ -1,4 +1,5 @@
 import {
+  QAB_OUTBOX_DEFERRED_ERROR_CODES,
   QAB_OUTBOX_ERROR_CODES,
   QAB_OUTBOX_ERROR_MAX_LENGTH,
   QAB_OUTBOX_PERMANENT_ERROR_CODES,
@@ -7,6 +8,8 @@ import type { IOutboxEvento } from "@/schemas/qabOutbox";
 import type {
   IQabCatalogBatch,
   IQabOutboxAckPlan,
+  IQabOutboxDeferral,
+  IQabOutboxDeferralCode,
   IQabOutboxDrainReport,
   IQabPermanentFailure,
   IQabSlugLearnPhaseReport,
@@ -87,20 +90,44 @@ export function toQabCatalogBatch(negocioId: string, rows: IOutboxEvento[]): IQa
 }
 
 /**
+ * PURE. The member of QAB_OUTBOX_DEFERRED_ERROR_CODES that `error` is EXACTLY
+ * equal to, or `undefined`. Case sensitive, no trimming, no substring search and
+ * no normalisation: see ADR 0103 § 1 for why this is narrower than the match
+ * `collectQabPermanentFailures` does, on purpose.
+ *
+ * It returns the CONSTANT and not the received string, so nothing QAB controls
+ * travels any further than this comparison. Never throws: `===` between two
+ * strings has no failure mode, and this function does no parsing, no truncation
+ * and no interpolation (E-031).
+ */
+export function matchQabOutboxDeferralCode(error: string): IQabOutboxDeferralCode | undefined {
+  return QAB_OUTBOX_DEFERRED_ERROR_CODES.find((candidate) => error === candidate);
+}
+
+/**
  * What to write back, given what was sent and what came back. Pure and total:
- * every row of `rows` appears in exactly one of the two lists, in the given
- * order. Ids in `outcome` that do not belong to `rows` are IGNORED — QAB can
+ * every row of `rows` appears in exactly ONE of the THREE lists, in the given
+ * order. Ids in `outcome` that do not belong to `rows` are IGNORED - QAB can
  * never make this run acknowledge a row it did not send.
+ *
+ * The third list, `deferrals`, is the one the caller writes NOTHING for: no
+ * `procesadoAt`, no `intentos`, no `ultimoError`. It is the seventh row of the
+ * truth table of ADR 0011, added by ADR 0102; the other six are unchanged and
+ * are not restated here.
  */
 export function planOutboxAck(
   rows: IOutboxEvento[],
   outcome: IQabPostOutcome,
 ): IQabOutboxAckPlan {
   if (outcome.kind === "error") {
+    // A transport or HTTP failure is not attributable to one event, so nothing in
+    // the batch is known to be deferred: same reasoning as the early return of
+    // `collectQabPermanentFailures`.
     const ultimoError = truncateOutboxError(outcome.ultimoError);
     return {
       processedIds: [],
       failedAcks: rows.map((row) => ({ id: row.id, ultimoError })),
+      deferrals: [],
     };
   }
 
@@ -109,6 +136,7 @@ export function planOutboxAck(
 
   const processedIds: string[] = [];
   const failedAcks: IQabOutboxAckPlan["failedAcks"] = [];
+  const deferrals: IQabOutboxDeferral[] = [];
 
   for (const row of rows) {
     // An id present in both lists counts as failed: `ok` is an acknowledgement,
@@ -116,6 +144,19 @@ export function planOutboxAck(
     // is never reported in `ok`.
     const failure = failures.get(row.id);
     if (failure !== undefined) {
+      const code = matchQabOutboxDeferralCode(failure);
+      if (code !== undefined) {
+        // Every field comes from the LOCAL row; from the response only the code
+        // that matched, which is this side's own constant (ADR 0102).
+        deferrals.push({
+          eventId: row.id,
+          negocioId: row.negocioId,
+          entidad: row.entidad,
+          entidadId: row.entidadId,
+          code,
+        });
+        continue;
+      }
       failedAcks.push({
         id: row.id,
         ultimoError: truncateOutboxError(`${QAB_OUTBOX_ERROR_CODES.event}:${failure}`),
@@ -129,7 +170,7 @@ export function planOutboxAck(
     failedAcks.push({ id: row.id, ultimoError: QAB_OUTBOX_ERROR_CODES.missingInResponse });
   }
 
-  return { processedIds, failedAcks };
+  return { processedIds, failedAcks, deferrals };
 }
 
 /**
@@ -173,7 +214,7 @@ export function collectQabPermanentFailures(
   return failures;
 }
 
-/** A report with every counter at zero and both arrays empty. */
+/** A report with every counter at zero and every list empty, whatever its fields. */
 export function emptyQabOutboxDrainReport(): IQabOutboxDrainReport {
   return {
     claimed: 0,
@@ -183,6 +224,7 @@ export function emptyQabOutboxDrainReport(): IQabOutboxDrainReport {
     failed: 0,
     byBusiness: [],
     permanentFailures: [],
+    deferrals: [],
     appliedStoreEvents: [],
     withheld: [],
   };

@@ -22,12 +22,17 @@ import {
 } from "@/lib/qab/outboxAck";
 import { collectQabAppliedStorePublishes } from "@/lib/qab/qabStoreOutboxFilters";
 import { readQabWithheldOutboxPending } from "@/lib/qab/qabCatalogOutboxFilters";
-import { logQabPermanentFailure, logQabWithheldOutbox } from "@/lib/qab/qabOutboxLog";
+import {
+  logQabOutboxDeferral,
+  logQabPermanentFailure,
+  logQabWithheldOutbox,
+} from "@/lib/qab/qabOutboxLog";
 import type { IQabPostOutcome } from "@/lib/qab/qabCatalogClient";
 import type { IOutboxEvento, IQabOutboxEntity, IQabOutboxOperation } from "@/schemas/qabOutbox";
 import type {
   IQabCatalogBatch,
   IQabOutboxAckPlan,
+  IQabOutboxDeferral,
   IQabOutboxDrainReport,
   IQabPermanentFailure,
 } from "@/schemas/qabSync";
@@ -165,6 +170,7 @@ export async function drainQabOutbox(
       const failedAcks: IQabOutboxAckPlan["failedAcks"] = [];
       const byBusiness: IQabOutboxDrainReport["byBusiness"] = [];
       const permanentFailures: IQabPermanentFailure[] = [];
+      const deferrals: IQabOutboxDeferral[] = [];
 
       for (const group of groups) {
         const token = tokens.get(group.negocioId);
@@ -209,6 +215,14 @@ export async function drainQabOutbox(
           permanentFailures.push(failure);
         }
 
+        // Left EXACTLY as they are: no `procesadoAt`, no `intentos++`, no
+        // `ultimoError`. The row records nothing, so the log and the report are
+        // the only places a deferral is visible (ADR 0102).
+        for (const deferral of plan.deferrals) {
+          logQabOutboxDeferral(deferral);
+          deferrals.push(deferral);
+        }
+
         processedIds.push(...plan.processedIds);
         failedAcks.push(...plan.failedAcks);
         byBusiness.push({
@@ -250,6 +264,7 @@ export async function drainQabOutbox(
         failed: failedAcks.length,
         byBusiness,
         permanentFailures,
+        deferrals,
         // ONLY reorders the slug-learning phase's eligible set, never widens it
         // (ADR 0036b). The phase queries its own eligibility.
         appliedStoreEvents: collectQabAppliedStorePublishes(rows, processedIds),

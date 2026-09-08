@@ -3,6 +3,9 @@
 **Estado:** aceptado
 **Fecha:** 2026-09-02
 **Feature:** F-002
+**Extendido por:** [ADR 0102](0102-un-arrastre-de-dependencia-es-una-tercera-disposicion-del-acuse-no-un-estado-de-la-fila.md)
+— añade una séptima fila a la tabla de verdad de abajo (F-028 parte B, 2026-09-07). Las seis filas
+originales **no cambian**.
 
 ## Contexto
 
@@ -49,6 +52,12 @@ Tabla de verdad de `planOutboxAck`, vinculante:
 | El id viene en `response.failed` | sigue `null` | `+1` | `EVENT:<error>` |
 | El id no viene en ninguna de las dos listas | sigue `null` | `+1` | `MISSING_IN_RESPONSE` |
 | El negocio no tiene `qabToken` | sigue `null` | `+1` | `QAB_TOKEN_MISSING` |
+
+> **Esta tabla tiene una séptima fila desde el 2026-09-07**, añadida por el
+> [ADR 0102](0102-un-arrastre-de-dependencia-es-una-tercera-disposicion-del-acuse-no-un-estado-de-la-fila.md):
+> el arrastre por dependencia (`DEPENDENCY_FAILED_IN_BATCH`), que la v11 del contrato introdujo
+> después de escribirse este ADR y en la que las **tres** columnas quedan sin tocar. Las seis filas
+> de arriba siguen siendo la definición de sus seis casos, sin enmienda.
 
 Tres consecuencias de forma:
 

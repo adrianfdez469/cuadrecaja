@@ -1,7 +1,7 @@
 # E-053: un script de verificación suelto no es el entorno de módulos del repositorio
 
 **Área:** tests
-**Apariciones:** 1 — F-008 (dos veces en el mismo feature, por dos mecanismos distintos)
+**Apariciones:** 2 — F-008 (dos veces, por dos mecanismos distintos) · F-028 parte B
 
 ## Síntoma
 
@@ -36,6 +36,39 @@ En los dos casos el mensaje señala al import, no a la causa.
 - El segundo: escribir la verificación como un **`.test.ts` temporal** y ejecutarlo con
   `vitest run`, borrándolo al terminar.
 
+## Adenda F-028 (parte B): el falso positivo apunta a la conclusión CONTRARIA
+
+Tercer mecanismo, y el más peligroso de los tres, porque aquí el cargador **no falla en silencio: da
+una respuesta convincente y equivocada**.
+
+El `implementer` de la parte B tenía que descartar un ciclo de **valor** entre módulos de
+`src/schemas/` (E-028) antes de dar su cambio por bueno. Intentó cargar el módulo por su cuenta:
+
+```
+node --import tsx/esm -e "await import('<ruta>/src/schemas/qabSync.ts')"
+```
+
+y obtuvo:
+
+```
+Error [ERR_REQUIRE_CYCLE_MODULE]: Cannot require() ES Module … in a cycle
+```
+
+Que es, literalmente, el nombre del problema que estaba buscando. Cualquiera lo habría leído como
+la confirmación de que el ciclo existía — y habría rehecho un diseño correcto para arreglar un
+ciclo inexistente.
+
+**No era el ciclo.** Lo destapó ejecutar el mismo comando contra `src/constants/qab.ts`, un módulo
+que **no tiene ni un solo `import`** y en el que un ciclo es imposible por construcción: falla
+igual. Es el interop CJS/ESM del cargador de `tsx` en Node 24, o sea la misma causa raíz de esta
+ficha, con la diferencia de que el mensaje **nombra el fallo que se estaba investigando**.
+
+La comprobación válida fue cargar los módulos con **`vitest`**, que es el entorno de módulos real
+del repositorio: se eligieron seis archivos de test que hacen import **de valor** de las piezas
+tocadas y que no estaban en manos del otro agente. Un ciclo de valor habría reventado en la fase de
+colección con el `TypeError` de Zod, que es el instrumento que E-019 y E-028 describen. Dos corridas,
+exit 0 las dos.
+
 ## Cómo evitarlo
 
 **Para verificar código de producción de este repo, usa el cargador del repo.** Un `.test.ts`
@@ -49,3 +82,5 @@ contrato). En cuanto haya un `import` de `src/`, deja de serlo.
 **Y ojo con la frontera de escritura:** si el `.test.ts` temporal vive en `src/__tests__/`, es la
 frontera del `dev-tester`. Durante el paso 5, con los dos agentes en paralelo, eso es E-046 —
 créalo fuera de esa carpeta, o espera a que el paso cierre.
+
+**Y la regla que añade la adenda de F-028:** cuando el mensaje de un cargador ajeno **nombra justo el fallo que estabas buscando**, desconfía antes de celebrarlo: reprodúcelo contra un caso donde ese fallo sea **imposible por construcción** (un módulo sin imports, un fixture vacío). Si también falla ahí, el mensaje habla del cargador y no de tu código. Un control negativo cuesta un comando y evita rehacer un diseño correcto.
