@@ -79,7 +79,7 @@ respuesta lo devuelve; sin corte, la respuesta trae `openedPeriod: null` y la pa
 | Mantener solo el `FOR UPDATE` en el cierre | No serializa contra un `INSERT` no confirmado de otra transacción: dos períodos abiertos dejarían de ser imposibles |
 | Bloquear el cierre mientras haya un corte puesto, en vez del chequeo optimista | Un paso más en un flujo ya largo, y en una tienda con venta continua nunca se completaría |
 | `count !== expectedDeferredCount` como condición de aborto | Haría fallar el cierre cada vez que llega una venta legítima durante el conteo del efectivo, que es justo el caso que el modelo resuelve solo |
-| Guardar también el lado incluido con una comparación estricta | Una venta *offline* atrasada que sincroniza durante el cierre abortaría el cierre; esa carrera ya la cubre el mecanismo de *drift* del ADR 0036 |
+| Guardar también el lado incluido con una comparación estricta | Abortaría el cierre ante la carrera del lado incluido —una venta que cambia de período entre el cálculo y la escritura—, que el mecanismo de *drift* del ADR 0036 ya repara sin bloquear nada. *Corregido el 2026-09-09: la justificación original citaba «una venta offline atrasada que sincroniza durante el cierre», y ese caso no puede darse — el servidor sella `createdAt` al sincronizar, así que esa venta es siempre posterior al corte y cae del lado **diferido**. Ver la sección final del ADR 0104.*|
 
 ## Consecuencias
 
