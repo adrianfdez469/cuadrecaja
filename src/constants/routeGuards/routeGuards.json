@@ -910,6 +910,20 @@
     "corregidaPor": "F-021"
   },
   {
+    "route": "cierre/[tiendaId]/[cierreId]/sales-cutoff/route.ts",
+    "verb": "PATCH",
+    "clasificacion": "protegida",
+    "kind": "tenant",
+    "motivo": "assertTiendaTenant con permiso, y el updateMany lleva el tiendaId ya resuelto en su where: el cierreId del path nunca alcanza una fila de otro negocio",
+    "helper": "assertTiendaTenant",
+    "tenantModel": "cierrePeriodo",
+    "tenantParam": "path:tiendaId",
+    "permiso": "operaciones.cierre.cerrar",
+    "permisoAusenteMotivo": null,
+    "devuelveDatosDeNegocio": false,
+    "corregidaPor": null
+  },
+  {
     "route": "cierre/[tiendaId]/last/route.ts",
     "verb": "GET",
     "clasificacion": "protegida",

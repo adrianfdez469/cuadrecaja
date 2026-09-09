@@ -3,6 +3,7 @@ import {
   computeCierreTotals,
   hasTotalsDrift,
   mergeLiquidaciones,
+  summarizeDeferredSales,
   sumSalesTotals,
   valueSales,
   type CierreComputationInput,
@@ -446,5 +447,83 @@ describe("mergeLiquidaciones", () => {
       "a_2",
       "b_3",
     ]);
+  });
+});
+
+/**
+ * F-029 — contract § 4, § 12. `summarizeDeferredSales` values the deferred
+ * side of a cutoff partition with the SAME engine as the period's own
+ * totalVentas, so the banner ("X pasan al próximo período") can never
+ * disagree with the drop the screen shows. A plausible-but-wrong
+ * implementation (gross instead of net, or a tip leaking in) would pass a
+ * naive count-and-sum check but fail the cross-check below.
+ */
+describe("summarizeDeferredSales", () => {
+  it("counts zero and totals zero for an empty deferred list", () => {
+    expect(summarizeDeferredSales([], "USD", historialTasas)).toEqual({
+      count: 0,
+      totalVentas: 0,
+    });
+  });
+
+  it("is the SAME arithmetic as computeCierreTotals: the drop in the period's total equals the deferred summary's total, to the cent — net of discount, tip EXCLUDED", () => {
+    const included = sale({
+      id: "included",
+      discountTotal: 0,
+      tipTotal: 0,
+      productos: [line({ precio: 50, monedaPrecioCode: "USD", costo: 20 })],
+    });
+    const deferred = sale({
+      id: "deferred",
+      discountTotal: 20,
+      // A large tip on the deferred sale: it must NOT leak into totalVentas,
+      // or this test would see 75 (or 95) instead of the correct 60.
+      tipTotal: 15,
+      productos: [line({ precio: 80, monedaPrecioCode: "USD", costo: 30 })],
+    });
+
+    const totalWithBoth = computeCierreTotals(
+      baseInput({ ventas: [included, deferred] }),
+    ).totals.totalVentas;
+    const totalIncludedOnly = computeCierreTotals(
+      baseInput({ ventas: [included] }),
+    ).totals.totalVentas;
+
+    const deferredSummary = summarizeDeferredSales(
+      [deferred],
+      "USD",
+      historialTasas,
+    );
+
+    expect(deferredSummary.count).toBe(1);
+    expect(deferredSummary.totalVentas).toBeCloseTo(60, 6); // 80 gross - 20 discount, no tip
+    expect(deferredSummary.totalVentas).toBeCloseTo(
+      totalWithBoth - totalIncludedOnly,
+      6,
+    );
+  });
+
+  it("floors a deferred sale's contribution at zero when its discount exceeds the gross, never negative", () => {
+    const deferred = sale({
+      discountTotal: 50,
+      productos: [line({ precio: 10, monedaPrecioCode: "USD" })],
+    });
+    expect(
+      summarizeDeferredSales([deferred], "USD", historialTasas).totalVentas,
+    ).toBe(0);
+  });
+
+  it("sums every deferred sale, each converted to base currency", () => {
+    const d1 = sale({
+      id: "d1",
+      productos: [line({ precio: 10, monedaPrecioCode: "USD" })],
+    });
+    const d2 = sale({
+      id: "d2",
+      productos: [line({ precio: 6800, monedaPrecioCode: "CUP" })],
+    });
+    const summary = summarizeDeferredSales([d1, d2], "USD", historialTasas);
+    expect(summary.count).toBe(2);
+    expect(summary.totalVentas).toBeCloseTo(20, 6); // 10 USD + (6800 CUP @ 680) = 20 USD
   });
 });

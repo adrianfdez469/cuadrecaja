@@ -7,7 +7,10 @@ import type { ITasaSnapshot } from "@/schemas/tasaCambio";
 import type {
   CierreComputationInput,
   CierreSale,
+  IDeferredSalesSummary,
 } from "@/lib/cierre/computeCierreTotals";
+import { summarizeDeferredSales } from "@/lib/cierre/computeCierreTotals";
+import { partitionSalesByCutoff } from "@/lib/cierre/salesCutoff";
 
 type PrismaLike = typeof prisma | Prisma.TransactionClient;
 
@@ -21,11 +24,16 @@ export interface CierrePeriodoHeader {
   totalsComputedAt: Date | null;
   /** Display name of the period. Header metadata: it computes nothing. */
   etiqueta: string | null;
+  /** The cut this period is prepared to be closed at, or null when there is none. */
+  salesCutoffAt: Date | null;
 }
 
 export interface LoadedCierreInput {
   cierre: CierrePeriodoHeader;
+  /** Only the sales the close takes: input.ventas is already the included side. */
   input: CierreComputationInput;
+  /** The other side of the same partition. */
+  deferred: IDeferredSalesSummary;
 }
 
 const MOVIMIENTOS_DE_CAJA = ["COMPRA", "MERMA", "DEVOLUCION_VENTA"] as const;
@@ -54,6 +62,7 @@ export async function loadCierreComputationInput(
       fechaFin: true,
       totalsComputedAt: true,
       etiqueta: true,
+      salesCutoffAt: true,
       tienda: {
         select: { negocio: { select: { id: true, monedaBase: true } } },
       },
@@ -99,7 +108,20 @@ export async function loadCierreComputationInput(
   if (!cierre) return null;
 
   const monedaBase = cierre.tienda.negocio.monedaBase ?? "CUP";
-  const fechaFin = cierre.fechaFin ?? options.fechaFinOverride ?? null;
+
+  // Once the period is closed the relation is the truth: a sale an admin moved
+  // into a closed period must count even if its createdAt is later than the cut
+  // this period was closed with. Otherwise the recalculation would silently
+  // drop it.
+  const cutoffAt = cierre.fechaFin === null ? cierre.salesCutoffAt : null;
+
+  // One precedence for the upper bound of the movement window, written here and
+  // nowhere else. The cut wins over `fechaFinOverride` ON PURPOSE: it is what
+  // makes the screen and the close see the same COMPRA. Without it the screen
+  // would show a purchase made after the cut that the close is not going to
+  // store, and acceptance criteria 4 and 11 would contradict each other.
+  const fechaFin =
+    cierre.fechaFin ?? cutoffAt ?? options.fechaFinOverride ?? null;
 
   const [gastos, movimientos, initialFundAmounts, historialTasas] =
     await Promise.all([
@@ -172,6 +194,11 @@ export async function loadCierreComputationInput(
     })),
   }));
 
+  // The relation is loaded whole and split here, so the deferred summary comes
+  // out of the same valuation engine as the period's own totals and the pure
+  // function of acceptance criterion 12 is exercised in production.
+  const { included, deferred } = partitionSalesByCutoff(ventas, cutoffAt);
+
   return {
     cierre: {
       id: cierre.id,
@@ -182,12 +209,14 @@ export async function loadCierreComputationInput(
       fechaFin: cierre.fechaFin,
       totalsComputedAt: cierre.totalsComputedAt,
       etiqueta: cierre.etiqueta,
+      salesCutoffAt: cierre.salesCutoffAt,
     },
+    deferred: summarizeDeferredSales(deferred, monedaBase, historialTasas),
     input: {
       monedaBase,
       fechaFin,
       historialTasas,
-      ventas,
+      ventas: included,
       gastos,
       movimientos: movimientos.map((m) => ({
         ...m,

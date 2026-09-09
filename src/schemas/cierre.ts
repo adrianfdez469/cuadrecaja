@@ -36,7 +36,76 @@ export const cierrePeriodoSchema = z.object({
   // were never stored by the current engine. Shown as a warning with the
   // recalculation action next to it.
   totalesDesactualizados: z.boolean().optional(),
+  // The instant the period is prepared to be closed at, or null when no cut is
+  // set. Only meaningful while the period is open.
+  salesCutoffAt: z.coerce.date().nullable().optional(),
 });
+
+/** Where the operator wants the cut to land. */
+export const salesCutoffTargetSchema = z.discriminatedUnion("mode", [
+  // An explicit instant: a day chip, a tapped sale, or "nothing".
+  z.object({ mode: z.literal("at"), cutoffAt: z.coerce.date() }),
+  // The server stamps the instant: today's chip, or any target already past now.
+  z.object({ mode: z.literal("now") }),
+  // "Whole period" and "Remove cut": the period goes back to closing like today.
+  z.object({ mode: z.literal("clear") }),
+]);
+export type ISalesCutoffTarget = z.infer<typeof salesCutoffTargetSchema>;
+
+/** Body of PATCH /api/cierre/[tiendaId]/[cierreId]/sales-cutoff. */
+export const setSalesCutoffSchema = z.object({
+  target: salesCutoffTargetSchema,
+  // The cut the client believed was in force. Two cashiers can have the dialog
+  // open at once; without this the last one silently wins and the first never
+  // finds out. Same optimistic check the close uses, same 409.
+  expectedCutoffAt: z.coerce.date().nullable(),
+});
+export type ISetSalesCutoff = z.infer<typeof setSalesCutoffSchema>;
+
+/** Response of that same PATCH: the cutoff as it was stored. */
+export const salesCutoffResponseSchema = z.object({
+  cutoffAt: z.coerce.date().nullable(),
+});
+export type ISalesCutoffResponse = z.infer<typeof salesCutoffResponseSchema>;
+
+/**
+ * The cutoff state of the open period, as the closing screen reads it.
+ * deferredTotal is in base currency, net of discounts, tips excluded: the same
+ * figure and the same engine the screen's own total de ventas comes from.
+ */
+export const salesCutoffStateSchema = z.object({
+  cutoffAt: z.coerce.date().nullable(),
+  // Sales the close TAKES. Zero is a valid choice ("Nada"), and the screen says
+  // so in words: without this figure it would have to be guessed from the
+  // product and per-cashier lists, which is an inference and not the datum.
+  includedCount: z.number().int().nonnegative(),
+  deferredCount: z.number().int().nonnegative(),
+  deferredTotal: z.number(),
+});
+export type ISalesCutoffState = z.infer<typeof salesCutoffStateSchema>;
+
+/** Body of PUT /api/cierre/[tiendaId]/[cierreId]/close. */
+export const closeCierreSchema = z.object({
+  // The cutoff the client had on screen. The server answers 409 when the stored
+  // one differs, so the deferral the operator confirmed is the one that happens.
+  expectedCutoffAt: z.coerce.date().nullable(),
+});
+export type ICloseCierreRequest = z.infer<typeof closeCierreSchema>;
+
+const cierrePeriodoRowSchema = cierrePeriodoSchema.omit({ tienda: true });
+
+/** Response of that same PUT. */
+export const closeCierreResultSchema = z.object({
+  closedPeriod: cierrePeriodoRowSchema,
+  // The period the close created, which starts exactly at the cutoff. NULL when
+  // there was no cutoff: the client opens the next period itself, as it does today.
+  openedPeriod: cierrePeriodoRowSchema.nullable(),
+  // Sales actually moved by the updateMany, not the number the computation
+  // expected. Zero when there was no cutoff.
+  deferredCount: z.number().int().nonnegative(),
+  deferredTotal: z.number(),
+});
+export type ICloseCierreResult = z.infer<typeof closeCierreResultSchema>;
 
 const cierreProductoVendidosSchema = z.object({
   id: z.string().uuid(),
@@ -147,6 +216,9 @@ export const cierreDataSchema = z.object({
   cajaDeducciones: z
     .record(z.string(), z.array(deduccionItemSchema))
     .optional(),
+  // Always emitted by GET /api/cierre/[tiendaId]/[cierreId]. Optional because
+  // the historical view builds an ICierreData of its own.
+  salesCutoff: salesCutoffStateSchema.optional(),
 });
 
 export const summaryCierreSchema = z.object({

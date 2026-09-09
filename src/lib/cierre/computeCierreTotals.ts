@@ -251,6 +251,28 @@ export function sumSalesTotals(ventasValoradas: ValuedSale[]): SalesTotals {
   );
 }
 
+export interface IDeferredSalesSummary {
+  count: number;
+  /** Base currency, net of discounts. Same arithmetic as the period's totalVentas. */
+  totalVentas: number;
+}
+
+/**
+ * What the confirmation dialog announces gets deferred, valued with the very
+ * engine that produces the period's own figures — so "the total dropped by X"
+ * and "X is deferred" are the same number, not two estimates.
+ */
+export function summarizeDeferredSales(
+  deferred: CierreSale[],
+  monedaBase: string,
+  historialTasas: TasaHistoryRecord[],
+): IDeferredSalesSummary {
+  const { totalVentas } = sumSalesTotals(
+    valueSales(deferred, monedaBase, historialTasas),
+  );
+  return { count: deferred.length, totalVentas };
+}
+
 /**
  * True when the stored sales total no longer matches what the current sales
  * are worth — the sales of a closed period changed after it was closed.

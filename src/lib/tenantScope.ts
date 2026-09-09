@@ -18,7 +18,8 @@
  *
  * Exported symbols: `sessionNegocioId`, `tiendaTenantWhere`, `withTenantScope`,
  * `TENANT_SCOPE_DECISIONS`, `decideTenantScope`, `tenantForbiddenResponse`,
- * `tenantNotFoundResponse`, `tenantScopeDenial`, `assertTiendaTenant`, `resolveTenantAxis`.
+ * `tenantNotFoundResponse`, `tenantScopeDenial`, `assertTiendaTenant`, `resolveTenantAxis`,
+ * `assertPermisoEnTienda`.
  */
 import { NextResponse } from "next/server";
 import type { Session } from "next-auth";
@@ -29,6 +30,7 @@ import {
   type ITenantScopedModel,
 } from "@/constants/tenantScope";
 import { verificarPermisoUsuario } from "@/utils/permisos_back";
+import { getPermisosUsuario } from "@/utils/getPermisosUsuario";
 
 /* ---------------------------------------------------------------- the axis */
 
@@ -160,32 +162,54 @@ export type ITenantScopeDecision = (typeof TENANT_SCOPE_DECISIONS)[number];
  *   `ownsResource === false`            -> OUT_OF_TENANT
  *   otherwise                           -> ALLOWED
  *
- * The permission comes BEFORE ownership on purpose: it is pure and ownership costs a query, so a
- * request already denied by permission never reaches the database (ADR 0077). Intended consequence:
- * whoever lacks the permission gets a 403 even when the resource belonged to another business —
- * the more restrictive of the two answers.
- *
  * `permisoRequerido: null` means "this verb requires no permission", and DEMANDS a written reason
  * in the inventory (ADR 0078). The permission is resolved with `verificarPermisoUsuario`, which is
  * what grants it to SUPER_ADMIN from `rol`.
+ *
+ * ADR 0107: when a permission IS required it is checked against `permisosEnTienda` — the user's
+ * permissions in the store the request addresses — and never against `session.user.permisos`,
+ * which is the string computed for the user's `localActual` at login. `UsuarioTienda` carries a
+ * `rolId` per store, so those two are not the same thing.
  */
 export function decideTenantScope(params: {
   session: Session | null;
   permisoRequerido: string | null;
   ownsResource: boolean;
+  /**
+   * The user's permissions IN THE STORE this request addresses. Required
+   * whenever permisoRequerido is not null; `undefined` there denies, and NEVER
+   * falls back to session.user.permisos — a fallback would silently reopen the
+   * very hole this closes.
+   *
+   * Not needed for SUPER_ADMIN, who passes on the role alone, exactly as
+   * verificarPermisoUsuario already resolves it today — which is why the denial
+   * goes THROUGH that function instead of short-circuiting before it.
+   */
+  permisosEnTienda?: string | null;
 }): ITenantScopeDecision {
-  const { session, permisoRequerido, ownsResource } = params;
+  const { session, permisoRequerido, ownsResource, permisosEnTienda } = params;
 
   if (!sessionNegocioId(session)) {
     return "NO_SESSION";
   }
 
   if (permisoRequerido) {
-    const user = session.user;
+    // Failing closed is done by collapsing a missing `permisosEnTienda` to the
+    // EMPTY string, never by returning before `verificarPermisoUsuario`: the
+    // role shortcut lives inside that function, and a SUPER_ADMIN has no row in
+    // `UsuarioTienda` for most stores, so an early return would deny them every
+    // route with a permission. An empty string is not a fallback — it is "no
+    // permissions in this store", which denies everyone except the role that is
+    // exempt by design.
+    //
+    // Checked at runtime rather than expressed as a discriminated union: with
+    // `strict: false` there is no narrowing by `null`, and the error would come
+    // out as a TS2339 pointing at the wrong property (E-036).
+    const permisos = permisosEnTienda === undefined ? "" : permisosEnTienda;
     const autorizado = verificarPermisoUsuario(
-      user.permisos,
+      permisos,
       permisoRequerido,
-      user.rol,
+      session.user.rol,
     );
     if (!autorizado) {
       return "MISSING_PERMISSION";
@@ -264,6 +288,11 @@ export type ITenantScopeResult = {
  *
  * Reads `Tienda` from the DATABASE with `tiendaTenantWhere` and `select: { id: true }`; never from
  * `session.user.locales`. A null, empty or foreign `tiendaId` returns the SAME 404.
+ *
+ * ORDER (ADR 0107): session (pure) -> ownership -> the user's permissions IN THAT STORE ->
+ * decision. The permission used to come first because it was pure and ownership cost a query
+ * (ADR 0077); now both cost a query, so that reason is gone. A foreign store answers 404 and a
+ * missing permission answers 403, exactly as before for a legitimate client.
  */
 export async function assertTiendaTenant(params: {
   session: Session | null;
@@ -272,14 +301,14 @@ export async function assertTiendaTenant(params: {
 }): Promise<ITenantScopeResult> {
   const { session, tiendaId, permisoRequerido } = params;
 
-  // Session and permission first: both are pure, and ownership costs a query (ADR 0077).
-  const preDecision = decideTenantScope({
+  // Session first: it is pure, and without it there is nothing to resolve against.
+  const sessionDecision = decideTenantScope({
     session,
-    permisoRequerido,
+    permisoRequerido: null,
     ownsResource: true,
   });
-  if (preDecision !== "ALLOWED") {
-    return { scope: null, response: tenantScopeDenial(preDecision) };
+  if (sessionDecision !== "ALLOWED") {
+    return { scope: null, response: tenantScopeDenial(sessionDecision) };
   }
 
   const negocioId = sessionNegocioId(session);
@@ -292,11 +321,22 @@ export async function assertTiendaTenant(params: {
     where: tiendaTenantWhere({ tiendaId, negocioId }),
     select: { id: true },
   });
+  if (!tienda) {
+    return { scope: null, response: tenantNotFoundResponse() };
+  }
+
+  // Only the call sites that actually demand a permission pay this query; the
+  // ones passing `null` execute nothing new.
+  const permisosEnTienda =
+    permisoRequerido === null
+      ? null
+      : await getPermisosUsuario(session.user.id, tienda.id);
 
   const decision = decideTenantScope({
     session,
     permisoRequerido,
-    ownsResource: tienda !== null,
+    ownsResource: true,
+    permisosEnTienda,
   });
   if (decision !== "ALLOWED") {
     return { scope: null, response: tenantScopeDenial(decision) };
@@ -311,21 +351,27 @@ export type ITenantAxisResult = {
 };
 
 /**
- * GATE B — when the axis does not arrive in the request and the row is addressed by its own id.
+ * GATE B, step one — when the axis does not arrive in the request and the row is addressed by its
+ * own id.
  *
- * Resolves session and permission, and returns the `negocioId` with which the route builds its
- * query through `withTenantScope`. The route then returns `tenantNotFoundResponse()` when the query
- * yields no row: that is the same thing as "it belongs to another business", and that is the point.
+ * Resolves the SESSION and nothing else, and returns the `negocioId` with which the route builds
+ * its query through `withTenantScope`. The route then returns `tenantNotFoundResponse()` when the
+ * query yields no row: that is the same thing as "it belongs to another business", and that is the
+ * point.
+ *
+ * It no longer takes a `permisoRequerido`, and that is deliberate (ADR 0107): here the store the
+ * row belongs to is NOT known until the row has been read, so a permission checked at this point
+ * could only be checked against the session's store — the very hole the ADR closes. The routes that
+ * need a permission call `assertPermisoEnTienda` in step two, once their query resolved the store.
  */
 export function resolveTenantAxis(params: {
   session: Session | null;
-  permisoRequerido: string | null;
 }): ITenantAxisResult {
-  const { session, permisoRequerido } = params;
+  const { session } = params;
 
   const decision = decideTenantScope({
     session,
-    permisoRequerido,
+    permisoRequerido: null,
     ownsResource: true,
   });
 
@@ -334,4 +380,33 @@ export function resolveTenantAxis(params: {
   }
 
   return { negocioId: sessionNegocioId(session), response: null };
+}
+
+/**
+ * GATE B, step two: the permission of a route whose store is only known once the row has been read.
+ * Resolves the caller's permissions IN THAT store and decides with the same pure core as gate A.
+ *
+ * Returns null when allowed, and the denial response otherwise — so the caller writes
+ * `if (denial) return denial;`.
+ */
+export async function assertPermisoEnTienda(params: {
+  session: Session | null;
+  tiendaId: string;
+  permisoRequerido: string;
+}): Promise<NextResponse<ITenantScopeError> | null> {
+  const { session, tiendaId, permisoRequerido } = params;
+
+  const permisosEnTienda = await getPermisosUsuario(
+    session?.user?.id,
+    tiendaId,
+  );
+
+  return tenantScopeDenial(
+    decideTenantScope({
+      session,
+      permisoRequerido,
+      ownsResource: true,
+      permisosEnTienda,
+    }),
+  );
 }
