@@ -46,6 +46,7 @@ import {
   pagadaConUnSoloPago,
 } from "@/lib/currency";
 import { SaleExtrasSummary } from "@/components/SaleExtrasSummary";
+import SaleSyncTraceCard from "@/app/ventas/components/SaleSyncTraceCard";
 import { usePermisos } from "@/utils/permisos_front";
 import { usePrinter } from "@/features/printing/hooks/usePrinter";
 import { ventaToSale } from "@/features/printing/lib/ventaToSale";
@@ -236,6 +237,9 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
             />
           </Grid>
         </Grid>
+
+        {/* Renders nothing unless this sale carries a sync trace. */}
+        <SaleSyncTraceCard venta={venta} />
 
         {/* Detalle de pago, vuelto, propina y tasa de cambio de la venta */}
         {(venta.pagosDetalle?.length ||

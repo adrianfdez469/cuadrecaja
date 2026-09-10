@@ -1,5 +1,5 @@
 /**
- * Server-side sale constants.
+ * Sale constants.
  */
 
 /**
@@ -23,3 +23,27 @@ export const SALE_TOTAL_TOLERANCE_BASE = 0.01;
  */
 export const SALE_ORIGINS = ["POS", "TIENDA_ONLINE"] as const;
 export type ISaleOrigin = (typeof SALE_ORIGINS)[number];
+
+/**
+ * Lowest syncAttempts value that, on its own, means a sale needed more than
+ * one try to reach the server.
+ *
+ * 2 and not 1, because two clients count differently into the same column:
+ * the online POS path sends a literal 1 for a first-attempt sale, while the
+ * offline queue and the manual resend send the counter as it stood BEFORE the
+ * attempt, so a first-try success stores 0. Both 0 and 1 are therefore
+ * produced by sales that needed no retry; 2 is not produced by any first
+ * attempt of this repo's POS. ADR 0112.
+ */
+export const SALE_SYNC_TRACE_MIN_ATTEMPTS = 2;
+
+/**
+ * The closed vocabulary of reasons a sale carries a sync trace, IN THE ORDER
+ * they are presented: the connection one before the retries one.
+ *
+ * Same shape as SALE_ORIGINS above, which is this file's existing way of
+ * declaring a closed vocabulary. The order is part of the declaration and not
+ * an accident of the selector: the dialog prints them in it.
+ */
+export const SALE_SYNC_TRACE_REASONS = ["OFFLINE", "RETRIES"] as const;
+export type ISaleSyncTraceReason = (typeof SALE_SYNC_TRACE_REASONS)[number];
