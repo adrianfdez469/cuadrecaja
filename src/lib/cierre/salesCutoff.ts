@@ -1,5 +1,6 @@
 import { startOfNextDay } from "@/utils/date";
 import { SALES_CUTOFF_STEP_MS } from "@/constants/cierre";
+import { saleEffectiveAt, type SaleTimestamps } from "@/lib/venta/saleTime";
 // `import type`, never a value import: this module must not pull the schemas
 // module at load time (E-028, a value cycle between two schema modules).
 import type { ISalesCutoffTarget } from "@/schemas/cierre";
@@ -21,15 +22,18 @@ import type { ISalesCutoffTarget } from "@/schemas/cierre";
  * THE definition of what enters a close. Every other form in this file derives
  * from it; nothing outside restates it.
  *
- * A NULL cutoff means "no cut": every sale of the period is included, which is
- * the behaviour the period had before this column existed.
+ * It takes the SALE and not a bare instant on purpose: the column a caller
+ * would reach for by hand is exactly the one F-030 stopped comparing against.
+ *
+ * A NULL cutoff means "no cut": every sale of the period is included.
  */
 export function isSaleIncludedInCutoff(
-  createdAt: Date,
+  sale: SaleTimestamps,
   cutoffAt: Date | null,
+  now: Date,
 ): boolean {
   if (cutoffAt === null || cutoffAt === undefined) return true;
-  return createdAt.getTime() <= cutoffAt.getTime();
+  return saleEffectiveAt(sale, now).getTime() <= cutoffAt.getTime();
 }
 
 export interface SalesPartition<T> {
@@ -41,15 +45,16 @@ export interface SalesPartition<T> {
  * Splits the sales of an open period into the ones the close takes and the ones
  * it defers, preserving the order it received. Built on isSaleIncludedInCutoff.
  */
-export function partitionSalesByCutoff<T extends { createdAt: Date }>(
+export function partitionSalesByCutoff<T extends SaleTimestamps>(
   sales: readonly T[],
   cutoffAt: Date | null,
+  now: Date,
 ): SalesPartition<T> {
   const included: T[] = [];
   const deferred: T[] = [];
 
   for (const sale of sales) {
-    if (isSaleIncludedInCutoff(sale.createdAt, cutoffAt)) included.push(sale);
+    if (isSaleIncludedInCutoff(sale, cutoffAt, now)) included.push(sale);
     else deferred.push(sale);
   }
 
@@ -57,12 +62,40 @@ export function partitionSalesByCutoff<T extends { createdAt: Date }>(
 }
 
 /**
- * The ONLY SQL rendering of the rule above: the createdAt filter that selects
- * the deferred side, for the updateMany that reassigns them at close time.
- * Complement of isSaleIncludedInCutoff at the same boundary.
+ * The `where` fragment that selects the DEFERRED side, for the updateMany that
+ * reassigns those sales at close time. The ONLY SQL rendering of the rule, and
+ * the exact complement of isSaleIncludedInCutoff at the same boundary.
+ *
+ * Three branches because the effective time is a CASE and SQL has to spell it
+ * out. They are mutually exclusive, and together they cover every row, given
+ * that a stored cutoff satisfies cutoffAt <= now:
+ *
+ *   1. device time elapsed and after the cut  -> deferred by the device
+ *   2. device time still in the future        -> the server stamp decides
+ *   3. no device time                         -> the server stamp decides
+ *
+ * It carries no tenant clause: the caller ANDs it with cierrePeriodoId, which
+ * was tied to the store and the store to the session's business.
  */
-export function deferredSalesCreatedAtFilter(cutoffAt: Date): { gt: Date } {
-  return { gt: cutoffAt };
+export interface DeferredSalesWhere {
+  OR: [
+    { frontendCreatedAt: { gt: Date; lte: Date } },
+    { frontendCreatedAt: { gt: Date }; createdAt: { gt: Date } },
+    { frontendCreatedAt: null; createdAt: { gt: Date } },
+  ];
+}
+
+export function deferredSalesEffectiveWhere(
+  cutoffAt: Date,
+  now: Date,
+): DeferredSalesWhere {
+  return {
+    OR: [
+      { frontendCreatedAt: { gt: cutoffAt, lte: now } },
+      { frontendCreatedAt: { gt: now }, createdAt: { gt: cutoffAt } },
+      { frontendCreatedAt: null, createdAt: { gt: cutoffAt } },
+    ],
+  };
 }
 
 /** Local midnight that opens the day a date falls in. */
@@ -96,13 +129,14 @@ export interface SalesDayGroup<T> {
  * The distinct days with sales, oldest first, with each day's sales in the
  * order received. Same day boundary as dayCutoffAt.
  */
-export function groupSalesByDay<T extends { createdAt: Date }>(
+export function groupSalesByDay<T extends SaleTimestamps>(
   sales: readonly T[],
+  now: Date,
 ): SalesDayGroup<T>[] {
   const byDay = new Map<number, SalesDayGroup<T>>();
 
   for (const sale of sales) {
-    const dayStart = startOfDay(sale.createdAt);
+    const dayStart = startOfDay(saleEffectiveAt(sale, now));
     const key = dayStart.getTime();
     const group = byDay.get(key);
     if (group) group.sales.push(sale);
@@ -125,8 +159,10 @@ export type SalesCutoffChoice =
   | { kind: "clear" }
   | { kind: "nothing" }
   | { kind: "day"; dayStart: Date }
-  // Tapping a sale in the dialog: that sale enters, everything after it defers.
-  | { kind: "sale"; createdAt: Date };
+  // Tapping a sale: that sale enters, everything after it defers. It carries
+  // the EFFECTIVE instant the row was painted with, never a raw column, so
+  // what the operator sees and what the cut becomes are one value.
+  | { kind: "sale"; effectiveAt: Date };
 
 /**
  * Translates what the operator picked in the dialog into the target of the
@@ -136,13 +172,15 @@ export type SalesCutoffChoice =
  *   "clear"   -> mode "clear".
  *   "nothing" -> one step after fechaInicio, never fechaInicio itself.
  *   "day"     -> dayCutoffAt(dayStart).
- *   "sale"    -> that sale's createdAt, which by the inclusive boundary puts the
- *                sale itself inside the close.
+ *   "sale"    -> the effective instant the row was painted with, which by the
+ *                inclusive boundary puts that sale itself inside the close.
  *
  * The last two are then clamped, in this order:
- *   1. Earlier than one step after fechaInicio -> that instant instead. Reached
- *      by a backdated offline sale whose createdAt precedes the period start;
- *      the sale still enters, because inclusion is createdAt <= cutoff.
+ *   1. Earlier than one step after fechaInicio -> that instant instead. Since
+ *      F-030 the cut is compared against the effective time, so this IS reached
+ *      by a backdated offline sale: its device time can precede the start of
+ *      the period its sync landed in. The sale still enters, because inclusion
+ *      is effective time <= cutoff.
  *   2. Later than `now` -> mode "now", so the SERVER stamps it. Today's chip
  *      hits this every time: the end of today has not happened yet.
  */
@@ -159,7 +197,7 @@ export function resolveSalesCutoffRequest(
   if (choice.kind === "nothing") return { mode: "at", cutoffAt: earliest };
 
   const wanted =
-    choice.kind === "day" ? dayCutoffAt(choice.dayStart) : choice.createdAt;
+    choice.kind === "day" ? dayCutoffAt(choice.dayStart) : choice.effectiveAt;
 
   const clamped =
     wanted.getTime() < earliest.getTime()
@@ -209,13 +247,15 @@ export type SalesCutoffListItem<T> =
  * is no "last included sale" and the marker opens the list, right after the
  * first day header.
  */
-export function buildSalesCutoffListItems<T extends { createdAt: Date }>(
+export function buildSalesCutoffListItems<T extends SaleTimestamps>(
   sales: readonly T[],
   cutoffAt: Date | null,
+  now: Date,
 ): SalesCutoffListItem<T>[] {
   const items: SalesCutoffListItem<T>[] = [];
-  const groups = groupSalesByDay(sales);
-  const includedCount = partitionSalesByCutoff(sales, cutoffAt).included.length;
+  const groups = groupSalesByDay(sales, now);
+  const includedCount = partitionSalesByCutoff(sales, cutoffAt, now).included
+    .length;
 
   let pending = cutoffAt !== null && cutoffAt !== undefined;
   let seenIncluded = 0;
@@ -229,7 +269,7 @@ export function buildSalesCutoffListItems<T extends { createdAt: Date }>(
     }
 
     for (const sale of group.sales) {
-      const included = isSaleIncludedInCutoff(sale.createdAt, cutoffAt);
+      const included = isSaleIncludedInCutoff(sale, cutoffAt, now);
       items.push({ kind: "sale", sale, included });
       if (!included) continue;
 

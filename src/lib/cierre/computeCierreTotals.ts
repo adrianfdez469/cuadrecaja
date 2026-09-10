@@ -13,6 +13,7 @@ import {
   type MovimientoCajaRelevante,
 } from "@/lib/movimiento/caja";
 import { buildResumenPropinas, totalPropinasBase } from "@/lib/tips";
+import { saleReportedAt } from "@/lib/venta/saleTime";
 import type { IDeduccionItem } from "@/schemas/cierre";
 import type { IPagoLinea, IVueltoLinea } from "@/schemas/pago";
 import type { ITasaCambio, ITasaSnapshot } from "@/schemas/tasaCambio";
@@ -55,6 +56,8 @@ export interface CierreAppliedDiscount {
 export interface CierreSale {
   id: string;
   createdAt: Date;
+  /** The selling device's own clock, or null. See saleEffectiveAt. */
+  frontendCreatedAt: Date | null;
   /** The stored `Venta.total`; only the reconciliation script reads it. */
   total?: number;
   discountTotal: number;
@@ -195,10 +198,15 @@ export function valueSales(
   historialTasas: TasaHistoryRecord[],
 ): ValuedSale[] {
   return ventas.map((sale) => {
+    // The rate in force WHEN THE SALE HAPPENED, which is the reported instant
+    // and not the sync stamp: the same clock computePercentageBaseTotals uses,
+    // so both engines read one sale with one clock. Uncapped on purpose — a
+    // historical rate is a fact of the past, and capping it to the present
+    // would answer a different question than the one it is asked.
     const tasas = resolveSnapshotFromHistory(
       historialTasas,
       sale.tasaSnapshot,
-      sale.createdAt,
+      saleReportedAt(sale),
     );
     const lineas = sale.productos.map<ValuedSaleLine>((line) => {
       const precioBase = convertToBase(

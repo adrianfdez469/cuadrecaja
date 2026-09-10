@@ -114,7 +114,11 @@ export async function POST(
       tasaSnapshot: (v.tasaSnapshot as ITasaSnapshot | null) ?? null,
       productos: v.productos,
     }));
-    const { included } = partitionSalesByCutoff(ventas, cutoffAt);
+    // One clock for the whole request: the same instant the effective time of
+    // every sale is capped against, so the base this route persists cannot
+    // disagree with the partition the close performs.
+    const now = new Date();
+    const { included } = partitionSalesByCutoff(ventas, cutoffAt, now);
     const base = computePercentageBaseTotals(
       included,
       monedaBase,

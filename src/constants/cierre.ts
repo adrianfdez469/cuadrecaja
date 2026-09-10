@@ -34,6 +34,20 @@ export const SALES_CUTOFF_DEFERRED_NOTICE_LABEL =
 export const SALES_CUTOFF_ROW_HEIGHT = 72;
 
 /**
+ * The dialog's instruction: the gesture, and which hour the list is ordered by.
+ *
+ * The second sentence exists because the effective time can put a sale under a
+ * day the operator does not associate it with. It states the rule once for the
+ * whole list instead of marking the rows it applies to.
+ *
+ * It does NOT claim this hour matches any other screen: for a sale whose device
+ * clock runs ahead the two diverge, and promising otherwise would be an
+ * absolute the code does not hold.
+ */
+export const SALES_CUTOFF_INSTRUCTION =
+  "Toca una venta para cerrar hasta ella: entra esa venta y todas las anteriores. Las horas son las de la venta, aunque se haya sincronizado más tarde.";
+
+/**
  * The `{ error }` bodies the closing route answers with.
  *
  * They are constants because the screen has to tell the two 409s apart to pick

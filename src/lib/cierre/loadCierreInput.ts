@@ -49,9 +49,20 @@ const MOVIMIENTOS_DE_CAJA = ["COMPRA", "MERMA", "DEVOLUCION_VENTA"] as const;
 export async function loadCierreComputationInput(
   cierreId: string,
   negocioId: string,
-  options: { fechaFinOverride?: Date; client?: PrismaLike } = {},
+  options: {
+    fechaFinOverride?: Date;
+    client?: PrismaLike;
+    /**
+     * The clock the effective time of every sale is capped against. Passed
+     * in so that a request which loads and then writes uses ONE instant for
+     * both, and the count the dialog announces cannot disagree with the
+     * partition the close performs (acceptance criterion 6).
+     */
+    now?: Date;
+  } = {},
 ): Promise<LoadedCierreInput | null> {
   const client = options.client ?? prisma;
+  const now = options.now ?? new Date();
 
   const cierre = await client.cierrePeriodo.findFirst({
     where: { id: cierreId, tienda: { negocioId } },
@@ -70,6 +81,9 @@ export async function loadCierreComputationInput(
         select: {
           id: true,
           createdAt: true,
+          // Without this line every sale falls back to createdAt, the cut goes
+          // back to comparing the sync stamp, and nothing errors (E-013).
+          frontendCreatedAt: true,
           total: true,
           discountTotal: true,
           tipTotal: true,
@@ -169,6 +183,7 @@ export async function loadCierreComputationInput(
   const ventas: CierreSale[] = cierre.ventas.map((v) => ({
     id: v.id,
     createdAt: v.createdAt,
+    frontendCreatedAt: v.frontendCreatedAt,
     total: v.total,
     discountTotal: Number(v.discountTotal ?? 0),
     tipTotal: Number(v.tipTotal ?? 0),
@@ -197,7 +212,7 @@ export async function loadCierreComputationInput(
   // The relation is loaded whole and split here, so the deferred summary comes
   // out of the same valuation engine as the period's own totals and the pure
   // function of acceptance criterion 12 is exercised in production.
-  const { included, deferred } = partitionSalesByCutoff(ventas, cutoffAt);
+  const { included, deferred } = partitionSalesByCutoff(ventas, cutoffAt, now);
 
   return {
     cierre: {

@@ -12,6 +12,12 @@ import type { IVenta } from "@/schemas/venta";
 
 interface Props {
   venta: IVenta;
+  /**
+   * The effective time this row stands for: what it prints, and what tapping it
+   * sets the cut to. Resolved by the dialog with saleEffectiveAt and passed in,
+   * so the row cannot paint one instant and send another.
+   */
+  effectiveAt: Date;
   /** Whether this sale is on the side the close takes. */
   included: boolean;
   onSelect: () => void;
@@ -32,6 +38,7 @@ interface Props {
  */
 export default function SalesCutoffSaleRow({
   venta,
+  effectiveAt,
   included,
   onSelect,
 }: Readonly<Props>) {
@@ -68,7 +75,7 @@ export default function SalesCutoffSaleRow({
               : "semantic.text.secondary",
           }}
         >
-          {formatTimeShort(venta.createdAt)}
+          {formatTimeShort(effectiveAt)}
         </Typography>
         <Typography
           variant="caption"

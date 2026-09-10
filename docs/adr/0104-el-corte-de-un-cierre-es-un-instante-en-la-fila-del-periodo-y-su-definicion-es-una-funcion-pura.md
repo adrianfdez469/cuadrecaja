@@ -179,6 +179,12 @@ esto queda como disyuntiva abierta y no como solución pendiente:
 Decidir entre las dos es un cambio de comportamiento observable y de superficie de confianza:
 **material para un feature propio, no para una edición de este ADR.**
 
+> **Resuelta el 2026-09-09 por el ADR 0108 (F-030):** gana la hora del dispositivo, acotada al
+> presente para que un reloj adelantado no deje la venta fuera de todo cierre. Este ADR no se
+> reescribe —lo de arriba es el registro fiel de lo que F-029 decidió y de por qué lo dejó
+> abierto—; el corte ya no compara contra `createdAt`, y la descripción vigente de contra qué
+> compara vive en el ADR 0108.
+
 **Segunda corrección — la advertencia sobre `/api/resumen-dia` ya no aplica.** Quedó anotada en
 `.agents/features.json` como consecuencia que "conviene escribir en el ADR" (nunca llegó a
 escribirse aquí, y por eso este ADR no la traía): que `/api/resumen-dia` acota los

@@ -39,6 +39,10 @@ const line = (over: Partial<CierreSaleLine>): CierreSaleLine => ({
 const sale = (over: Partial<CierreSale>): CierreSale => ({
   id: "v",
   createdAt: new Date("2026-09-02T18:00:00Z"),
+  // F-030 §4.1: valueSales resolves the historical rate with saleReportedAt
+  // (frontendCreatedAt ?? createdAt), not createdAt alone. Defaulting to null
+  // here keeps every pre-existing case unchanged unless a test overrides it.
+  frontendCreatedAt: null,
   discountTotal: 0,
   tipTotal: 0,
   totaltransfer: 0,
@@ -106,6 +110,27 @@ describe("valueSales", () => {
       historialTasas,
     );
     expect(valued.tasas.USD).toBe(675);
+    expect(valued.ventaBruta).toBeCloseTo(1, 6);
+  });
+
+  it("F-030 §4.1: resolves the historical rate from the REPORTED time (frontendCreatedAt ?? createdAt), not createdAt alone — the same resolution computePercentageBaseTotals and gastos.ts already use for the same sale", () => {
+    // createdAt is AFTER both rate updates (would resolve USD 680 if read
+    // alone); frontendCreatedAt sits between T_675 and T_680, so the rate in
+    // force when the sale actually happened was still 675.
+    const [valued] = valueSales(
+      [
+        sale({
+          createdAt: new Date("2026-09-03T00:00:00Z"),
+          frontendCreatedAt: new Date("2026-09-02T12:00:00Z"),
+          tasaSnapshot: null,
+          productos: [line({ precio: 675, monedaPrecioCode: "CUP" })],
+        }),
+      ],
+      "USD",
+      historialTasas,
+    );
+    expect(valued.tasas.USD).toBe(675);
+    // At 675 CUP == 1 USD; reading createdAt alone would give 675/680.
     expect(valued.ventaBruta).toBeCloseTo(1, 6);
   });
 

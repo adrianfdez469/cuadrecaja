@@ -86,7 +86,11 @@ export async function POST(
         monedaCostoCode: vp.monedaCostoCode,
       })),
     }));
-    const { included } = partitionSalesByCutoff(ventasPeriodo, cutoffAt);
+    // One clock for the whole request: the same instant the effective time of
+    // every sale is capped against and the one the recurring expenses are
+    // evaluated at, so a sale cannot get two answers inside one preview.
+    const now = new Date();
+    const { included } = partitionSalesByCutoff(ventasPeriodo, cutoffAt, now);
 
     const { totalVentas, totalGanancia } = computePercentageBaseTotals(
       included,
@@ -99,12 +103,11 @@ export async function POST(
       where: { tiendaId: cierre.tiendaId, activo: true },
     });
 
-    const ahora = new Date();
     const gastosRecurrentes = [];
     const gastosNoAplican = [];
 
     for (const g of gastosTienda) {
-      const { aplica, motivo } = gastoAplicaEnFecha(g, ahora);
+      const { aplica, motivo } = gastoAplicaEnFecha(g, now);
 
       let montoCalculado = 0;
       if (g.tipoCalculo === "MONTO_FIJO") {

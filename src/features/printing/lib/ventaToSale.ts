@@ -1,10 +1,17 @@
 import { IVenta } from "@/schemas/venta";
 import { Sale } from "@/store/salesStore";
+import { saleReportedAt } from "@/lib/venta/saleTime";
 
 export function ventaToSale(venta: IVenta): Sale {
-  const createdAt = venta.frontendCreatedAt
-    ? new Date(venta.frontendCreatedAt).getTime()
-    : new Date(venta.createdAt).getTime();
+  // `IVenta` arrives unparsed from the network, so both timestamps are ISO
+  // strings at runtime: they are coerced HERE, at the boundary, and never
+  // inside saleReportedAt, which takes real Dates.
+  const createdAt = saleReportedAt({
+    createdAt: new Date(venta.createdAt),
+    frontendCreatedAt: venta.frontendCreatedAt
+      ? new Date(venta.frontendCreatedAt)
+      : null,
+  }).getTime();
 
   return {
     identifier: venta.syncId ?? venta.id,

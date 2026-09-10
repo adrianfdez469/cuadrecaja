@@ -11,6 +11,7 @@ import { useVirtualRows } from "@/hooks/useVirtualRows";
 import { VENTAS_VIRTUALIZATION_MIN_ROWS } from "@/constants/pos";
 import {
   SALES_CUTOFF_DIALOG_TITLE,
+  SALES_CUTOFF_INSTRUCTION,
   SALES_CUTOFF_LIST_LABEL,
   SALES_CUTOFF_ROW_HEIGHT,
 } from "@/constants/cierre";
@@ -21,6 +22,7 @@ import {
   resolveSalesCutoffRequest,
   type SalesCutoffChoice,
 } from "@/lib/cierre/salesCutoff";
+import { saleEffectiveAt, type SaleTimestamps } from "@/lib/venta/saleTime";
 import { setSalesCutoff } from "@/services/cierrePeriodService";
 import { getSells } from "@/services/sellService";
 import type { IVenta } from "@/schemas/venta";
@@ -45,13 +47,19 @@ interface Props {
   onRefresh: () => void;
 }
 
-const INSTRUCTION =
-  "Toca una venta para cerrar hasta ella: entra esa venta y todas las anteriores.";
 const SUBTITLE =
   "Elige hasta dónde llega este cierre. Lo posterior pasa al próximo período.";
 
 type LoadFailure = "error" | "offline";
 type SaveFailure = "conflict" | "error";
+
+/**
+ * A sale of the period once its two timestamps are real Dates. `IVenta` types
+ * frontendCreatedAt as optional (the schema marks it .optional()), and
+ * SaleTimestamps requires it: this is the boundary where the two meet, and the
+ * state below is typed with it so the whole dialog can call saleEffectiveAt.
+ */
+type CutoffSale = IVenta & SaleTimestamps;
 
 /**
  * "Seleccionar ventas": where the operator says HOW FAR this close reaches.
@@ -85,7 +93,11 @@ export default function SalesCutoffDialog({
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
-  const [sales, setSales] = useState<IVenta[] | null>(null);
+  const [sales, setSales] = useState<CutoffSale[] | null>(null);
+  // ONE clock per opening of the dialog, held in state so the memos below list
+  // it as a dependency. Never `new Date()` inside a render or a memo: a fresh
+  // identity per render inside an effect's dependencies wipes user state.
+  const [now, setNow] = useState<Date>(() => new Date());
   const [loadFailure, setLoadFailure] = useState<LoadFailure | null>(null);
   const [choice, setChoice] = useState<SalesCutoffChoice | null>(null);
   const [localCutoffAt, setLocalCutoffAt] = useState<Date | null>(null);
@@ -97,14 +109,28 @@ export default function SalesCutoffDialog({
     setLoadFailure(null);
     try {
       const data = await getSells(tiendaId, cierreId);
-      // `getSells` returns `response.data` unparsed, so `createdAt` is an ISO
-      // STRING at runtime even though the type says Date. Comparing a string
+      // `getSells` returns `response.data` unparsed, so BOTH timestamps are ISO
+      // STRINGS at runtime even though the types say Date. Comparing a string
       // with a Date returns false without throwing, so the whole cut would fail
       // in silence: the coercion happens once, here, at the boundary.
-      // The list also runs ascending, and /ventas answers descending.
-      const coerced = data
-        .map((v) => ({ ...v, createdAt: new Date(v.createdAt) }))
-        .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+      // The list runs ascending BY EFFECTIVE TIME — and /ventas answers
+      // descending by the sync stamp — so a backdated offline sale is drawn
+      // where the hour it prints says it belongs.
+      const loadedAt = new Date();
+      const coerced: CutoffSale[] = data
+        .map((v) => ({
+          ...v,
+          createdAt: new Date(v.createdAt),
+          frontendCreatedAt: v.frontendCreatedAt
+            ? new Date(v.frontendCreatedAt)
+            : null,
+        }))
+        .sort(
+          (a, b) =>
+            saleEffectiveAt(a, loadedAt).getTime() -
+            saleEffectiveAt(b, loadedAt).getTime(),
+        );
+      setNow(loadedAt);
       setSales(coerced);
     } catch {
       const offline =
@@ -123,22 +149,23 @@ export default function SalesCutoffDialog({
   }, [open, storedCutoffAt, loadSales]);
 
   const days = useMemo(
-    () => (sales ? groupSalesByDay(sales).map((g) => g.dayStart) : []),
-    [sales],
+    () => (sales ? groupSalesByDay(sales, now).map((g) => g.dayStart) : []),
+    [sales, now],
   );
 
   const items = useMemo(
-    () => (sales ? buildSalesCutoffListItems(sales, localCutoffAt) : []),
-    [sales, localCutoffAt],
+    () => (sales ? buildSalesCutoffListItems(sales, localCutoffAt, now) : []),
+    [sales, localCutoffAt, now],
   );
 
   const counts = useMemo(() => {
     const { included, deferred } = partitionSalesByCutoff(
       sales ?? [],
       localCutoffAt,
+      now,
     );
     return { included: included.length, deferred: deferred.length };
-  }, [sales, localCutoffAt]);
+  }, [sales, localCutoffAt, now]);
 
   const handleChoose = (next: SalesCutoffChoice) => {
     const target = resolveSalesCutoffRequest(next, { fechaInicio }, new Date());
@@ -248,13 +275,16 @@ export default function SalesCutoffDialog({
         </Box>
       );
     }
+    // Resolved ONCE and used for both what the row prints and what tapping it
+    // sends, so "what you see is what you set" is one value and not two calls
+    // that happen to agree.
+    const effectiveAt = saleEffectiveAt(item.sale, now);
     return (
       <SalesCutoffSaleRow
         venta={item.sale}
+        effectiveAt={effectiveAt}
         included={item.included}
-        onSelect={() =>
-          handleChoose({ kind: "sale", createdAt: item.sale.createdAt })
-        }
+        onSelect={() => handleChoose({ kind: "sale", effectiveAt })}
       />
     );
   };
@@ -317,7 +347,7 @@ export default function SalesCutoffDialog({
         {showControls && (
           <>
             <Typography variant="caption" color="semantic.text.secondary">
-              {INSTRUCTION}
+              {SALES_CUTOFF_INSTRUCTION}
             </Typography>
 
             <SalesCutoffShortcuts days={days} onChoose={handleChoose} />

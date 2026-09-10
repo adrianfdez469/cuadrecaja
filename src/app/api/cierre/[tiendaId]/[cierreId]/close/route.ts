@@ -7,7 +7,7 @@ import { loadCierreComputationInput } from "@/lib/cierre/loadCierreInput";
 import { persistCierreComputation } from "@/lib/cierre/persistCierreTotals";
 import { closeCierreSchema } from "@/schemas/cierre";
 import {
-  deferredSalesCreatedAtFilter,
+  deferredSalesEffectiveWhere,
   isSalesCutoffWithinPeriod,
 } from "@/lib/cierre/salesCutoff";
 import { CIERRE_CLOSE_ERRORS } from "@/constants/cierre";
@@ -128,12 +128,20 @@ export async function PUT(
 
     const cutoffAt = ultimoPeriodo.salesCutoffAt;
 
+    // ONE clock for the whole request. The range check, the closing instant,
+    // the in-memory partition and the SQL of the transfer all cap the effective
+    // time of a sale against this same value: with two readings the expected
+    // deferred count and the count the updateMany reports would be computed
+    // against different clocks, and the optimistic check could abort because
+    // time passed rather than because a sale vanished.
+    const now = new Date();
+
     // Defence, not a branch reachable in normal operation: the PATCH already
     // validated the range, and the range is monotonic — fechaInicio does not
     // move and `now` only grows. It exists so no write goes unvalidated.
     if (
       cutoffAt !== null &&
-      !isSalesCutoffWithinPeriod(cutoffAt, ultimoPeriodo, new Date())
+      !isSalesCutoffWithinPeriod(cutoffAt, ultimoPeriodo, now)
     ) {
       return NextResponse.json(
         { error: CIERRE_CLOSE_ERRORS.salesCutoffOutOfRange },
@@ -148,9 +156,10 @@ export async function PUT(
     // With a cut, the period ends EXACTLY at the cut: that same instant is what
     // `persistCierreComputation` writes as fechaFin and what the next period
     // starts at, so no cash movement is counted twice nor falls outside both.
-    const fechaFin = cutoffAt ?? new Date();
+    const fechaFin = cutoffAt ?? now;
     const loaded = await loadCierreComputationInput(cierreId, user.negocio.id, {
       fechaFinOverride: fechaFin,
+      now,
     });
     if (!loaded) {
       return NextResponse.json(
@@ -216,7 +225,7 @@ export async function PUT(
         const { count } = await tx.venta.updateMany({
           where: {
             cierrePeriodoId: cierreId,
-            createdAt: deferredSalesCreatedAtFilter(cutoffAt),
+            ...deferredSalesEffectiveWhere(cutoffAt, now),
           },
           data: { cierrePeriodoId: openedPeriod.id },
         });

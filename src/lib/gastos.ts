@@ -1,6 +1,7 @@
 import { convertToBase, resolveSnapshotFromHistory } from "./currency";
 import type { ITasaSnapshot } from "@/schemas/tasaCambio";
 import type { TasaHistoryRecord } from "@/lib/cierre/computeCierreTotals";
+import { saleReportedAt } from "@/lib/venta/saleTime";
 
 type ResumenEntry = {
   totalEfectivo: number;
@@ -88,7 +89,7 @@ export function computePercentageBaseTotals(
     const tasas = resolveSnapshotFromHistory(
       historialTasas,
       venta.tasaSnapshot,
-      venta.frontendCreatedAt ?? venta.createdAt,
+      saleReportedAt(venta),
     );
     let ventaBruta = 0;
 

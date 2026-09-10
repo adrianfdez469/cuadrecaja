@@ -8,6 +8,7 @@ import { applyDiscountsForSale } from "@/lib/discounts";
 import { calcularEfectivoDisponiblePorMoneda } from "@/lib/movimiento/caja";
 import { validateTip } from "@/lib/tips";
 import { packsToOpen, unitsFromPacks } from "@/lib/fractionStock";
+import { saleMovementFecha } from "@/lib/venta/saleTime";
 import {
   MISSING_EXCHANGE_RATE_ERROR,
   missingExchangeRateMessage,
@@ -521,6 +522,14 @@ export async function POST(
           },
         });
 
+        // The date every stock movement of THIS sale is stamped with: the hour
+        // the sale reports, not the hour it reached the server, so an offline
+        // sale and its movements land in the same period on both sides of a
+        // cut. `ultimoPeriodo` is the period the row above was created in
+        // (cierrePeriodoId: ultimoPeriodo.id), which is what bounds the
+        // fallback.
+        const ventaFecha = saleMovementFecha(venta, ultimoPeriodo.fechaInicio);
+
         // 3.1 Persistir AppliedDiscount si corresponde (batch, un solo round-trip)
         try {
           const applied = discountCalcResult?.applied || [];
@@ -718,6 +727,10 @@ export async function POST(
                   usuarioId,
                   existenciaAnterior,
                   referenciaId: venta.id,
+                  // Same instant as the VENTA rows: a breakdown and the sale
+                  // that triggers it are one atomic act, and dating them apart
+                  // would break the stock identity in BOTH periods.
+                  fecha: ventaFecha,
                   motivo: `Desagregación para venta ${venta.id}`,
                 });
               }
@@ -820,6 +833,7 @@ export async function POST(
             usuarioId,
             existenciaAnterior,
             referenciaId: venta.id,
+            fecha: ventaFecha,
             motivo: `Venta ${venta.id}`,
             ...(productoTienda.proveedorId && {
               proveedorId: productoTienda.proveedorId,
@@ -990,6 +1004,10 @@ export async function GET(
     const ventas: IVenta[] = ventasPrisma.map((venta) => ({
       id: venta.id,
       createdAt: venta.createdAt,
+      // The selling device's own clock. Without it the cutoff dialog falls back
+      // to the sync stamp for every sale, paints the wrong hour and orders the
+      // list by it — with no error anywhere (E-013).
+      frontendCreatedAt: venta.frontendCreatedAt ?? undefined,
       total: venta.total,
       totalcash: venta.totalcash,
       totaltransfer: venta.totaltransfer,

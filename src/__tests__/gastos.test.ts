@@ -61,6 +61,8 @@ const cierreLine = (over: Partial<CierreSaleLine> = {}): CierreSaleLine => ({
 const cierreSale = (over: Partial<CierreSale> = {}): CierreSale => ({
   id: "v",
   createdAt: new Date("2026-09-08T10:00:00"),
+  // F-030: CierreSale now requires frontendCreatedAt alongside createdAt.
+  frontendCreatedAt: null,
   discountTotal: 0,
   tipTotal: 0,
   totaltransfer: 0,
