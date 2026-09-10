@@ -1,11 +1,17 @@
 import React from "react";
 import { Sale } from "@/store/salesStore";
 import { useAppContext } from "@/context/AppContext";
-import { convertToBase, pagadaConUnSoloPago } from "@/lib/currency";
+import { convertToBase } from "@/lib/currency";
+import {
+  evaluateVentaDeleteGuard,
+  VENTA_DELETE_BLOCK_TEXT,
+} from "@/lib/cuentasPorCobrar/ventaDeleteGuard";
+import { VENTA_CREDITO_DOM } from "@/constants/ventaCredito";
+import { shape } from "@/theme/tokens";
 import { IProductoTiendaPos } from "@/schemas/producto";
 import { SaleExtrasSummary } from "@/components/SaleExtrasSummary";
 import { formatQuantity } from "@/utils/formatters";
-import { Close, Delete } from "@mui/icons-material";
+import { Close, Delete, InfoOutlined } from "@mui/icons-material";
 import { IFaltanteExistencia } from "@/schemas/venta";
 import {
   Box,
@@ -110,8 +116,33 @@ export const SaleProductsDetailDrawer: React.FC<
   );
 
   const isLastProduct = sale.productos.length <= 1;
-  const blockedByMultiplesPagos =
-    !isLastProduct && !pagadaConUnSoloPago(sale.pagosDetalle);
+
+  // The SAME function the other three call sites use (contract § 4.3). The single button of this
+  // drawer deletes the product or the whole sale depending on `isLastProduct`, so it reads the
+  // verdict of the action it is about to execute.
+  const gate = evaluateVentaDeleteGuard({
+    credito: sale.credito ?? null,
+    pagosDetalle: sale.pagosDetalle,
+    productos: sale.productos.length,
+  });
+  const veredicto = isLastProduct ? gate.venta : gate.producto;
+  const motivo =
+    veredicto.reason === "CREDITO_CON_COBROS"
+      ? VENTA_DELETE_BLOCK_TEXT.creditoConCobros(
+          sale.credito?.cobros ?? 0,
+          sale.credito?.cobrosMontoBase ?? 0,
+          monedaBase,
+        )
+      : veredicto.reason === "CREDITO_CON_MOVIMIENTOS"
+        ? VENTA_DELETE_BLOCK_TEXT.creditoConMovimientos()
+        : veredicto.reason === "MULTIPLES_PAGOS"
+          ? TOOLTIP_MULTIPLES_PAGOS
+          : "";
+  // The visible block is only for the two credit reasons: MULTIPLES_PAGOS keeps its verified
+  // copy and its Tooltip, and mounts no block (E-018).
+  const muestraMotivoVisible =
+    veredicto.reason === "CREDITO_CON_COBROS" ||
+    veredicto.reason === "CREDITO_CON_MOVIMIENTOS";
 
   const totalConvertido = sale.productos.reduce((sum, product) => {
     const moneda =
@@ -169,6 +200,35 @@ export const SaleProductsDetailDrawer: React.FC<
             <Close />
           </IconButton>
         </Box>
+
+        {/* El motivo del bloqueo, SIEMPRE visible. Este drawer muestra UNA venta, así que cabe
+            un bloque; en el POS, que es táctil, un botón deshabilitado cuyo motivo solo aparece
+            tras mantener el dedo 700 ms se lee como un botón roto y no como una regla de
+            negocio. Es el mismo bloque del diálogo: misma constante, mismo tratamiento, misma
+            clase. */}
+        {allowDelete && muestraMotivoVisible && (
+          <Box
+            className={VENTA_CREDITO_DOM.motivo}
+            sx={{
+              display: "flex",
+              alignItems: "flex-start",
+              gap: 1,
+              p: 1.5,
+              mb: 2,
+              borderRadius: `${shape.radius.md}px`,
+              bgcolor: "semantic.hue.caution.surface",
+              color: "semantic.hue.caution.main",
+              fontSize: "0.875rem",
+              lineHeight: 1.43,
+              flexShrink: 0,
+            }}
+          >
+            <InfoOutlined fontSize="small" sx={{ flexShrink: 0 }} />
+            {/* A DIRECT text node: the own text of the element carrying the class is what the
+                criterion reads, and a wrapper would leave it empty. */}
+            {motivo}
+          </Box>
+        )}
 
         <TableContainer component={Paper} sx={{ flex: 1, overflow: "auto" }}>
           <Table size="small">
@@ -233,13 +293,10 @@ export const SaleProductsDetailDrawer: React.FC<
                     </TableCell>
                     {allowDelete && (
                       <TableCell align="center">
-                        <Tooltip
-                          title={
-                            blockedByMultiplesPagos
-                              ? TOOLTIP_MULTIPLES_PAGOS
-                              : ""
-                          }
-                        >
+                        <Tooltip title={motivo}>
+                          {/* No `aria-label` of its own: it would flatten the one the Tooltip
+                              writes on this same `<span>`, which is where the reason is
+                              measured. */}
                           <span>
                             <IconButton
                               size="small"
@@ -248,7 +305,7 @@ export const SaleProductsDetailDrawer: React.FC<
                                 disableAll ||
                                 isDeleting ||
                                 deletingSale ||
-                                blockedByMultiplesPagos
+                                !veredicto.allowed
                               }
                               onClick={() => handleDelete(product)}
                               aria-label="Eliminar producto"

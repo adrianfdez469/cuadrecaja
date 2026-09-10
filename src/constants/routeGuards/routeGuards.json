@@ -3304,6 +3304,20 @@
     "corregidaPor": null
   },
   {
+    "route": "venta/[tiendaId]/[cierreId]/[ventaId]/credito/route.ts",
+    "verb": "GET",
+    "clasificacion": "protegida",
+    "kind": "tenant",
+    "motivo": "assertTiendaTenant y withTenantScope sobre la Venta; devuelve para UNA venta un subconjunto de lo que la GET del listado ya devuelve sin permiso para todas las del periodo, y es el flujo de caja de /ventas",
+    "helper": "assertTiendaTenant",
+    "tenantModel": "venta",
+    "tenantParam": "path:tiendaId",
+    "permiso": null,
+    "permisoAusenteMotivo": "justificado",
+    "devuelveDatosDeNegocio": true,
+    "corregidaPor": null
+  },
+  {
     "route": "venta/[tiendaId]/[cierreId]/[ventaId]/producto/[ventaProductoId]/route.ts",
     "verb": "DELETE",
     "clasificacion": "protegida",

@@ -2,6 +2,7 @@ import { z } from "zod";
 import { usuarioSchema } from "./usuario";
 import { pagoLineaSchema, tipDetalleSchema, vueltoLineaSchema } from "./pago";
 import { tasaSnapshotSchema } from "./tasaCambio";
+import { ventaCreditoResumenSchema } from "./ventaCredito";
 
 export const ventaProductoSchema = z.object({
   id: z.string().uuid(),
@@ -71,6 +72,12 @@ export const ventaSchema = z.object({
   // no character bound: ventaSchema is a READ model, and a row stored before the bound
   // existed has to remain readable (contract § 3.3).
   clienteNombre: z.string().optional(),
+  /**
+   * The debt of this sale, or null when it has none. READ-ONLY and server-built: the credit state
+   * of the list is read from HERE and from `creditoBase`, never deduced from
+   * `totalcash + totaltransfer < total` (E-013, criterion 2).
+   */
+  credito: ventaCreditoResumenSchema.nullable().optional(),
 });
 
 /**

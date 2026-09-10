@@ -35,6 +35,7 @@ import {
   type ICreditCustomerResolution,
 } from "@/lib/cuentasPorCobrar/creditCustomer";
 import { normalizeClienteNombre } from "@/lib/clientes/clienteNombre";
+import { buildVentaCreditoResumen } from "@/lib/ventaMapper";
 import {
   CREDIT_CUSTOMER_CONFLICT_CODE,
   CREDIT_CUSTOMER_CONFLICT_MESSAGE,
@@ -1246,6 +1247,20 @@ export async function GET(
         cliente: {
           select: { id: true, nombre: true },
         },
+        // F-035, by written delegation: the credit state of the list is read from an EXPLICIT
+        // field of the serialized sale, never deduced from `totalcash + totaltransfer < total`
+        // (E-013, criterion 2). It is an `include` over a @unique relation — one row per sale,
+        // no N+1 — and the ledger travels only as a COUNT, through summarizeVentaCobros. The
+        // POST of this same file is NOT touched.
+        cuentaPorCobrar: {
+          select: {
+            id: true,
+            saldoPendiente: true,
+            settledAt: true,
+            montoOriginal: true,
+            movimientos: { select: { tipo: true, monto: true } },
+          },
+        },
       },
       where: withTenantScope(
         "venta",
@@ -1316,6 +1331,10 @@ export async function GET(
       creditoBase: Number(venta.creditoBase ?? 0),
       clienteId: venta.clienteId ?? undefined,
       clienteNombre: venta.cliente?.nombre ?? undefined,
+      // IMPORTED from src/lib/ventaMapper.ts, never a second assembly of the same block: if each
+      // caller built it its own way, the chip of /ventas and the chip of the mobile app could
+      // disagree about the very same sale (F-035, contract § 5).
+      credito: buildVentaCreditoResumen(venta.cuentaPorCobrar),
     }));
 
     return NextResponse.json(ventas);

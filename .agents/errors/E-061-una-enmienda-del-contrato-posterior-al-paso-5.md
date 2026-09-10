@@ -1,7 +1,7 @@
 # E-061: Una enmienda del contrato posterior al paso 5 no reabre el trabajo ya entregado
 
 **Área:** build
-**Apariciones:** 2 — F-030 · F-033
+**Apariciones:** 3 — F-030 · F-033 · F-035 (ver la adenda del final)
 
 ## Síntoma
 
@@ -85,3 +85,33 @@ paso 5, aunque solo cambie una cadena de texto.
 **Regla, sin excepciones:** después de CUALQUIER corrección de un contrato —interfaces o diseño—
 hecha cuando alguien del paso 5 ya entregó, el coordinador le manda **la lista de lo que cambió**.
 No «revísalo otra vez»: qué secciones, y qué se espera de él. Un copy cambiado es una enmienda.
+
+
+---
+
+## Adenda F-035 — la tercera, y la que enseña cómo se detecta sola
+
+En F-035 el coordinador volvió a agrupar las enmiendas para evitar esta ficha, y esta vez cerró
+**tres rondas completas antes de abrir el paso 5** (seguridad, la ampliación de la lista de
+testabilidad del paso 4b, y el alcance de una excepción de propiedad). Aun así ocurrió una cuarta
+vez, por la única vía que quedaba abierta: **el paso 5 destapó un hueco del contrato**.
+
+El `implementer` reportó que `summarizeVentaCobros` dejaba `cobrosMontoBase` **negativo** con una
+`REVERSION_ABONO` huérfana, y que el contrato solo había mandado apuntalar el **conteo**. No lo
+resolvió por su cuenta —correcto— y el `arch-guardian` lo decidió en una tercera enmienda… **cuando
+el `implementer` ya había entregado**. Exactamente lo que esta ficha describe.
+
+**Lo que salvó la situación fue el `dev-tester`.** Escribió el caso nuevo contra el contrato
+enmendado y su suite quedó en **69/70 con exit 1**. Ese único rojo era el desfase, y el coordinador
+lo cerró con una línea antes de lanzar el `qa`, en vez de dejar que el `qa` lo reportara como
+defecto contra código que nadie había tenido oportunidad de escribir.
+
+**Regla nueva, que complementa la de arriba:** cuando una enmienda posterior a la entrega del
+`implementer` cambie algo **testeable**, mándala **también** al `dev-tester`. Su rojo es el detector
+más barato que tiene el pipeline para esta clase de desfase — más barato que el `qa`, y llega antes.
+Un rojo del paso 5 tras una enmienda **no es un fallo del tester**: es la enmienda funcionando.
+
+Y el corolario que esta tercera aparición hace evidente: **agrupar enmiendas reduce la ventana, no
+la cierra.** El paso 5 puede destapar un hueco del contrato en cualquier momento, porque es el
+primero que ejecuta algo. La defensa no es «enmendar antes», que ya se hizo tres veces aquí, sino
+**saber a quién avisar cuando la enmienda llega tarde**.

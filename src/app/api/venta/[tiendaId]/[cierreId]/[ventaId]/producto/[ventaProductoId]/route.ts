@@ -7,11 +7,21 @@ import { verificarPermisoUsuario } from "@/utils/permisos_back";
 import {
   convertToBase,
   convertFromBase,
-  pagadaConUnSoloPago,
   resolveSnapshotFromHistory,
 } from "@/lib/currency";
 import { loadTasaHistory } from "@/lib/tasaSnapshotResolver";
 import { recomputeAppliedDiscountsAfterRemoval } from "@/lib/discounts";
+import { summarizeVentaCobros } from "@/lib/cuentasPorCobrar/ventaCreditoEstado";
+import {
+  evaluateVentaDeleteGuard,
+  VENTA_DELETE_BLOCK_HTTP_STATUS,
+  VENTA_DELETE_BLOCK_TEXT,
+} from "@/lib/cuentasPorCobrar/ventaDeleteGuard";
+import { splitAjusteBorrado } from "@/lib/cuentasPorCobrar/ventaAjusteBorrado";
+import {
+  applyMovimientoCuentaPorCobrar,
+  lockCuentaPorCobrar,
+} from "@/lib/cuentasPorCobrar/applyMovimiento";
 import type { ITasaSnapshot } from "@/schemas/tasaCambio";
 import type { IPagoLinea } from "@/schemas/pago";
 
@@ -80,6 +90,17 @@ export async function DELETE(
           include: {
             cierrePeriodo: { select: { fechaFin: true } },
             _count: { select: { productos: true } },
+            // The debt of this sale, reached ONLY through the Venta already scoped by tienda
+            // and negocioId — never by a cuentaId coming from the request.
+            cuentaPorCobrar: {
+              select: {
+                id: true,
+                montoOriginal: true,
+                saldoPendiente: true,
+                settledAt: true,
+                movimientos: { select: { tipo: true, monto: true } },
+              },
+            },
           },
         },
       },
@@ -123,17 +144,52 @@ export async function DELETE(
     // ni en qué moneda fueron — no hace falta calcular nada parcial.
     const esUltimoProducto = ventaProducto.venta._count.productos === 1;
 
-    // Con más de un pago (varias monedas, o efectivo + transferencia) no hay
-    // forma de saber de cuál descontar el monto del producto eliminado —
-    // salvo que sea el último producto, donde se elimina la venta entera.
-    if (!esUltimoProducto && pagos && !pagadaConUnSoloPago(pagos)) {
-      return NextResponse.json(
-        {
-          error:
-            "No se puede eliminar un producto individual de una venta con más de un pago registrado (varias monedas, o efectivo y transferencia combinados).",
-        },
-        { status: 400 },
-      );
+    const cuenta = ventaProducto.venta.cuentaPorCobrar ?? null;
+    const cuentaId = cuenta?.id ?? null;
+    const resumenCobros = cuenta
+      ? summarizeVentaCobros(cuenta.movimientos)
+      : null;
+
+    // THE guard, and the only source of truth for it (contract § 4.3). Three things it does that
+    // the previous condition did not:
+    //
+    //  - it evaluates the credit reason ALWAYS, never behind the `pagos &&` operand that used to
+    //    open this condition. That operand was dead weight, not the hole: `pagadaConUnSoloPago`
+    //    returns true for both null and [], so evaluating it gave the very same false. What
+    //    closes the hole is the new reason, not its removal;
+    //  - with ONE product left the verdict MIRRORS the whole-sale one, so a sale with collections
+    //    cannot be deleted through the `esUltimoProducto` shortcut further down;
+    //  - it answers 409 for the two credit reasons and keeps 400, with today's wording, for
+    //    "more than one payment". Never 403: axiosClient replaces the body of ANY 403 and the
+    //    reason would never reach the screen (E-009).
+    const veredicto = evaluateVentaDeleteGuard({
+      credito: resumenCobros,
+      pagosDetalle: pagos,
+      productos: ventaProducto.venta._count.productos,
+    }).producto;
+
+    if (veredicto.reason !== null) {
+      const status = VENTA_DELETE_BLOCK_HTTP_STATUS[veredicto.reason];
+      const body =
+        veredicto.reason === "MULTIPLES_PAGOS"
+          ? {
+              error:
+                "No se puede eliminar un producto individual de una venta con más de un pago registrado (varias monedas, o efectivo y transferencia combinados).",
+            }
+          : {
+              error:
+                veredicto.reason === "CREDITO_CON_COBROS"
+                  ? VENTA_DELETE_BLOCK_TEXT.creditoConCobros(
+                      resumenCobros.cobros,
+                      resumenCobros.cobrosMontoBase,
+                      monedaBase,
+                    )
+                  : VENTA_DELETE_BLOCK_TEXT.creditoConMovimientos(),
+              reason: veredicto.reason,
+              cobros: resumenCobros.cobros,
+              cobrosMontoBase: resumenCobros.cobrosMontoBase,
+            };
+      return NextResponse.json(body, { status });
     }
 
     const monedaProducto = monedaPrecioCode ?? monedaBase;
@@ -200,6 +256,8 @@ export async function DELETE(
           total: true,
           totalcash: true,
           totaltransfer: true,
+          // The credit of the sale: the adjustment comes off it FIRST (ADR 0128).
+          creditoBase: true,
           pagosDetalle: true,
           discountTotal: true,
           productos: {
@@ -228,10 +286,6 @@ export async function DELETE(
         },
       });
       const totalAnterior = Number(v!.total);
-      const ratioCash =
-        totalAnterior > 0 ? Number(v!.totalcash) / totalAnterior : 0;
-      const ratioTransfer =
-        totalAnterior > 0 ? Number(v!.totaltransfer) / totalAnterior : 0;
 
       // 4.1 Re-cotizar los descuentos ya aplicados contra lo que queda de la
       // venta: un descuento por producto/categoría puede quedarse sin ámbito,
@@ -279,23 +333,31 @@ export async function DELETE(
       const discountTotalAnterior = Number(v!.discountTotal ?? 0);
       const discountDelta = discountTotalAnterior - nuevoDiscountTotal;
 
-      const nuevoTotal = Math.max(
-        0,
-        totalAnterior - montoProductoBase + discountDelta,
-      );
+      // 4.2 El reparto del ajuste, DEUDA PRIMERO (ADR 0128). El saldo se lee BAJO EL LOCK DE
+      // FILA, nunca uno leído antes de la transacción: es el tercer tope de la parte que puede
+      // absorber el crédito, y lo que evita que la puerta de escritura rechace con
+      // SALDO_INSUFICIENTE. Los ratios ya no se calculan sobre `total` sino sobre lo realmente
+      // pagado (`total − creditoBase`), que es lo que los hacía sumar más de 1 con crédito.
+      const locked = cuentaId ? await lockCuentaPorCobrar(tx, cuentaId) : null;
+      const reparto = splitAjusteBorrado({
+        totalAnterior,
+        creditoAnterior: Number(v!.creditoBase ?? 0),
+        saldoPendiente: Number(locked?.saldoPendiente ?? 0),
+        netoAjusteBase: montoProductoBase - discountDelta,
+        totalcashAnterior: Number(v!.totalcash),
+        totaltransferAnterior: Number(v!.totaltransfer),
+      });
 
-      // 5. Restar el monto también de lo "recibido" en pagosDetalle. Se ajusta
-      // por el neto: el precio del producto eliminado, menos lo que el
-      // descuento dejó de cubrir (si el descuento se achicó o desapareció, el
-      // total a pagar por lo que queda es más alto de lo que una resta simple
-      // del precio del producto daría). Ya se validó que hay como máximo un
-      // único pago, así que se ajusta directo esa línea — no hace falta
-      // repartir entre varias.
+      // 5. Restar el monto también de lo "recibido" en pagosDetalle, y solo el REMANENTE: lo
+      // que quedó del ajuste después de que la deuda se llevara su parte. Con el caso del
+      // criterio 8 el remanente es 0 y la única línea de pago no se toca. Ya se validó que hay
+      // como máximo un único pago, así que se ajusta directo esa línea — no hace falta repartir
+      // entre varias.
       const pagosActuales = (v!.pagosDetalle ?? null) as IPagoLinea[] | null;
       let nuevoPagosDetalle: IPagoLinea[] | undefined;
       if (pagosActuales?.length === 1) {
         const pago = pagosActuales[0];
-        const netoAjusteBase = montoProductoBase - discountDelta;
+        const netoAjusteBase = reparto.remanenteBase;
         const montoConv = convertFromBase(
           netoAjusteBase,
           pago.moneda,
@@ -321,19 +383,30 @@ export async function DELETE(
       await tx.venta.update({
         where: { id: ventaId },
         data: {
-          total: nuevoTotal,
+          total: reparto.nuevoTotal,
           discountTotal: nuevoDiscountTotal,
-          totalcash: Math.max(
-            0,
-            Math.round(nuevoTotal * ratioCash * 100) / 100,
-          ),
-          totaltransfer: Math.max(
-            0,
-            Math.round(nuevoTotal * ratioTransfer * 100) / 100,
-          ),
+          totalcash: reparto.nuevoTotalcash,
+          totaltransfer: reparto.nuevoTotaltransfer,
+          creditoBase: reparto.nuevoCredito,
           ...(nuevoPagosDetalle ? { pagosDetalle: nuevoPagosDetalle } : {}),
         },
       });
+
+      // 6. Bajar la deuda, si el crédito absorbió algo. `applyMovimientoCuentaPorCobrar` es la
+      // ÚNICA puerta de escritura sobre el libro y sobre `saldoPendiente`, y va en la MISMA
+      // transacción que el ajuste de la venta. `AJUSTE_DEVOLUCION` entra como fila nueva, jamás
+      // como una mutación: `totalPorCobrarAlCierre` de un período cerrado se recomputa como
+      // "movimientos con fecha <= fechaFin". Con 0 no se llama (MONTO_NO_POSITIVO), y si la
+      // puerta rechaza, el error NO se captura: la transacción entera se deshace, porque la
+      // venta no puede quedar ajustada con la deuda intacta.
+      if (cuentaId && reparto.ajusteCredito > 0) {
+        await applyMovimientoCuentaPorCobrar(tx, cuentaId, {
+          tipo: "AJUSTE_DEVOLUCION",
+          monto: reparto.ajusteCredito,
+          motivo: `Ajuste por eliminacion de un producto de la venta ${ventaId}`,
+          usuarioId: user.id,
+        });
+      }
     });
 
     return NextResponse.json(

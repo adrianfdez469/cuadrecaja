@@ -19,6 +19,11 @@ import {
   DuplicateRequestError,
 } from "@/lib/idempotency";
 import { IDEMPOTENCY_KEY_HEADER } from "@/constants/idempotency";
+import { splitRefundBetweenDebtAndCash } from "@/lib/cuentasPorCobrar/refundSplit";
+import {
+  applyMovimientoCuentaPorCobrar,
+  lockCuentaPorCobrar,
+} from "@/lib/cuentasPorCobrar/applyMovimiento";
 
 const IDEMPOTENCY_ENDPOINT = "POST /api/venta/devolucion";
 
@@ -93,6 +98,11 @@ export async function POST(
         where: { id: ventaId, tiendaId },
         include: {
           productos: { include: { producto: true } },
+          // The debt of this sale, reached ONLY through the Venta already scoped by tienda and
+          // negocioId — never by a cuentaId coming from the request.
+          cuentaPorCobrar: {
+            select: { id: true, saldoPendiente: true, settledAt: true },
+          },
         },
       }),
     ]);
@@ -191,8 +201,27 @@ export async function POST(
     // Devolver es acumulativo —"devolver N unidades"— así que repetirlo devuelve
     // el doble. No hay transición de estado que sirva de guarda natural, de ahí
     // la clave de idempotencia (chequeada arriba, antes de `cantidadDisponible`).
+    const cuentaId = venta.cuentaPorCobrar?.id ?? null;
+    // Declared outside the transaction so the response can name what the drawer actually has to
+    // hand over. It is DERIVED ON THE SERVER, always: no route of this feature reads
+    // `montoAplicadoADeuda` from the request body.
+    // Seeded with the no-debt split, which is the same function and the same rule; the
+    // transaction overwrites it with the one measured against the locked balance.
+    let split = splitRefundBetweenDebtAndCash(montoReembolso, 0);
+
     await prisma.$transaction(async (tx) => {
       await claimIdempotencyKey(tx, claim);
+
+      // The balance UNDER THE ROW LOCK. Two concurrent refunds on the same sale serialise here
+      // and cannot both spend the same debt. `splitRefundBetweenDebtAndCash` is the ONLY
+      // function that decides this split — its rule, its worked case and its behaviour with
+      // non-finite or negative inputs live in its own docstring and are not restated here
+      // (E-039).
+      const locked = cuentaId ? await lockCuentaPorCobrar(tx, cuentaId) : null;
+      split = splitRefundBetweenDebtAndCash(
+        montoReembolso,
+        Number(locked?.saldoPendiente ?? 0),
+      );
 
       await CreateMoviento(
         {
@@ -212,6 +241,14 @@ export async function POST(
             monedaOriginal: monedaPrecio,
             montoOriginal: vp.precio * cantidad,
             tasaUsada,
+            // Written ONLY when there is a part applied to the debt. With 0 the field is not
+            // written and the column stays NULL, which is what `refundCashRatio` reads as "the
+            // whole refund left the drawer" and what every row predating the column carries —
+            // that is what makes a cash-sale refund behave exactly as it does today, by
+            // construction and not by numeric coincidence.
+            ...(split.montoAplicadoADeuda > 0 && {
+              montoAplicadoADeuda: split.montoAplicadoADeuda,
+            }),
             ...(vp.producto.proveedorId && {
               proveedorId: vp.producto.proveedorId,
             }),
@@ -220,10 +257,40 @@ export async function POST(
         tx,
       );
 
-      await storeIdempotentResponse(tx, claim.key, { ok: true });
+      // The debt goes down through the ONLY write door, in the SAME transaction that created
+      // the MovimientoStock. `AJUSTE_DEVOLUCION` is a new row, never a mutation, and the door
+      // recomputes `settledAt` on every application — so a refund that covers the whole balance
+      // leaves it at 0 with a date. The door's error is NOT caught: a refund recorded with the
+      // debt untouched would be worse than a refund refused.
+      //
+      // `Venta.creditoBase` is NOT touched: a refund does not change the total of the sale — it
+      // does not today either — so it does not change its credit. What changes is the balance of
+      // the ledger. That is the difference with deleting a product, where the total does drop.
+      if (cuentaId && split.montoAplicadoADeuda > 0) {
+        await applyMovimientoCuentaPorCobrar(tx, cuentaId, {
+          tipo: "AJUSTE_DEVOLUCION",
+          monto: split.montoAplicadoADeuda,
+          motivo: `Ajuste por devolucion de la venta ${ventaId}`,
+          usuarioId: user.id,
+        });
+      }
+
+      // The replay says exactly the same thing the first call said.
+      await storeIdempotentResponse(tx, claim.key, {
+        ok: true,
+        montoAplicadoADeuda: split.montoAplicadoADeuda,
+        montoEnEfectivo: split.montoEnEfectivo,
+      });
     }, MOVIMIENTO_TX_OPTIONS);
 
-    return NextResponse.json({ ok: true }, { status: 201 });
+    return NextResponse.json(
+      {
+        ok: true,
+        montoAplicadoADeuda: split.montoAplicadoADeuda,
+        montoEnEfectivo: split.montoEnEfectivo,
+      },
+      { status: 201 },
+    );
   } catch (error) {
     // Otra petición con la misma clave llegó primero: la devolución ya quedó
     // registrada, así que para el cliente esto es un éxito.

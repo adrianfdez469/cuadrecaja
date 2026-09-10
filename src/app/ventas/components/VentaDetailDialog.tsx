@@ -34,15 +34,19 @@ import {
   Delete,
   CurrencyExchange,
   Print,
+  InfoOutlined,
 } from "@mui/icons-material";
 import { IVenta } from "@/schemas/venta";
 import { formatDate, formatTimeShort } from "@/utils/formatters";
 import { useAppContext } from "@/context/AppContext";
+import { convertToBase, formatMoneda } from "@/lib/currency";
 import {
-  convertToBase,
-  formatMoneda,
-  pagadaConUnSoloPago,
-} from "@/lib/currency";
+  evaluateVentaDeleteGuard,
+  VENTA_DELETE_BLOCK_TEXT,
+} from "@/lib/cuentasPorCobrar/ventaDeleteGuard";
+import { VENTA_CREDITO_DOM } from "@/constants/ventaCredito";
+import { VentaCreditoBlock } from "./VentaCreditoBlock";
+import { shape } from "@/theme/tokens";
 import { SaleExtrasSummary } from "@/components/SaleExtrasSummary";
 import { usePermisos } from "@/utils/permisos_front";
 import { usePrinter } from "@/features/printing/hooks/usePrinter";
@@ -85,8 +89,35 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
   const tooltipMultiplesPagos =
     "No se puede eliminar un producto de una venta con más de un pago registrado (varias monedas, o efectivo y transferencia combinados)";
   const isLastProduct = (venta.productos?.length || 0) <= 1;
-  const blockedByMultiplesPagos =
-    !isLastProduct && !pagadaConUnSoloPago(venta.pagosDetalle);
+
+  // THE ONLY source of truth for whether this sale gives up a product or itself
+  // (`evaluateVentaDeleteGuard`, contract § 4.3). What blocks are the collections already
+  // received, not the live debt: a credit sale with nothing collected against it blocks nothing
+  // (ADR 0126). With one product left, `producto` mirrors `venta` — which is the branch this
+  // dialog's button takes when it calls `onDeleteSale`.
+  const gate = evaluateVentaDeleteGuard({
+    credito: venta.credito ?? null,
+    pagosDetalle: venta.pagosDetalle,
+    productos: venta.productos?.length ?? 0,
+  });
+  const blockedReason = gate.producto.reason;
+  const motivoBloqueo =
+    blockedReason === "CREDITO_CON_COBROS"
+      ? VENTA_DELETE_BLOCK_TEXT.creditoConCobros(
+          venta.credito?.cobros ?? 0,
+          venta.credito?.cobrosMontoBase ?? 0,
+          monedaBase,
+        )
+      : blockedReason === "CREDITO_CON_MOVIMIENTOS"
+        ? VENTA_DELETE_BLOCK_TEXT.creditoConMovimientos()
+        : blockedReason === "MULTIPLES_PAGOS"
+          ? tooltipMultiplesPagos
+          : "";
+  // The visible block is only for the two credit reasons: MULTIPLES_PAGOS keeps its verified
+  // copy and its Tooltip, and mounts no block (E-018).
+  const muestraMotivoVisible =
+    blockedReason === "CREDITO_CON_COBROS" ||
+    blockedReason === "CREDITO_CON_MOVIMIENTOS";
 
   // El precio de cada producto está en su monedaPrecioCode (snapshot). Lo convertimos a la
   // moneda base del negocio para poder sumar y comparar de forma homogénea.
@@ -233,6 +264,22 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
           </Grid>
         </Grid>
 
+        {/* El crédito de la venta: deudor, monto fiado, saldo y su libro de movimientos.
+            Va aquí —justo tras las cuatro InfoCard y ANTES del detalle de pago— porque en una
+            venta fiada la deuda es el dato que trae al usuario, y a 320 px el diálogo es
+            `fullScreen`: lo que quede bajo el pliegue exige desplazar. No se pinta en
+            `SaleExtrasSummary`, que no se toca (ADR 0127). */}
+        {venta.credito && (
+          <VentaCreditoBlock
+            tiendaId={venta.tiendaId}
+            cierreId={venta.cierrePeriodoId}
+            ventaId={venta.id}
+            credito={venta.credito}
+            clienteId={venta.clienteId ?? undefined}
+            clienteNombre={venta.clienteNombre}
+          />
+        )}
+
         {/* Detalle de pago, vuelto, propina y tasa de cambio de la venta */}
         {(venta.pagosDetalle?.length ||
           venta.vueltoDetalle?.length ||
@@ -338,6 +385,34 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
             </Typography>
             <Divider sx={{ mb: 2 }} />
 
+            {/* El motivo del bloqueo, SIEMPRE visible y sin haber disparado ningún evento de
+                puntero: un `Tooltip` de MUI no se abre sobre un botón deshabilitado en una
+                pantalla táctil, así que el `Tooltip` de abajo se conserva para escritorio pero
+                no cuenta como el motivo visible del criterio 5. */}
+            {canDeleteProducts && muestraMotivoVisible && (
+              <Box
+                className={VENTA_CREDITO_DOM.motivo}
+                sx={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 1,
+                  p: 1.5,
+                  mb: 2,
+                  borderRadius: `${shape.radius.md}px`,
+                  bgcolor: "semantic.hue.caution.surface",
+                  color: "semantic.hue.caution.main",
+                  fontSize: "0.875rem",
+                  lineHeight: 1.43,
+                }}
+              >
+                <InfoOutlined fontSize="small" sx={{ flexShrink: 0 }} />
+                {/* A DIRECT text node, with no wrapper: the own text of the element carrying
+                    `cc-venta-borrado-motivo` is what design criterion 34 reads, and a
+                    `<Typography>` in between would leave it empty. */}
+                {motivoBloqueo}
+              </Box>
+            )}
+
             {!venta.productos || venta.productos.length === 0 ? (
               <Box sx={{ textAlign: "center", py: 4 }}>
                 <Typography variant="body1" color="text.secondary">
@@ -384,19 +459,17 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
                                 variant="outlined"
                               />
                               {canDeleteThis && (
-                                <Tooltip
-                                  title={
-                                    blockedByMultiplesPagos
-                                      ? tooltipMultiplesPagos
-                                      : ""
-                                  }
-                                >
-                                  <span>
+                                <Tooltip title={motivoBloqueo}>
+                                  {/* No `aria-label` of its own on the span: it would flatten
+                                      the one the Tooltip writes on it. */}
+                                  <span
+                                    className={VENTA_CREDITO_DOM.accionProducto}
+                                  >
                                     <IconButton
                                       size="small"
                                       color="error"
                                       disabled={
-                                        isDeleting || blockedByMultiplesPagos
+                                        isDeleting || !gate.producto.allowed
                                       }
                                       onClick={() =>
                                         isLastProduct
@@ -531,19 +604,15 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
                           {canDeleteProducts && (
                             <TableCell align="center">
                               {canDeleteThis && (
-                                <Tooltip
-                                  title={
-                                    blockedByMultiplesPagos
-                                      ? tooltipMultiplesPagos
-                                      : ""
-                                  }
-                                >
-                                  <span>
+                                <Tooltip title={motivoBloqueo}>
+                                  <span
+                                    className={VENTA_CREDITO_DOM.accionProducto}
+                                  >
                                     <IconButton
                                       size="small"
                                       color="error"
                                       disabled={
-                                        isDeleting || blockedByMultiplesPagos
+                                        isDeleting || !gate.producto.allowed
                                       }
                                       onClick={() =>
                                         isLastProduct

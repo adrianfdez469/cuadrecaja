@@ -405,6 +405,9 @@ export const SalesDrawer: FC<IProps> = ({
           creditoBase: venta.creditoBase,
           clienteId: venta.clienteId ?? undefined,
           clienteNombre: venta.clienteNombre,
+          // The debt of the sale, so the delete gate of the two drawers can read it without a
+          // request of its own (F-035, contract § 1.3).
+          credito: venta.credito ?? null,
           productos: venta.productos.map((p) => {
             return {
               name: p.name,

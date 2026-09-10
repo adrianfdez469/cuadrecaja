@@ -135,6 +135,7 @@ export const CreateMoviento = async (
         tasaUsada: tasaUsadaItem,
         costoTotal: costoTotalOverride, // MERMA (opcional) y DEVOLUCION_VENTA (requerido): valor en moneda base
         montoReembolso, // Solo DEVOLUCION_VENTA
+        montoAplicadoADeuda, // Solo DEVOLUCION_VENTA: la parte aplicada a la deuda
       } = movimiento;
 
       // 0. Si es COMPRA con EFECTIVO_CAJA, topear al efectivo realmente
@@ -427,6 +428,11 @@ export const CreateMoviento = async (
             }),
           ...(tipo === "DEVOLUCION_VENTA" &&
             montoReembolso !== undefined && { montoReembolso }),
+          // Left UNWRITTEN when the caller does not name it, so the column stays NULL — which
+          // is what `refundCashRatio` reads as "the whole refund left the drawer", and what
+          // every row predating the column carries.
+          ...(tipo === "DEVOLUCION_VENTA" &&
+            montoAplicadoADeuda !== undefined && { montoAplicadoADeuda }),
           ...(batchId && { batchId }),
         },
       });
