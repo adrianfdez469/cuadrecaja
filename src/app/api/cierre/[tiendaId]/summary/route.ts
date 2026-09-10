@@ -150,6 +150,12 @@ export async function GET(
             totalMerma: true,
             totalDevoluciones: true,
             totalTips: true,
+            // Same `_sum`, same `where: filtros` — that is what keeps these
+            // two scoped to a single tienda. `totalPorCobrarAlCierre` is
+            // deliberately absent: it is a stock, and summing it across
+            // periods counts the same debt once per period.
+            totalCreditoOtorgado: true,
+            totalCobrosCredito: true,
           },
           where: filtros,
         }),
@@ -289,6 +295,8 @@ export async function GET(
       sumTotalComprasCaja: totales._sum.totalComprasCaja ?? 0,
       sumTotalGananciaFinal: totales._sum.totalGananciaFinal ?? 0,
       sumTotalTips: totales._sum.totalTips ?? 0,
+      sumTotalCreditoOtorgado: totales._sum.totalCreditoOtorgado ?? 0,
+      sumTotalCobrosCredito: totales._sum.totalCobrosCredito ?? 0,
       totalItems: totalCierres,
     });
   } catch (_error: unknown) {

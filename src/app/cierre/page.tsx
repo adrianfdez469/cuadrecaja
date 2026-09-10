@@ -54,6 +54,12 @@ import MonedaBreakdownRow from "@/app/cierre/components/MonedaBreakdownRow";
 import { DENOMINACIONES } from "@/constants/billDenominations";
 import GananciaCard from "@/app/cierre/components/GananciaCard";
 import PropinasCard from "@/app/cierre/components/PropinasCard";
+import CreditoCard from "@/app/cierre/components/CreditoCard";
+import {
+  hasCreditToExplain,
+  readCreditFlow,
+  resolveCurrencyCreditLines,
+} from "@/app/cierre/utils/creditoCierre";
 import InitialCashFundDialog from "@/app/cierre/components/InitialCashFundDialog";
 import SavingsIcon from "@mui/icons-material/Savings";
 import CierreTotalsCard from "@/app/cierre/components/CierreTotalsCard";
@@ -63,7 +69,7 @@ import StorefrontOutlinedIcon from "@mui/icons-material/StorefrontOutlined";
 import HandshakeOutlinedIcon from "@mui/icons-material/HandshakeOutlined";
 
 const CierreCajaPage = () => {
-  const { user, loadingContext, gotToPath, monedasNegocio } =
+  const { user, loadingContext, gotToPath, monedasNegocio, monedaBase } =
     useAppContext();
   const { showMessage } = useMessageContext();
   const [currentPeriod, setCurrentPeriod] = useState<ICierrePeriodo>();
@@ -90,6 +96,9 @@ const CierreCajaPage = () => {
   const canManageInitialFund = verificarPermiso(
     "operaciones.cierre.fondoinicial",
   );
+  // The period's two credit figures, read once. They explain the drawer, they
+  // never correct it: nothing on this screen subtracts either of them.
+  const creditFlow = readCreditFlow(cierreData);
 
   const handleSaveAdHoc = async (data: IGastoAdHocCreate) => {
     if (!currentPeriod) return;
@@ -442,6 +451,15 @@ const CierreCajaPage = () => {
               />
             </Grid>
           )}
+
+          {/* Crédito del período — solo aparece si hubo ventas a crédito o
+              cobros de deuda. Explica por qué las ventas y el efectivo ya no
+              coinciden; ninguna de sus dos cifras se resta de nada. */}
+          {hasCreditToExplain(creditFlow) && (
+            <Grid item xs={12} sm={6} md={4}>
+              <CreditoCard flow={creditFlow} isMobile={isMobile} />
+            </Grid>
+          )}
         </Grid>
 
         {/* The five headline totals, on one scale — replaces the two figures
@@ -464,6 +482,7 @@ const CierreCajaPage = () => {
           canViewGanancia={verificarPermiso(
             "operaciones.cierre.gananciascostos",
           )}
+          creditGranted={creditFlow.granted}
         />
 
         {/* What's left: how much moved and in how many kinds of product. */}
@@ -559,6 +578,13 @@ const CierreCajaPage = () => {
                     initialFund={rm.initialFund}
                     tipCash={rm.tipCash}
                     tipTransfer={rm.tipTransfer}
+                    creditLines={
+                      resolveCurrencyCreditLines(
+                        rm.monedaCode,
+                        monedaBase,
+                        creditFlow,
+                      ) ?? undefined
+                    }
                     tiendaId={user?.localActual?.id ?? ""}
                     cierreId={currentPeriod.id}
                     isOpen={!currentPeriod.fechaFin}

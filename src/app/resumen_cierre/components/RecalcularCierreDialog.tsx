@@ -20,6 +20,7 @@ import { ErrorState } from "@/components/ErrorState";
 import { recalculateCierre } from "@/services/cierrePeriodService";
 import { useMessageContext } from "@/context/MessageContext";
 import { formatCurrency } from "@/utils/formatters";
+import { CREDIT_COPY } from "@/app/cierre/utils/creditoCierreCopy";
 import type {
   ICierreStoredTotals,
   IRecalculateCierreResult,
@@ -44,6 +45,8 @@ const ROWS: { key: keyof ICierreStoredTotals; label: string }[] = [
   { key: "totalGananciaFinal", label: "Ganancia final" },
   { key: "totalTransferencia", label: "Transferencias" },
   { key: "totalTips", label: "Propinas" },
+  { key: "totalCreditoOtorgado", label: CREDIT_COPY.recalcGrantedRow },
+  { key: "totalCobrosCredito", label: CREDIT_COPY.recalcCollectedRow },
 ];
 
 /** Half a cent: below it two amounts are the same figure. */
@@ -290,11 +293,13 @@ export default function RecalcularCierreDialog({
       }}
       cancelLabel="Cancelar"
     >
+      {/* The skeleton promises as many rows as the comparison actually has:
+          a fixed count would jump the layout the moment ROWS grows. */}
       {loading &&
         (isMobile ? (
-          <LoadingState variant="list" count={9} />
+          <LoadingState variant="list" count={ROWS.length} />
         ) : (
-          <LoadingState variant="table" count={9} columns={4} />
+          <LoadingState variant="table" count={ROWS.length} columns={4} />
         ))}
 
       {failure === "offline" && (

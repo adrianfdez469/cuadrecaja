@@ -1,7 +1,7 @@
 # E-016: Un criterio verificable que exige una subcadena que el copy dictado no contiene
 
 **Área:** ui
-**Apariciones:** 5 — F-005 (dos veces en el mismo documento: criterios 43 y 20) · F-020 (criterio 23) · F-011 (dos variantes nuevas) · F-012 (dos más, y una invierte el modo de fallo) · F-023 (la subcadena prohibida **dentro de una palabra del propio copy**; cazada por el `ui-designer` antes de escribirse). Ver las adendas.
+**Apariciones:** 6 — F-005 (dos veces en el mismo documento: criterios 43 y 20) · F-020 (criterio 23) · F-011 (dos variantes nuevas) · F-012 (dos más, y una invierte el modo de fallo) · F-023 (la subcadena prohibida **dentro de una palabra del propio copy**; cazada por el `ui-designer` antes de escribirse) · F-034 (la variante **inversa**: el copy correcto en el sitio equivocado, y **nueve criterios** del mismo documento con el mismo defecto). Ver las adendas.
 
 ## Síntoma
 
@@ -196,3 +196,53 @@ palabra del copy. El `qa` lo ejecutó así y confirmó las dos mitades: la tarje
 > Antes de escribir un criterio de ausencia sobre un nombre corto (`admin`, `id`, `pos`, `test`),
 > búscalo como **subcadena** en el copy, no como palabra. Y prefiere como sujeto del criterio un
 > valor que no sea subcadena de nada: la lista de cuentas del seed da donde elegir.
+
+## Adenda F-034 — al revés del todo: el copy es correcto y el ANCLA está mal
+
+Las cinco apariciones anteriores fallan por la **cadena**: no existe, existe dentro de un valor
+formateado, la puso otro feature, o está escondida dentro de una palabra. La sexta falla por el
+**nodo**, con la cadena impecable.
+
+El contrato de interfaces mandó el **mismo `data-testid` en las tres apariciones** de cada columna
+del histórico —el `<th>`, el `<td>` y el `Grid item` de la rama de tarjetas— para que el ancla
+sobreviviera al cambio de rama responsive. Es una decisión buena. Y el criterio de diseño, escrito
+antes de que existiera el DOM, hacía:
+
+```js
+collapse(document.querySelector('[data-testid="resumen-cierre-credit-granted"]').textContent)
+  === "$1000,00"
+```
+
+`querySelector` devuelve **el primero del documento**, que es el `<th>`, cuyo texto propio es
+`Crédito` — y es `Crédito` porque **lo exige el criterio de al lado, del mismo documento**. A 320 px
+el ancla es el `Grid item`, cuyo `textContent` es `Ventas a crédito$1000,00`. El criterio rechaza
+código correcto a los tres anchos, por dos motivos distintos.
+
+Las dos mitades son defendibles por separado, y ahí está la trampa: no lo ve `tsc`, no lo ve
+`lint`, y **no lo ve leer cualquiera de los dos documentos por separado**. Lo destapó el
+`implementer` al ejecutar el contrato, no una revisión.
+
+### Y no era un criterio: eran nueve
+
+Cuando el `ui-designer` fue a buscar el **mecanismo** en el resto de sus criterios, en vez de
+parchear el reportado, aparecieron tres familias más:
+
+- El criterio de la fila «Totales» tenía el defecto **opuesto**: leía cifras de celdas que
+  correctamente **no llevan ancla**, porque un `data-testid` identifica una columna, no una suma.
+- Dos criterios comparaban «los `<th>` que llevan el ancla», que con tres nodos por ancla no
+  quiere decir nada.
+- **Tres criterios recorrían siete anclajes con `querySelector` y probaban un tercio de lo que
+  decían — y nunca habían fallado, porque los tres nodos cumplen.** Es el modo de fallo peor: un
+  criterio en verde que no verifica lo que dice.
+- Uno del diálogo de recálculo estaba roto y **nadie lo había reportado**, escrito como si una
+  forma de DOM sirviera a los tres anchos.
+
+### La regla
+
+> **Un `data-testid` que el contrato pone en varias ramas responsive es un ancla de CONTEO, y
+> ningún criterio puede leer su `textContent`.** Se cuenta (`querySelectorAll().length`) o se
+> cualifica por algo que distinga la rama —el `tagName`, un hijo que solo existe en una de ellas—,
+> nunca se lee.
+
+Y el corolario de método, que vale para toda la ficha: **cuando aparece uno, búscalo en los
+demás.** Ocho de los nueve no los reportó nadie; salieron de repasar el mecanismo, no el síntoma.

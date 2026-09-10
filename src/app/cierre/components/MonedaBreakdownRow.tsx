@@ -21,7 +21,9 @@ import {
   fetchMonedaBreakdown,
   saveMonedaBreakdown,
 } from "@/services/cierrePeriodService";
-import { IDeduccionItem } from "@/schemas/cierre";
+import { IDeduccionItem, ICurrencyCreditLines } from "@/schemas/cierre";
+import { CREDIT_TEST_IDS } from "@/app/cierre/utils/creditoCierre";
+import { CREDIT_COPY } from "@/app/cierre/utils/creditoCierreCopy";
 import DeduccionesList from "./DeduccionesList";
 
 interface Props {
@@ -36,6 +38,12 @@ interface Props {
   tipCash?: number;
   /** Propina incluida en totalTransfer. */
   tipTransfer?: number;
+  /**
+   * The two informative credit lines of THIS row, or absent when it shows
+   * none. The caller resolves it with `resolveCurrencyCreditLines`, which is
+   * what keeps the lines on the base-currency row (ADR 0124).
+   */
+  creditLines?: ICurrencyCreditLines;
   tiendaId: string;
   cierreId: string;
   isOpen: boolean;
@@ -74,6 +82,7 @@ const MonedaBreakdownRow: FC<Props> = ({
   initialFund = 0,
   tipCash = 0,
   tipTransfer = 0,
+  creditLines,
   tiendaId,
   cierreId,
   isOpen,
@@ -250,6 +259,46 @@ const MonedaBreakdownRow: FC<Props> = ({
               </Typography>
             </Box>
           </Box>
+          {/* Informative, never a deduction: the credit sale never reached
+              this drawer and the collection already did, so the physical
+              count keeps being compared against Efectivo untouched. Collected
+              first, granted last: the dangerous line has to sit as close as
+              possible to "Desglose de billetes", which is where a cashier
+              would subtract it. */}
+          {creditLines && (
+            <Box
+              sx={{
+                flexBasis: "100%",
+                minWidth: 0,
+                display: "flex",
+                flexDirection: "column",
+                gap: 0.25,
+              }}
+            >
+              {creditLines.collected !== null && (
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  data-testid={CREDIT_TEST_IDS.currencyCollectedLine}
+                >
+                  {CREDIT_COPY.currencyCollectedLine(
+                    formatCurrency(creditLines.collected),
+                  )}
+                </Typography>
+              )}
+              {creditLines.granted !== null && (
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  data-testid={CREDIT_TEST_IDS.currencyGrantedLine}
+                >
+                  {CREDIT_COPY.currencyGrantedLine(
+                    formatCurrency(creditLines.granted),
+                  )}
+                </Typography>
+              )}
+            </Box>
+          )}
         </Stack>
       </Stack>
 

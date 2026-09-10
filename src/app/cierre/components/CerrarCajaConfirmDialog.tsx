@@ -23,6 +23,12 @@ import { fetchMonedaBreakdown } from "@/services/cierrePeriodService";
 import { previewGastosCierre } from "@/services/gastoService";
 import type { IGastoPreview } from "@/schemas/gastos";
 import { formatCurrency, formatMontoEnMoneda } from "@/utils/formatters";
+import {
+  hasCreditToExplain,
+  readCreditFlow,
+  CREDIT_TEST_IDS,
+} from "@/app/cierre/utils/creditoCierre";
+import { CREDIT_COPY } from "@/app/cierre/utils/creditoCierreCopy";
 
 interface Props {
   open: boolean;
@@ -211,6 +217,20 @@ export default function CerrarCajaConfirmDialog({
   const gananciaFinalEstimada = gananciaMostrada - totalOperativosSeleccionados;
   const esNegativa = gananciaFinalEstimada < 0;
 
+  // Derived, not state: it depends only on cierreData, so it needs no effect and
+  // cannot be left stale by one. It is NOT pushed into `warnings`: that array is
+  // what decides the "no problems found" state, and credit is not a problem.
+  const creditFlow = readCreditFlow(cierreData);
+  const creditNotice: IWarning | null = hasCreditToExplain(creditFlow)
+    ? {
+        severity: "info",
+        text: CREDIT_COPY.closeDialogNotice(
+          formatCurrency(creditFlow.granted),
+          formatCurrency(creditFlow.collected),
+        ),
+      }
+    : null;
+
   const handleConfirm = async () => {
     setConfirming(true);
     try {
@@ -262,6 +282,18 @@ export default function CerrarCajaConfirmDialog({
         ) : (
           <Alert severity="success" sx={{ py: 0.5 }}>
             No se detectaron problemas.
+          </Alert>
+        )}
+
+        {/* Its own Alert, outside `warnings`: credit is not a discrepancy and
+            it does not block the close. Read before the figures it explains. */}
+        {creditNotice && (
+          <Alert
+            severity={creditNotice.severity}
+            data-testid={CREDIT_TEST_IDS.closeDialogNotice}
+            sx={{ mt: 2, py: 0.5 }}
+          >
+            {creditNotice.text}
           </Alert>
         )}
 

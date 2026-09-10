@@ -29,6 +29,14 @@ export const cierrePeriodoSchema = z.object({
   totalTips: z.number().optional(),
   totalVentasBrutas: z.number().optional(),
   totalDescuentos: z.number().optional(),
+  // The three credit figures the closing engine stores on every close and
+  // recalculation. Their definition lives in the docstrings of
+  // `CierreStoredTotals` (src/lib/cierre/computeCierreTotals.ts); this file is
+  // only their Zod mirror. Optional here for the same reason every figure added
+  // after the first engine is: a payload built by an older path may omit them.
+  totalCreditoOtorgado: z.number().optional(),
+  totalCobrosCredito: z.number().optional(),
+  totalPorCobrarAlCierre: z.number().optional(),
   // When the stored figures were last derived from the sales (ADR 0036).
   // Absent on periods closed by the previous engine, until recalculated.
   totalsComputedAt: z.coerce.date().nullable().optional(),
@@ -126,6 +134,12 @@ export const cierreDataSchema = z.object({
   // Propinas del período, en moneda base. Nunca forman parte de totalVentas
   // ni de la ganancia: el desglose por cajero es lo que permite repartirlas.
   totalTips: z.number().optional(),
+  // The three credit figures of the period, mirrored from `CierreStoredTotals`
+  // (src/lib/cierre/computeCierreTotals.ts), which is where their definition
+  // lives. Optional: a payload built by an older path may omit them.
+  totalCreditoOtorgado: z.number().optional(),
+  totalCobrosCredito: z.number().optional(),
+  totalPorCobrarAlCierre: z.number().optional(),
   tipsPorUsuario: z
     .array(
       z.object({
@@ -182,9 +196,14 @@ export const summaryCierreSchema = z.object({
   sumTotalComprasCaja: z.number().optional(),
   sumTotalGananciaFinal: z.number().optional(),
   sumTotalTips: z.number().optional(),
+  // The two FLOW figures, summed across the periods the filter matched.
+  // `totalPorCobrarAlCierre` is deliberately absent: it is a stock, and summing
+  // it across periods counts the same debt once per period (dosier § 6).
+  sumTotalCreditoOtorgado: z.number().optional(),
+  sumTotalCobrosCredito: z.number().optional(),
 });
 
-const cierreStoredTotalsSchema = z.object({
+export const cierreStoredTotalsSchema = z.object({
   totalVentas: z.number(),
   totalVentasBrutas: z.number(),
   totalDescuentos: z.number(),
@@ -201,6 +220,12 @@ const cierreStoredTotalsSchema = z.object({
   totalMerma: z.number(),
   totalDevoluciones: z.number(),
   totalTips: z.number(),
+  // Required here, unlike in the payload schemas above: this object is the
+  // exact mirror of `CierreStoredTotals`, where the three are required. A
+  // missing one would leave the `before` of a recalculation mistyped.
+  totalCreditoOtorgado: z.number(),
+  totalCobrosCredito: z.number(),
+  totalPorCobrarAlCierre: z.number(),
 });
 
 const resumenMonedaComparableSchema = z.object({
@@ -241,3 +266,41 @@ export type IUpdateCierreEtiqueta = z.infer<typeof updateCierreEtiquetaSchema>;
 export type ICierrePeriodo = z.infer<typeof cierrePeriodoSchema>;
 export type ICierreData = z.infer<typeof cierreDataSchema>;
 export type ISummaryCierre = z.infer<typeof summaryCierreSchema>;
+
+/**
+ * The two flow figures as they arrive in any cierre payload: the detail of a
+ * period, a row of the history, or the drawer. Both optional, because that is
+ * how `cierrePeriodoSchema` declares them.
+ */
+export const creditFlowSourceSchema = cierrePeriodoSchema.pick({
+  totalCreditoOtorgado: true,
+  totalCobrosCredito: true,
+});
+
+/** The same two figures, normalized to numbers. Base currency, always. */
+export const creditFlowSchema = z.object({
+  /** Credit granted in the period — CierrePeriodo.totalCreditoOtorgado. */
+  granted: z.number(),
+  /** Debt collected in the period — CierrePeriodo.totalCobrosCredito. */
+  collected: z.number(),
+});
+
+/** The two page-level sums the history reads to decide whether to show its columns. */
+export const creditColumnSumsSchema = summaryCierreSchema.pick({
+  sumTotalCreditoOtorgado: true,
+  sumTotalCobrosCredito: true,
+});
+
+/**
+ * The two informative lines one currency row of the cash breakdown shows.
+ * `null` on a line means that line is not shown.
+ */
+export const currencyCreditLinesSchema = z.object({
+  granted: z.number().nullable(),
+  collected: z.number().nullable(),
+});
+
+export type ICreditFlowSource = z.infer<typeof creditFlowSourceSchema>;
+export type ICreditFlow = z.infer<typeof creditFlowSchema>;
+export type ICreditColumnSums = z.infer<typeof creditColumnSumsSchema>;
+export type ICurrencyCreditLines = z.infer<typeof currencyCreditLinesSchema>;
