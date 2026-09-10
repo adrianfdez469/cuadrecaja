@@ -1,7 +1,9 @@
 import {
   ICierreData,
   ICierrePeriodo,
+  ICloseCierreResult,
   IRecalculateCierreResult,
+  ISalesCutoffTarget,
 } from "@/schemas/cierre";
 import { IBillCount, ICashBreakdownCierre } from "@/schemas/billBreakdown";
 import type { ITasaSnapshot } from "@/schemas/tasaCambio";
@@ -31,12 +33,42 @@ export const fetchCierreData = async (tiendaId: string, cierreId: string) => {
   return response.data;
 };
 
+/**
+ * Sets, moves or clears the cut of an open period. Returns the cutoff as it was
+ * stored: the caller shows what the database holds, not what it sent.
+ *
+ * `expectedCutoffAt` is the cut the screen believed was in force; a 409 means
+ * another cashier moved it meanwhile and nothing was written.
+ */
+export const setSalesCutoff = async (
+  tiendaId: string,
+  cierreId: string,
+  target: ISalesCutoffTarget,
+  expectedCutoffAt: Date | null,
+): Promise<Date | null> => {
+  const response = await axios.patch<{ cutoffAt: string | null }>(
+    `${API_URL(tiendaId)}/${cierreId}/sales-cutoff`,
+    { target, expectedCutoffAt },
+  );
+  return response.data.cutoffAt ? new Date(response.data.cutoffAt) : null;
+};
+
+/**
+ * Closes the period. `expectedCutoffAt` is the cut the caller had on screen; a
+ * 409 means someone changed it meanwhile and nothing was written.
+ *
+ * BREAKING: the response is no longer the closed period alone. `openedPeriod`
+ * is the period the close created at the cut, or null when there was none — in
+ * which case the caller opens the next one itself, as it always did.
+ */
 export const closePeriod = async (
   tiendaId: string,
   cierreId: string,
-): Promise<ICierrePeriodo | undefined> => {
-  const response = await axios.put<ICierrePeriodo>(
+  expectedCutoffAt: Date | null,
+): Promise<ICloseCierreResult> => {
+  const response = await axios.put<ICloseCierreResult>(
     `${API_URL(tiendaId)}/${cierreId}/close`,
+    { expectedCutoffAt },
   );
   return response.data;
 };

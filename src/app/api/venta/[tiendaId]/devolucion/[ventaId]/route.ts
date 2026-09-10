@@ -19,6 +19,7 @@ import {
   DuplicateRequestError,
 } from "@/lib/idempotency";
 import { IDEMPOTENCY_KEY_HEADER } from "@/constants/idempotency";
+import { saleReportedAt } from "@/lib/venta/saleTime";
 
 const IDEMPOTENCY_ENDPOINT = "POST /api/venta/devolucion";
 
@@ -145,7 +146,7 @@ export async function POST(
     const tasasHistoricas = resolveSnapshotFromHistory(
       await loadTasaHistory(tienda?.negocio?.id),
       venta.tasaSnapshot as ITasaSnapshot | null,
-      venta.frontendCreatedAt ?? venta.createdAt,
+      saleReportedAt(venta),
     );
 
     const monedaCosto = vp.monedaCostoCode ?? monedaBase;

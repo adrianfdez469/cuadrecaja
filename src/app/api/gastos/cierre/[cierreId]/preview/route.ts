@@ -4,13 +4,14 @@ import { getSession } from "@/utils/auth";
 import { verificarPermisoUsuario } from "@/utils/permisos_back";
 import { gastoAplicaEnFecha } from "@/utils/gastos";
 import type { ITasaSnapshot } from "@/schemas/tasaCambio";
-import {
-  convertToBase,
-  buildTasaSnapshot,
-  resolveSnapshotFromHistory,
-} from "@/lib/currency";
+import { convertToBase, buildTasaSnapshot } from "@/lib/currency";
 import { loadTasaHistory } from "@/lib/tasaSnapshotResolver";
-import { calcularGananciaFinal } from "@/lib/gastos";
+import {
+  calcularGananciaFinal,
+  computePercentageBaseTotals,
+  type PercentageBaseSale,
+} from "@/lib/gastos";
+import { partitionSalesByCutoff } from "@/lib/cierre/salesCutoff";
 import { calcularTotalesMovimientosPeriodo } from "@/lib/movimiento/caja";
 
 export async function POST(
@@ -68,52 +69,45 @@ export async function POST(
     const historialTasas = await loadTasaHistory(negocioId);
     const tasasActuales = buildTasaSnapshot(historialTasas);
 
-    // Calcular totales actuales del período — igual que cierre/[cierreId]/route.ts
-    let totalVentas = 0;
-    let totalGanancia = 0;
+    // A percentage expense is a percentage of the sales the close TAKES, not of
+    // every sale the period holds. The cut only applies while the period is
+    // open; once closed, the relation is the truth.
+    const cutoffAt = cierre.fechaFin === null ? cierre.salesCutoffAt : null;
+    const ventasPeriodo: PercentageBaseSale[] = cierre.ventas.map((v) => ({
+      createdAt: v.createdAt,
+      frontendCreatedAt: v.frontendCreatedAt,
+      discountTotal: v.discountTotal,
+      tasaSnapshot: (v.tasaSnapshot as ITasaSnapshot | null) ?? null,
+      productos: v.productos.map((vp) => ({
+        cantidad: vp.cantidad,
+        precio: vp.precio,
+        costo: vp.costo,
+        monedaPrecioCode: vp.monedaPrecioCode,
+        monedaCostoCode: vp.monedaCostoCode,
+      })),
+    }));
+    // One clock for the whole request: the same instant the effective time of
+    // every sale is capped against and the one the recurring expenses are
+    // evaluated at, so a sale cannot get two answers inside one preview.
+    const now = new Date();
+    const { included } = partitionSalesByCutoff(ventasPeriodo, cutoffAt, now);
 
-    for (const venta of cierre.ventas) {
-      // The sale's own snapshot first; its gaps filled with the rate in force
-      // when it happened, never a silent 1.
-      const tasas = resolveSnapshotFromHistory(
-        historialTasas,
-        venta.tasaSnapshot as ITasaSnapshot | null,
-        venta.frontendCreatedAt ?? venta.createdAt,
-      );
-      let ventaBruta = 0;
-
-      for (const vp of venta.productos) {
-        const precioBase = convertToBase(
-          vp.precio,
-          vp.monedaPrecioCode ?? monedaBase,
-          tasas,
-          monedaBase,
-        );
-        const costoBase = convertToBase(
-          vp.costo,
-          vp.monedaCostoCode ?? monedaBase,
-          tasas,
-          monedaBase,
-        );
-        ventaBruta += vp.cantidad * precioBase;
-        totalGanancia += vp.cantidad * (precioBase - costoBase);
-      }
-
-      const descuento = Number(venta.discountTotal ?? 0);
-      totalVentas += Math.max(0, ventaBruta - descuento);
-    }
+    const { totalVentas, totalGanancia } = computePercentageBaseTotals(
+      included,
+      monedaBase,
+      historialTasas,
+    );
 
     // Obtener gastos configurados para la tienda
     const gastosTienda = await prisma.gastoTienda.findMany({
       where: { tiendaId: cierre.tiendaId, activo: true },
     });
 
-    const ahora = new Date();
     const gastosRecurrentes = [];
     const gastosNoAplican = [];
 
     for (const g of gastosTienda) {
-      const { aplica, motivo } = gastoAplicaEnFecha(g, ahora);
+      const { aplica, motivo } = gastoAplicaEnFecha(g, now);
 
       let montoCalculado = 0;
       if (g.tipoCalculo === "MONTO_FIJO") {
@@ -194,7 +188,9 @@ export async function POST(
       where: {
         tiendaId: cierre.tiendaId,
         tipo: { in: ["COMPRA", "MERMA", "DEVOLUCION_VENTA"] },
-        fecha: { gte: cierre.fechaInicio },
+        // Same upper bound the cut gives the close. Without it the preview shows
+        // a final profit the close is not going to store.
+        fecha: { gte: cierre.fechaInicio, ...(cutoffAt && { lte: cutoffAt }) },
       },
     });
     const { totalMerma, totalDevoluciones } = calcularTotalesMovimientosPeriodo(

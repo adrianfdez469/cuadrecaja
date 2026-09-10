@@ -188,6 +188,7 @@ export async function GET(
             select: {
               id: true,
               createdAt: true,
+              frontendCreatedAt: true,
               discountTotal: true,
               tipTotal: true,
               totaltransfer: true,
@@ -214,6 +215,7 @@ export async function GET(
       const sale: CierreSale = {
         id: v.id,
         createdAt: v.createdAt,
+        frontendCreatedAt: v.frontendCreatedAt,
         discountTotal: Number(v.discountTotal ?? 0),
         tipTotal: Number(v.tipTotal ?? 0),
         totaltransfer: v.totaltransfer,

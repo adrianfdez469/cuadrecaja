@@ -20,7 +20,6 @@ export async function POST(req: Request) {
     const session = await getSession();
     const { negocioId, response } = resolveTenantAxis({
       session,
-      permisoRequerido: null,
     });
     if (!negocioId) return response;
 

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { StatStrip } from "@/components/StatStrip";
 import {
   Box,
@@ -20,6 +20,7 @@ import {
   closePeriod,
   fetchCierreData,
   openPeriod,
+  setSalesCutoff,
 } from "@/services/cierrePeriodService";
 import { fetchLastPeriod } from "@/services/cierrePeriodService";
 import { useAppContext } from "@/context/AppContext";
@@ -34,7 +35,6 @@ import { useSalesStore } from "@/store/salesStore";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
 import RefreshIcon from "@mui/icons-material/Refresh";
-import PostAddIcon from "@mui/icons-material/PostAdd";
 import {
   formatDate,
   formatCurrency,
@@ -55,16 +55,18 @@ import { DENOMINACIONES } from "@/constants/billDenominations";
 import GananciaCard from "@/app/cierre/components/GananciaCard";
 import PropinasCard from "@/app/cierre/components/PropinasCard";
 import InitialCashFundDialog from "@/app/cierre/components/InitialCashFundDialog";
-import SavingsIcon from "@mui/icons-material/Savings";
 import CierreTotalsCard from "@/app/cierre/components/CierreTotalsCard";
 import VentasSummaryCard from "@/app/cierre/components/VentasSummaryCard";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import StorefrontOutlinedIcon from "@mui/icons-material/StorefrontOutlined";
 import HandshakeOutlinedIcon from "@mui/icons-material/HandshakeOutlined";
+import CierrePrepareActions from "@/app/cierre/components/CierrePrepareActions";
+import SalesCutoffBanner from "@/app/cierre/components/SalesCutoffBanner";
+import SalesCutoffDialog from "@/app/cierre/components/SalesCutoffDialog";
+import { CIERRE_CLOSE_ERRORS, CIERRE_CLOSE_MESSAGES } from "@/constants/cierre";
 
 const CierreCajaPage = () => {
-  const { user, loadingContext, gotToPath, monedasNegocio } =
-    useAppContext();
+  const { user, loadingContext, gotToPath, monedasNegocio } = useAppContext();
   const { showMessage } = useMessageContext();
   const [currentPeriod, setCurrentPeriod] = useState<ICierrePeriodo>();
   const [isDataLoading, setIsDataLoading] = useState(true);
@@ -82,9 +84,17 @@ const CierreCajaPage = () => {
   const [deletingGastoId, setDeletingGastoId] = useState<string | null>(null);
   const [cerrarCajaDialogOpen, setCerrarCajaDialogOpen] = useState(false);
   const [initialFundDialogOpen, setInitialFundDialogOpen] = useState(false);
+  const [salesCutoffDialogOpen, setSalesCutoffDialogOpen] = useState(false);
+  const [removingCutoff, setRemovingCutoff] = useState(false);
   const { clearSales, sales } = useSalesStore();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  // A SECOND threshold, and it is justified: `PageContainer` lays `headerActions`
+  // out in the title's row inside a `flexShrink: 0` box, so that row cannot
+  // compress. A fourth labelled button there would overflow the page
+  // horizontally, so between 600 and 899px the three preparation buttons come
+  // down to the content — together, which is what criterion 1 asks for.
+  const isBelowMd = useMediaQuery(theme.breakpoints.down("md"));
   const { verificarPermiso } = usePermisos();
   const canManageGastos = verificarPermiso("operaciones.gastos.gestionar");
   const canManageInitialFund = verificarPermiso(
@@ -122,25 +132,84 @@ const CierreCajaPage = () => {
       // diálogo de confirmación. Si esto falla, el cierre se aborta — no
       // queremos cerrar la caja sin que estos gastos queden reflejados.
       if (gastosRecurrentesSeleccionados.length > 0) {
-        await applyGastosCierre(
-          currentPeriod.id,
-          gastosRecurrentesSeleccionados,
-        );
+        try {
+          await applyGastosCierre(
+            currentPeriod.id,
+            gastosRecurrentesSeleccionados,
+          );
+        } catch (error) {
+          // 409 means the recurring expenses were already applied to this
+          // period. F-029 adds two 409s of its own to the close, so retrying is
+          // no longer theoretical: aborting here would make the second attempt
+          // die on an expense that is already in place. Anything else still
+          // aborts.
+          if (error?.response?.status !== 409) throw error;
+        }
       }
 
-      await closePeriod(localId, currentPeriod.id);
+      const result = await closePeriod(
+        localId,
+        currentPeriod.id,
+        cierreData?.salesCutoff?.cutoffAt ?? null,
+      );
       clearSales();
 
-      await openPeriod(localId);
+      // With a cut, the next period was already born inside the close's own
+      // transaction, exactly at the cut. Calling openPeriod then would answer
+      // 400 and paint an error over a close that went perfectly.
+      if (!result.openedPeriod) await openPeriod(localId);
       showMessage("Cierre de caja realizado exitosamente", "success");
       setCerrarCajaDialogOpen(false);
     } catch (error) {
-      console.error(error);
-      showMessage("Ha ocurrido un error al realizar el cierre", "error");
+      const mensaje = error?.response?.data?.error;
+      if (mensaje === CIERRE_CLOSE_ERRORS.salesCutoffChanged) {
+        // Nothing was written and nothing broke: it is a race the server
+        // resolved safely, so it is not painted red.
+        showMessage(CIERRE_CLOSE_MESSAGES.salesCutoffChanged, "warning");
+      } else if (mensaje === CIERRE_CLOSE_ERRORS.deferredSalesMismatch) {
+        showMessage(CIERRE_CLOSE_MESSAGES.deferredSalesMismatch, "warning");
+      } else if (mensaje === CIERRE_CLOSE_ERRORS.periodAlreadyClosed) {
+        // Possibly the automatic retry of a close that DID happen: `PUT` is in
+        // the idempotent methods of the axios client. The drawer is closed in
+        // both possible cases, so the only right thing is to resync.
+        showMessage(CIERRE_CLOSE_MESSAGES.periodAlreadyClosed, "info");
+        setCerrarCajaDialogOpen(false);
+      } else {
+        console.error(error);
+        showMessage("Ha ocurrido un error al realizar el cierre", "error");
+      }
     } finally {
       setIsProcessingCierre(false);
       await getInitData();
     }
+  };
+
+  const handleRemoveCutoff = async () => {
+    if (!currentPeriod || removingCutoff) return;
+    setRemovingCutoff(true);
+    try {
+      await setSalesCutoff(
+        user.localActual.id,
+        currentPeriod.id,
+        { mode: "clear" },
+        cierreData?.salesCutoff?.cutoffAt ?? null,
+      );
+      await getInitData();
+    } catch {
+      showMessage("No se pudo quitar el corte. Vuelve a intentarlo.", "error");
+    } finally {
+      setRemovingCutoff(false);
+    }
+  };
+
+  const handleSalesCutoffApplied = async () => {
+    setSalesCutoffDialogOpen(false);
+    await getInitData();
+  };
+
+  const handleCerrarCajaRefresh = async () => {
+    setCerrarCajaDialogOpen(false);
+    await getInitData();
   };
 
   const handleCerrarCaja = () => {
@@ -252,32 +321,52 @@ const CierreCajaPage = () => {
     canManageGastos && currentPeriod && !currentPeriod.fechaFin;
   const showInitialFundButton =
     canManageInitialFund && currentPeriod && !currentPeriod.fechaFin;
+  // Same permission the PATCH demands: a control that would answer 403 is not
+  // painted.
+  const showSelectSalesButton = canCerrarCaja;
 
-  // On a phone, this row moves out of the header entirely: "Agregar gasto" and
-  // "Fondo inicial" become full-width buttons in the content, and "Cerrar
+  // The cut only means anything while the period is open; once closed, the
+  // relation is the truth and the column is just the record of how it closed.
+  // Memoised, and it matters: a fresh Date on every render would be a new prop
+  // identity for the cutoff dialog, whose reset effect would then wipe the
+  // operator's local choice on any unrelated re-render.
+  const periodIsOpen = Boolean(currentPeriod && !currentPeriod.fechaFin);
+  const rawCutoffAt = cierreData?.salesCutoff?.cutoffAt ?? null;
+  const cutoffTime = rawCutoffAt ? new Date(rawCutoffAt).getTime() : null;
+  const salesCutoffAt = useMemo(
+    () => (periodIsOpen && cutoffTime !== null ? new Date(cutoffTime) : null),
+    [periodIsOpen, cutoffTime],
+  );
+  // The datum the server sends, not an inference from the product or
+  // per-cashier lists: those can be empty for reasons of their own, and "this
+  // close takes no sale at all" is a sentence the operator must be able to
+  // trust.
+  const closeHasNoSales = cierreData?.salesCutoff?.includedCount === 0;
+
+  const prepareActions = (
+    <CierrePrepareActions
+      layout={isBelowMd ? "section" : "header"}
+      stacked={isMobile}
+      showSelectSales={showSelectSalesButton}
+      showAdHoc={showAdHocButton}
+      showInitialFund={showInitialFundButton}
+      onSelectSales={() => setSalesCutoffDialogOpen(true)}
+      onAdHoc={() => setAdHocOpen(true)}
+      onInitialFund={() => setInitialFundDialogOpen(true)}
+    />
+  );
+  const showPrepareSection =
+    isBelowMd &&
+    (showSelectSalesButton || showAdHocButton || showInitialFundButton);
+
+  // On a phone, this row moves out of the header entirely: the three
+  // preparation actions become full-width buttons in the content, and "Cerrar
   // caja" joins the refresh action in a bar fixed to the bottom of the
   // viewport — the thumb-reachable strip the mobile redesign calls for,
   // instead of a row of icon-sized buttons squeezed under the title.
   const headerActions = !isMobile && (
     <Stack direction="row" spacing={1}>
-      {showAdHocButton && (
-        <Button
-          variant="outlined"
-          startIcon={<PostAddIcon />}
-          onClick={() => setAdHocOpen(true)}
-        >
-          Agregar gasto
-        </Button>
-      )}
-      {showInitialFundButton && (
-        <Button
-          variant="outlined"
-          startIcon={<SavingsIcon />}
-          onClick={() => setInitialFundDialogOpen(true)}
-        >
-          Fondo inicial
-        </Button>
-      )}
+      {!isBelowMd && prepareActions}
       <Tooltip title="Actualizar datos">
         <IconButton onClick={getInitData} disabled={isDataLoading}>
           <RefreshIcon />
@@ -402,6 +491,29 @@ const CierreCajaPage = () => {
           gap: { xs: 2, sm: 3 },
         }}
       >
+        {/* The cut, first of all: it is what explains every figure below it,
+            so a cashier arriving later does not read the lower totals as sales
+            gone missing. With no cut there is no banner and the screen is the
+            one it has always been. */}
+        {salesCutoffAt && (
+          <SalesCutoffBanner
+            cutoffAt={salesCutoffAt}
+            deferredCount={cierreData.salesCutoff?.deferredCount ?? 0}
+            deferredTotal={cierreData.salesCutoff?.deferredTotal ?? 0}
+            closeHasNoSales={closeHasNoSales}
+            canRemove={canCerrarCaja}
+            isMobile={isMobile}
+            removing={removingCutoff}
+            onRemove={handleRemoveCutoff}
+          />
+        )}
+
+        {/* Preparing the close — fixing the cut, noting an expense, recording
+            the fund — is what happens BEFORE reading the figures, so at narrow
+            widths it opens the content instead of sitting under the products
+            table. */}
+        {showPrepareSection && prepareActions}
+
         {/* Estadísticas del cierre */}
         <Grid
           container
@@ -595,37 +707,6 @@ const CierreCajaPage = () => {
           isProcessing={isProcessingCierre}
         />
 
-        {/* En un teléfono, "Agregar gasto" y "Fondo inicial" dejan de ser
-            botones de ícono apretados bajo el título y pasan a ocupar el
-            ancho cómodo del contenido; "Cerrar caja" se muda a la barra fija
-            de abajo, al alcance del pulgar. */}
-        {isMobile && (showAdHocButton || showInitialFundButton) && (
-          <Stack direction="row" spacing={1.25}>
-            {showAdHocButton && (
-              <Button
-                fullWidth
-                variant="outlined"
-                startIcon={<PostAddIcon />}
-                onClick={() => setAdHocOpen(true)}
-                sx={{ minHeight: 48 }}
-              >
-                Agregar gasto
-              </Button>
-            )}
-            {showInitialFundButton && (
-              <Button
-                fullWidth
-                variant="outlined"
-                startIcon={<SavingsIcon />}
-                onClick={() => setInitialFundDialogOpen(true)}
-                sx={{ minHeight: 48 }}
-              >
-                Fondo inicial
-              </Button>
-            )}
-          </Stack>
-        )}
-
         {/* Reserves the scroll space the fixed bar below occupies, so it
             never covers the last row of content. */}
         {isMobile && canCerrarCaja && (
@@ -681,9 +762,24 @@ const CierreCajaPage = () => {
           tiendaId={user.localActual.id}
           cierreId={currentPeriod.id}
           cierreData={cierreData}
+          isMobile={isMobile}
           onClose={() => setCerrarCajaDialogOpen(false)}
           onConfirm={handleConfirmarCierre}
+          onRefresh={handleCerrarCajaRefresh}
         />
+
+        {showSelectSalesButton && (
+          <SalesCutoffDialog
+            open={salesCutoffDialogOpen}
+            tiendaId={user.localActual.id}
+            cierreId={currentPeriod.id}
+            fechaInicio={new Date(currentPeriod.fechaInicio)}
+            storedCutoffAt={salesCutoffAt}
+            onClose={() => setSalesCutoffDialogOpen(false)}
+            onSaved={handleSalesCutoffApplied}
+            onRefresh={handleSalesCutoffApplied}
+          />
+        )}
 
         {canManageInitialFund && (
           <InitialCashFundDialog

@@ -28,7 +28,6 @@ export async function GET(
     const session = await getSession();
     const { negocioId, response } = resolveTenantAxis({
       session,
-      permisoRequerido: null,
     });
     if (!negocioId) return response;
 
@@ -57,7 +56,6 @@ export async function PUT(
     const session = await getSession();
     const { negocioId, response } = resolveTenantAxis({
       session,
-      permisoRequerido: null,
     });
     if (!negocioId) return response;
 

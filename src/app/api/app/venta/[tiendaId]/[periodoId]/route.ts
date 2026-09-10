@@ -14,6 +14,7 @@ import { tasaSnapshotSchema } from "@/schemas/tasaCambio";
 import { mapVentaToIVenta } from "@/lib/ventaMapper";
 import { validateTip } from "@/lib/tips";
 import { packsToOpen, unitsFromPacks } from "@/lib/fractionStock";
+import { saleMovementFecha } from "@/lib/venta/saleTime";
 import {
   MISSING_EXCHANGE_RATE_ERROR,
   missingExchangeRateMessage,
@@ -429,6 +430,15 @@ export async function POST(
           include: { productos: true },
         });
 
+        // The date every stock movement of THIS sale is stamped with: the hour
+        // the sale reports, not the hour it reached the server, so an offline
+        // sale and its movements land in the same period on both sides of a
+        // cut. `ultimoPeriodo` is the period the row above was created in
+        // (cierrePeriodoId: ultimoPeriodo.id), which is what bounds the
+        // fallback — and it is the branch that catches a sale this client moved
+        // into the current period after its own period had closed.
+        const ventaFecha = saleMovementFecha(venta, ultimoPeriodo.fechaInicio);
+
         // 3.1 Guardar descuentos aplicados (batch, un solo round-trip)
         if (
           (discountTotalCalc || 0) > 0 &&
@@ -542,6 +552,10 @@ export async function POST(
                   usuarioId,
                   existenciaAnterior,
                   referenciaId: venta.id,
+                  // Same instant as the VENTA rows: a breakdown and the sale
+                  // that triggers it are one atomic act, and dating them apart
+                  // would break the stock identity in BOTH periods.
+                  fecha: ventaFecha,
                   motivo: `Desagregación para venta ${venta.id}`,
                 },
               });
@@ -575,6 +589,7 @@ export async function POST(
                   usuarioId,
                   existenciaAnterior,
                   referenciaId: venta.id,
+                  fecha: ventaFecha,
                   motivo: `Desagregación para venta ${venta.id}`,
                 },
               });
@@ -620,6 +635,7 @@ export async function POST(
             usuarioId,
             existenciaAnterior,
             referenciaId: venta.id,
+            fecha: ventaFecha,
             motivo: `Venta ${venta.id}`,
             ...(productoTienda.proveedorId && {
               proveedorId: productoTienda.proveedorId,
