@@ -9,23 +9,15 @@ afectados y borrar la entrada de la tabla de abiertas.
 
 ## Abiertas
 
-| # | Qué falta | Bloquea | Desde |
-|---|-----------|---------|-------|
-| S-007 | Envío por zonas: `ZONE_BASED`, tarifario por zona y `contact.zoneCode` | F-013, F-016, F-026 | contrato v10.1 · 2026-09-06 |
+**Ninguna.** S-007 pasó a resueltas el 2026-09-10: la v13 la concede, y con ella se cierran los
+nueve puntos y los cinco menores de la revisión del 2026-09-09 salvo dos, que quedan anotados abajo
+como **residuos** — no como solicitudes nuevas, porque abrir una es decisión del humano.
 
-Queda una, y **ya no está en discusión: su forma se cerró entera el 2026-09-06** en una negociación
-entre los dos equipos. Está publicada como propuesta en su repositorio
-(`.agent/specs/propuestas/zonas-de-envio.md` (en **su** repositorio el directorio es `.agent/`, en singular; el `.agents/` de este documento es la convención de este repositorio))
-y será la **v13**. Nada de ella es implementable todavía: no hay `ZONE_BASED`, no existe
-`ZONE_TARIFF` y `contact` sigue teniendo exactamente cuatro claves. El detalle de la forma
-acordada está abajo, en la propia solicitud.
-
-**Su borrador se revisó el 2026-09-09 y la respuesta está en la solicitud: OK a la forma,
-condicionado a nueve puntos.** Sus tres decisiones de diseño (SP1, SP2, SP3) están cerradas y lo que
-les bloquea generar el catálogo es la lista oficial de códigos DPA/ONEI, que necesita una vía humana.
-Lo que falta ahora es de contrato, no de acuerdo, y **dos de los nueve puntos no son matices**: un
-`400` de lote por una zona desconocida nos quema los seis intentos de todo lo que viaje en ese lote,
-y el tarifario no tiene espejo ni relectura siendo lo único del cable que es un precio.
+**Lo que no está resuelto no es una solicitud, es un estado: la v13 es un BORRADOR sin publicar.**
+Mientras no retiren el aviso, `entity` no admite `ZONE_TARIFF` y emitirlo se lleva el lote entero
+con un `400 INVALID_BATCH`. La forma ya se puede especificar, diseñar e implementar; la **emisión**
+espera. Es el mismo camino que `BUSINESS` recorrió entre la v11 y la v12.2, y es la razón de ser de
+`QAB_OUTBOX_WITHHELD_ENTITIES`.
 
 ## Resueltas
 
@@ -37,16 +29,18 @@ y el tarifario no tiene espejo ni relectura siendo lo único del cable que es un
 | S-004 | `EXCHANGE_RATE` no invalida la caché del catálogo público | contrato v11 ① | 2026-09-06 |
 | S-005 | `EXCHANGE_RATE` no tiene guarda anti-rancio | contrato v11 ② | 2026-09-06 |
 | S-006 | Un fallo por evento no arrastra a sus dependientes del mismo lote | contrato v11 ③ | 2026-09-06 |
-| S-008 | El escaparate no sabe qué monedas mostrar (`displayCurrencies`) | contrato v12, afinada en la v12.1 | 2026-09-06 |
+| S-008 | El escaparate no sabe qué monedas mostrar (`displayCurrencies`) | contrato v12, afinada en la v12.1, **en pie desde la v12.2** | 2026-09-06 |
+| S-007 | Envío por zonas: `ZONE_BASED`, tarifario por zona y `contact.zoneCode` | contrato **v13** (F-041 a F-045 de QAB) — borrador, la emisión aún no | 2026-09-10 |
 
 Las cuatro de la v11 se concedieron **enteras y en una sola versión**, y la v11 se publicó
 **antes de estar construida** del lado de queandabuscando: está acordada, no en pie. QAB avisa
 feature a feature. Ver `estado_del_lado_receptor` en `features.json`.
 
-**S-008 se concedió igual: publicada antes de estar construida.** La v12 existe en el documento y
-`entity` todavía **no** acepta `BUSINESS`, así que emitirlo hoy no falla solo — cae en el
-`400 INVALID_BATCH` del schema del sobre y **se lleva el lote entero por delante**. Ver la
-solicitud para lo que eso obliga a hacer en F-027.
+**S-008 se concedió igual: publicada antes de estar construida — y desde el 2026-09-10 ya está en
+pie.** La v12.2 dice que `entity` **acepta** `BUSINESS` (su F-038 construido) y retira de los tres
+sitios el aviso de no emitirlo. Ese aviso era lo único que esperaba el interruptor de F-027:
+**vaciar `QAB_OUTBOX_WITHHELD_ENTITIES` en `src/constants/qab.ts` es todo lo que queda**, y el
+atraso de eventos encolados drena solo. Ver la solicitud.
 
 ---
 
@@ -447,7 +441,84 @@ que es lo que sí depende de nosotros.
 
 ---
 
-### S-007 · Envío por zonas: `ZONE_BASED`, tarifario por zona y `contact.zoneCode` — ABIERTA · borrador de la v13 revisado el 2026-09-09
+### S-007 · Envío por zonas: `ZONE_BASED`, tarifario por zona y `contact.zoneCode` — CONCEDIDA en la v13 · revisada el 2026-09-10
+
+> **CONCEDIDA. El contrato está en v13.4 y las zonas ya son contrato**, con una condición de estado
+> que no es un matiz: **el documento es un BORRADOR sin publicar y la emisión sigue prohibida**
+> hasta que retiren el aviso. Lo que falta de su lado es su **F-041** —aceptar `ZONE_TARIFF` en
+> `entity`, `ZONE_BASED`, `STORE.zoneCode` y la precedencia—, que se está terminando de implementar
+> y verificar; su **F-042** (selector, mapa y el pedido llevando `zoneCode`/`zoneName`) ya está
+> construido, y **F-043**, **F-044** y **F-045** están aplicados en el documento.
+>
+> **De los nueve puntos de la revisión del 2026-09-09 se conceden ocho, y los dos graves enteros:**
+>
+> 1. **Concedido en la v13.2 (su F-043).** Una zona desconocida —ausente del catálogo **o sin la
+>    forma del DPA**— ya no es `400 INVALID_BATCH`: falla **solo ese evento**, en `207 failed[]` con
+>    `ZONE_TARIFF_ZONE_UNKNOWN`/`STORE_ZONE_UNKNOWN`. Y lo argumentan midiendo **este** código:
+>    `planOutboxAck` suma `intentos++` a todas las filas del lote, no a la culpable.
+> 2. **Concedido en la v13.4 (su F-044).** El tarifario entra en la reconciliación: la respuesta de
+>    ⑤ pasa a `{products, hash, tariffs, tariffHash}`, con pseudocódigo, SQL espejo y vector propios.
+>    Eligieron la primera de las dos vías que se ofrecían. **Con un límite escrito: la divergencia
+>    del tarifario SOLO ALERTA** — no hay query convergente ni acción de recuperación, `DELETE` está
+>    prohibido, y la única corrección es un `ZONE_TARIFF` con `INHERIT` y `updatedAt` posterior.
+> 3. **Concedido.** `STORE → ZONE_TARIFF` es la tercera flecha de dependencia intra-lote, con
+>    `DEPENDENCY_FAILED_IN_BATCH` y **nunca** `skipped_not_published`. No cuesta código aquí: la
+>    parte B de F-028 reconoce el código por igualdad exacta y no cablea parejas.
+> 4. **CONCEDIDO A MEDIAS, y es el primer residuo.** El **padre** ya no se deduce de los dos
+>    primeros dígitos: viene declarado como `provinceCode` del catálogo. Pero **no hay `parentCode`
+>    ni cadena de padres**: la precedencia son dos escalones cableados (municipio → su provincia →
+>    no servida) y una zona de primer nivel solo la decide su propia fila. **Consecuencia: el
+>    segundo nivel opcional por debajo del municipio —consejo popular / reparto, que la decisión 1
+>    del 2026-09-06 pedía por La Habana— NO es aditivo.** Meterlo después invalida el vector y las
+>    dos implementaciones.
+> 5. **Concedido.** El vector son **trece** casos: los diez de precedencia con su camino completo
+>    (`V1`-`V10`) más las tres guardas de importe como casos ejecutables (`G1`-`G3`). Y ofrecen
+>    publicar la **unión** si aquí aparecen casos que allí no están, nunca la intersección.
+> 6. **Concedido tal cual.** El contrato publica el `sha256` del bloque JSON del vector, con los
+>    bytes exactos sobre los que se calcula, para que el test de aquí fije su copia commiteada
+>    contra ese número y no contra un fichero que no está en este disco.
+> 7. **Concedido, en su § «Respuesta al P7».** `ZONE_BASED` con `deliveryFee` puesto se acepta y el
+>    importe se **ignora**; `ZONE_BASED` con domicilio y **cero** filas de tarifario es **legal** y
+>    simplemente no ofrece domicilio; y el pie de plomo queda con letra: pasar de `FLAT_RATE` a
+>    `ZONE_BASED` **apaga el domicilio en el acto**, sin gracia ni herencia. Es lo que F-016
+>    necesitaba por escrito.
+> 8. **CONCEDIDO A MEDIAS.** El **índice** tiene versión (`1.0.0`), `sha256` y ruta dentro de su
+>    repositorio (`src/features/zones/zone-index.json`, **fuera** de su `docs/` y por tanto fuera de
+>    `QAB_DOCS_PATH`; los bytes viajan adjuntos al borrador). La **geometría** no tiene ni versión
+>    ni hash publicados — y para este lado eso ya no importa: el mapa lo pinta su F-042, y 184
+>    códigos se eligen de una lista.
+> 9. **Concedido.** Los tres códigos van a § Vocabulario de errores con su clase escrita.
+>    `ZONE_TARIFF_DELETE_NOT_SUPPORTED` es **permanente**; los dos `*_ZONE_UNKNOWN` son
+>    **reintentables y SÍ gastan intento** (no son diferidos). Un cuarto,
+>    `ZONE_TARIFF_FEE_NOT_ALLOWED`, vive en `issues[].message` de un `400` del sobre y es permanente.
+>
+> **Los cinco menores, los cinco concedidos:** `ZONE_TARIFF.deliveryFee` con las mismas reglas que
+> `STORE.deliveryFee`; `contact.zoneCode`/`zoneName` **siempre presentes**, `string | null`, y
+> obligatorias de hecho en un domicilio `ZONE_BASED`; `zoneCode` **siempre municipio**, nunca
+> provincia; el `storeId` de otro negocio contestado **ejecutando** contra Postgres con dos negocios
+> —`skipped_not_published` en `ok`, byte a byte igual que una tienda inexistente—; y el § rancio de
+> la v12.2 reescrito como registro histórico.
+>
+> **Segundo residuo, y no se pidió: el pedido no trae coordenadas del comprador.** `contact` gana
+> `zoneCode` y `zoneName`, y nada más. Las `contact.lat`/`lng` que la v11 daba por acordadas no
+> están en la v13, así que **la distancia geodésica de las decisiones 5 y 6 del 2026-09-06 no tiene
+> dato de entrada en el cable**. Coherente con «el precio sale del tarifario y nunca de la
+> distancia», pero la señal secundaria para ordenar y avisar se queda sin fuente.
+>
+> **Lo que esta revisión deja para el humano, y no es petición a nadie:** decidir si los dos
+> residuos se piden — serían **S-009** (`parentCode` y la cadena de padres, sin la cual el segundo
+> nivel por debajo del municipio no es aditivo) y **S-010** (coordenadas del comprador en el pedido,
+> sin las cuales la distancia geodésica no tiene dato de entrada).
+>
+> **La rama de zonas ya está en el backlog** (2026-09-10, con el visto bueno del humano): **F-039**
+> catálogo y precedencia — lo único empezable sin esperar el aviso —, **F-040** `ZONE_BASED` y
+> `Tienda.zoneCode`, **F-041** el tarifario y su emisión retenida, **F-042** el espejo del
+> `tariffHash`, **F-043** la zona del comprador en el pull, y **F-044** el punta a punta, que es el
+> único `blocked` porque necesita el aviso. **F-026 queda `deprecated`** y F-044 lo reemplaza: la
+> mitad de su descripción —el comprador eligiendo sobre un mapa, y su criterio 8 midiendo teselas—
+> es hoy el F-042 de QAB y está construido de su lado. Sus criterios no se editaron: se repartieron.
+
+### S-007 · El registro de la revisión anterior — borrador de la v13 revisado el 2026-09-09
 
 > **BORRADOR DE LA v13 REVISADO EL 2026-09-09 · OK a la forma, condicionado a nueve puntos.** No
 > hay v13 todavía: `docs/sync-contract.md` sigue en **v12.2** y solo reserva el número. Lo revisado
