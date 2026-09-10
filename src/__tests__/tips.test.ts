@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import {
   buildResumenPropinas,
   totalPropinasBase,
@@ -188,6 +188,68 @@ describe("buildResumenPropinas", () => {
     expect(
       buildResumenPropinas([{ tasaSnapshot: {} }, { tipDetail: null }], BASE),
     ).toEqual([]);
+  });
+
+  /**
+   * F-029, criterion 4 — `buildResumenPropinas` (`@/lib/tips.ts:127`), the sibling of
+   * `buildResumenMonedas` in `@/lib/movimiento/caja.ts` (contract § 7.2). Same bug,
+   * same fix: today the `equivalenteBase` sum sits OUTSIDE the if/cash/else/transfer
+   * branch, so a line with a `tipo` that is neither adds to `equivalenteBase` while
+   * also falling into the `else` as if it were a transfer — double-counted.
+   *
+   * `@/constants/pago` is imported per-test (not at module top level) so that, while
+   * it does not exist yet, only these two new cases fail to collect — not the whole
+   * file, which already has tests in green (E-026 adenda / E-019).
+   */
+  describe("unknown payment line type (criterion 4)", () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("does NOT add a tip line of unknown tipo to tipTransfer NOR to equivalenteBase, and warns", async () => {
+      const { UNKNOWN_PAYMENT_LINE_TYPE_WARNING } = await import(
+        "@/constants/pago"
+      );
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+      const unknown = {
+        tipo: "xxx",
+        moneda: "CUP",
+        monto: 500,
+        equivalenteBase: 500,
+      } as unknown as IPagoLinea;
+
+      const resumen = buildResumenPropinas(
+        [{ tipDetail: [unknown], tasaSnapshot: {} }],
+        BASE,
+      );
+
+      // The unknown line is the only one of its currency: if it moved anything, that
+      // currency's bucket would exist. It must not.
+      expect(resumen).toEqual([]);
+      expect(warn).toHaveBeenCalledWith(UNKNOWN_PAYMENT_LINE_TYPE_WARNING);
+    });
+
+    it("does not move the resumen of a currency that ALSO carries a known tip line", () => {
+      vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+      const unknown = {
+        tipo: "xxx",
+        moneda: "CUP",
+        monto: 999,
+        equivalenteBase: 999,
+      } as unknown as IPagoLinea;
+
+      const withUnknown = buildResumenPropinas(
+        [{ tipDetail: [cash("CUP", 100, 100), unknown], tasaSnapshot: {} }],
+        BASE,
+      );
+      const withoutUnknown = buildResumenPropinas(
+        [{ tipDetail: [cash("CUP", 100, 100)], tasaSnapshot: {} }],
+        BASE,
+      );
+      expect(withUnknown).toEqual(withoutUnknown);
+    });
   });
 });
 

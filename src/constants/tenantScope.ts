@@ -25,6 +25,9 @@ export const TENANT_RELATION_PATH = {
   cashBreakdownCierre: ["cierrePeriodo", "tienda"],
   cashBreakdownMoneda: ["cierrePeriodo", "tienda"],
   productoProveedorLiquidacion: ["cierre", "tienda"],
+  cliente: [],
+  cuentaPorCobrar: ["tienda"],
+  movimientoCuentaPorCobrar: ["cuentaPorCobrar", "tienda"],
 } as const satisfies Record<string, readonly string[]>;
 
 export type ITenantScopedModel = keyof typeof TENANT_RELATION_PATH;

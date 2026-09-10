@@ -29,7 +29,9 @@ const {
   resolveTenantAxis,
 } = await import("@/lib/tenantScope");
 
-const { TENANT_SCOPE_API_ERRORS } = await import("@/constants/tenantScope");
+const { TENANT_SCOPE_API_ERRORS, TENANT_RELATION_PATH } = await import(
+  "@/constants/tenantScope"
+);
 
 const NEGOCIO_A = "negocio-a-uuid";
 
@@ -136,6 +138,55 @@ describe("withTenantScope", () => {
     const originalSnapshot = { ...original };
     withTenantScope("transferDestinations", original, NEGOCIO_A);
     expect(original).toEqual(originalSnapshot);
+  });
+
+  /**
+   * F-029, contract § 6.1 and criterion 11 — the three new entries verbatim from the
+   * contract's own worked examples. `Cliente` carries `negocioId` directly (mirrors
+   * `tienda`); `CuentaPorCobrar` reaches it through its own direct `Tienda` edge, ONE
+   * hop; `MovimientoCuentaPorCobrar` reaches it through `cuentaPorCobrar -> tienda`,
+   * TWO hops. Without the three matching entries in `TENANT_RELATION_PATH`, `tsc`
+   * itself refuses to compile this call (contract § 6.1) — that is the safety net
+   * criterion 11 exists to keep in place.
+   */
+  it("adds negocioId directly on the model for Cliente, which carries the column directly (F-029)", () => {
+    expect(withTenantScope("cliente", { id: "cl1" }, NEGOCIO_A)).toEqual({
+      id: "cl1",
+      negocioId: NEGOCIO_A,
+    });
+  });
+
+  it("nests ONE hop for CuentaPorCobrar, through its own direct Tienda edge (F-029)", () => {
+    expect(withTenantScope("cuentaPorCobrar", { id: "cxc1" }, NEGOCIO_A)).toEqual({
+      id: "cxc1",
+      tienda: { negocioId: NEGOCIO_A },
+    });
+  });
+
+  it("nests TWO hops for MovimientoCuentaPorCobrar, through cuentaPorCobrar -> tienda (F-029)", () => {
+    expect(
+      withTenantScope("movimientoCuentaPorCobrar", { id: "m1" }, NEGOCIO_A),
+    ).toEqual({
+      id: "m1",
+      cuentaPorCobrar: { tienda: { negocioId: NEGOCIO_A } },
+    });
+  });
+});
+
+describe("TENANT_RELATION_PATH — the three F-029 entries (contract § 6.1)", () => {
+  it("declares cliente with an empty path (negocioId directly on the model)", () => {
+    expect(TENANT_RELATION_PATH.cliente).toEqual([]);
+  });
+
+  it("declares cuentaPorCobrar as a one-hop path through its own `tienda` relation field", () => {
+    expect(TENANT_RELATION_PATH.cuentaPorCobrar).toEqual(["tienda"]);
+  });
+
+  it("declares movimientoCuentaPorCobrar as a two-hop path through `cuentaPorCobrar`, matching the Prisma relation field name (not a generic `cuenta`)", () => {
+    expect(TENANT_RELATION_PATH.movimientoCuentaPorCobrar).toEqual([
+      "cuentaPorCobrar",
+      "tienda",
+    ]);
   });
 });
 

@@ -82,6 +82,8 @@ model Negocio {
 
   outboxEventos    OutboxEvento[]
   pedidosEntrantes PedidoEntrante[]
+
+  clientes Cliente[]
 }
 
 model Promoter {
@@ -258,6 +260,8 @@ model Tienda {
 
   pedidosEntrantes PedidoEntrante[]
 
+  cuentasPorCobrar CuentaPorCobrar[]
+
   // Índice de unicidad compuesto: nombre único por negocio
   @@unique([nombre, negocioId])
   /// Slug uniqueness is per business: QAB owns the global namespace.
@@ -313,6 +317,8 @@ model Usuario {
 
   localActual   Tienda? @relation(fields: [localActualId], references: [id])
   localActualId String?
+
+  movimientosCuentaPorCobrar MovimientoCuentaPorCobrar[]
 
   isActive  Boolean   @default(true)
   deletedAt DateTime?
@@ -514,6 +520,16 @@ model Venta {
   tipTotal  Float @default(0) // En monedaBase
   tipDetail Json? // IPagoLinea[] — subconjunto etiquetado de pagosDetalle
 
+  /// Portion of `total` handed over on credit, in base currency. 0 = fully paid at
+  /// the counter, which is every sale created before this column existed.
+  creditoBase Float @default(0)
+
+  /// The debtor. NULL <=> creditoBase = 0.
+  cliente   Cliente? @relation(fields: [clienteId], references: [id])
+  clienteId String?
+
+  cuentaPorCobrar CuentaPorCobrar?
+
   // Reporting: date-range scans, closing-period scoping and per-seller aggregation
   @@index([tiendaId, createdAt])
   @@index([cierrePeriodoId])
@@ -598,6 +614,15 @@ model CierrePeriodo {
   // Propinas del período. Están dentro del efectivo/transferencia de caja (el
   // dinero entró), pero nunca dentro de totalVentas ni de la ganancia.
   totalTips         Float @default(0)
+
+  /// Sum of Venta.creditoBase of the period. INSIDE totalVentas, OUTSIDE the drawer.
+  totalCreditoOtorgado   Float @default(0)
+  /// Debt collected during this period, whatever period the debt was born in.
+  /// INSIDE the drawer, OUTSIDE totalVentas.
+  totalCobrosCredito     Float @default(0)
+  /// Store balance still outstanding at fechaFin, across all periods. A STOCK, not a
+  /// flow: never summed across periods.
+  totalPorCobrarAlCierre Float @default(0)
 
   cashBreakdown       CashBreakdownCierre?
   resumenMonedas      ResumenMonedaCierre[]
@@ -686,6 +711,12 @@ model MovimientoStock {
   // Solo para DEVOLUCION_VENTA: monto reembolsado al cliente, en moneda base (precio histórico × cantidad).
   // La ganancia revertida se deriva como montoReembolso - costoTotal.
   montoReembolso Float?
+
+  /// Only for DEVOLUCION_VENTA on a credit sale: how much of montoReembolso was applied
+  /// to the debt instead of leaving the drawer. Cash actually returned is
+  /// montoReembolso - (montoAplicadoADeuda ?? 0). NULL for every movement recorded
+  /// before this column existed and for every refund of a non-credit sale.
+  montoAplicadoADeuda Float?
 
   usuario   Usuario? @relation(fields: [usuarioId], references: [id])
   usuarioId String?
@@ -1342,4 +1373,144 @@ model QabReconciliacionTienda {
   updatedAt DateTime @updatedAt
 
   @@index([ultimaComparacionAt])
+}
+
+// =====================
+// 💳 CUENTAS POR COBRAR
+// =====================
+
+/// The debtor of a credit sale. Mirrors Proveedor, plus soft delete.
+model Cliente {
+  id          String   @id @default(uuid())
+  nombre      String
+  descripcion String?
+  direccion   String?
+  telefono    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  negocio   Negocio @relation(fields: [negocioId], references: [id])
+  negocioId String
+
+  /// null = active, a date = soft deleted. Same shape as Producto/ProductoTienda.
+  deletedAt DateTime?
+
+  ventas           Venta[]
+  cuentasPorCobrar CuentaPorCobrar[]
+
+  @@unique([nombre, negocioId])
+  @@index([nombre])
+}
+
+/// The debt of one credit sale. `settledAt IS NULL` = live, exactly as
+/// ProductoProveedorLiquidacion.liquidatedAt means "accrued and not settled".
+model CuentaPorCobrar {
+  id String @id @default(uuid())
+
+  /// The credit sale that created the debt. UNIQUE: one account per sale.
+  venta   Venta  @relation(fields: [ventaId], references: [id], onDelete: Cascade)
+  ventaId String @unique
+
+  cliente   Cliente @relation(fields: [clienteId], references: [id])
+  clienteId String
+
+  /// Direct edge to Tienda. It exists so the tenant clause is ONE hop
+  /// (TENANT_RELATION_PATH.cuentaPorCobrar = ["tienda"]), not two through Venta.
+  ///
+  /// INVARIANT: this MUST equal the tiendaId of the Venta that created the row. Nothing in
+  /// the schema enforces it — there is no composite FK against a simple FK — so the writer
+  /// (F-032, which creates this row inside the same $transaction as the Venta) derives it
+  /// from the SAME variable already persisted as Venta.tiendaId. It is never re-read from
+  /// the request, from a route param, or from another part of the payload.
+  tienda   Tienda @relation(fields: [tiendaId], references: [id])
+  tiendaId String
+
+  /// Copied from Venta.createdAt when the account is created. Aging is measured from here.
+  fechaVenta DateTime
+
+  /// Venta.creditoBase at creation, in base currency.
+  montoOriginal Float @default(0)
+
+  /// DENORMALIZED: montoOriginal minus the signed sum of its movements.
+  /// computeSaldoAlCierre is the definition; this column is a cache of it.
+  saldoPendiente Float @default(0)
+
+  /// NULL = live account. A date = fully settled.
+  settledAt DateTime?
+
+  /// Informative only, so the customer can be told "you owe 20 USD". No arithmetic
+  /// reads these: the debt is denominated in base currency (ADR 0104).
+  monedaDeudaCode          String?
+  montoDeudaMonedaOriginal Float?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  movimientos MovimientoCuentaPorCobrar[]
+
+  @@index([tiendaId, settledAt])
+  @@index([tiendaId, fechaVenta])
+  @@index([clienteId])
+}
+
+/// APPEND-ONLY ledger of everything that moves a balance. A reversal is a new row
+/// (REVERSION_ABONO), never an UPDATE or a DELETE: totalPorCobrarAlCierre of a closed
+/// period is recomputed as "movements with fecha <= fechaFin", and mutating rows would
+/// change the figures of an already closed period.
+model MovimientoCuentaPorCobrar {
+  id String @id @default(uuid())
+
+  /// Relation field named `cuentaPorCobrar` on purpose: TENANT_RELATION_PATH walks
+  /// relation FIELD names, and criterion 11 fixes the clause as
+  /// { cuentaPorCobrar: { tienda: { negocioId } } }.
+  cuentaPorCobrar   CuentaPorCobrar @relation(fields: [cuentaPorCobrarId], references: [id], onDelete: Cascade)
+  cuentaPorCobrarId String
+
+  tipo TipoMovimientoCuentaPorCobrar
+
+  /// Always POSITIVE and always in base currency. The sign belongs to `tipo`, never
+  /// to this number: see MOVIMIENTO_CUENTA_POR_COBRAR_SIGN in src/lib/cuentasPorCobrar/saldo.ts.
+  monto Float
+
+  /// When the movement happened. This is what assigns it to a period: there is
+  /// deliberately NO cierrePeriodoId FK.
+  fecha DateTime @default(now())
+
+  /// IPagoLinea[] — the SAME shape as Venta.pagosDetalle, so buildResumenMonedas
+  /// consumes sales and collections through one function. NULL for the tipos that
+  /// move no physical money (CONDONACION, AJUSTE_DEVOLUCION).
+  pagosDetalle Json?
+  /// Rates in force when this movement was registered. Its own snapshot: an
+  /// instalment happens weeks after the sale, with different rates.
+  tasaSnapshot Json?
+
+  motivo String?
+
+  usuario   Usuario? @relation(fields: [usuarioId], references: [id])
+  usuarioId String?
+
+  /// A REVERSION_ABONO points at the ABONO it reverses. NULL for every other tipo.
+  ///
+  /// SELF-REFERENCING FK, and the database only checks that the target row EXISTS: it does
+  /// not check that it belongs to the same cuentaPorCobrarId, and therefore not that it
+  /// belongs to the same tenant. The check lives in applyMovimientoCuentaPorCobrar, which
+  /// is the only door that writes here.
+  revierte    MovimientoCuentaPorCobrar?  @relation("ReversionAbono", fields: [revierteId], references: [id])
+  revierteId  String?
+  reversiones MovimientoCuentaPorCobrar[] @relation("ReversionAbono")
+
+  createdAt DateTime @default(now())
+
+  @@index([cuentaPorCobrarId, fecha])
+  @@index([fecha])
+}
+
+/// Everything that can move a CuentaPorCobrar balance. Values in Spanish, like
+/// MovimientoTipo and FormaPagoCompra: they are persisted, listed and labelled
+/// next to those. Every TypeScript symbol around them is in English.
+enum TipoMovimientoCuentaPorCobrar {
+  ABONO // Money received against the debt. Lowers the balance.
+  AJUSTE_DEVOLUCION // Refund of returned goods applied to the debt. Lowers the balance.
+  CONDONACION // Debt written off. Lowers the balance.
+  REVERSION_ABONO // Undoes an earlier ABONO. RAISES the balance.
 }

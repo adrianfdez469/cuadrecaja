@@ -40,5 +40,10 @@ export function ventaToSale(venta: IVenta): Sale {
     discountTotal: venta.discountTotal,
     tipTotal: venta.tipTotal,
     tipDetail: venta.tipDetail,
+    // The reprint path from a sale's detail. Without these three, a reprinted ticket of a
+    // credit sale comes out with no customer and no balance even though the server has both.
+    creditoBase: venta.creditoBase,
+    clienteId: venta.clienteId ?? undefined,
+    clienteNombre: venta.clienteNombre,
   };
 }

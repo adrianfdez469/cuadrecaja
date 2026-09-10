@@ -43,6 +43,22 @@ export interface Sale {
   tipTotal?: number;
   tipDetail?: IPagoLinea[];
   /**
+   * Credit sale — persisted like the rest of the payment so the offline queue can re-send
+   * it. `creditoBase` is the part of `total` left as debt, in base currency; the server
+   * cannot recompute it (ADR 0104).
+   *
+   * The three are optional, so a sale queued before this feature rehydrates without them and
+   * reads as 0/undefined, which is correct: the persist version and its `migrate` are NOT
+   * touched.
+   */
+  creditoBase?: number;
+  clienteId?: string;
+  /**
+   * The debtor's name. Present even when `clienteId` is, so a queued sale is readable with
+   * no catalogue at hand and its ticket prints without going to the network.
+   */
+  clienteNombre?: string;
+  /**
    * Las líneas que el servidor no pudo cubrir la última vez que se intentó
    * enviar esta venta.
    *

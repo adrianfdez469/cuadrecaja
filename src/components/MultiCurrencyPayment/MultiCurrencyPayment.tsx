@@ -23,6 +23,7 @@ import type { INegocioMoneda } from "@/schemas/moneda";
 import type { ITasaSnapshot } from "@/schemas/tasaCambio";
 import type { IPagoLinea, IVueltoLinea } from "@/schemas/pago";
 import MoneyField from "@/components/MoneyField";
+import { formatMontoEnMoneda } from "@/utils/formatters";
 
 export interface MultiCurrencyPaymentProps {
   totalBase: number;
@@ -34,6 +35,24 @@ export interface MultiCurrencyPaymentProps {
   pagos: IPagoLinea[];
   onPagosChange: (pagos: IPagoLinea[]) => void;
   transferDestinations: { id: string; nombre: string; default: boolean }[];
+  /**
+   * Whether overpaying hands change back. Defaults to true, which is exactly today's behaviour.
+   *
+   * A debt collection sets it to false: there is no change in a collection, and an amount above
+   * the balance is refused by the server with a 400 carrying the real balance (criterion 9). With
+   * `false` the component neither computes `calcularVuelto` nor renders the change block.
+   */
+  allowChange?: boolean;
+  /**
+   * Whether the component paints its own "Falta: X" line. Defaults to true, today's behaviour.
+   *
+   * A debt collection sets it to false. That line was written for a sale, where paying less than
+   * the total IS a failure; against a debt, `totalBase` is the outstanding balance and paying less
+   * than it is the NORMAL case of criterion 4 — a partial instalment. Calling it "Falta" in error
+   * ink says the opposite of what happened. The collection dialog paints its own result line, so
+   * hiding this one removes a duplicate rather than an explanation.
+   */
+  showShortfall?: boolean;
 }
 
 export function MultiCurrencyPayment({
@@ -46,6 +65,8 @@ export function MultiCurrencyPayment({
   pagos,
   onPagosChange,
   transferDestinations,
+  allowChange = true,
+  showShortfall = true,
 }: MultiCurrencyPaymentProps) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
@@ -61,15 +82,25 @@ export function MultiCurrencyPayment({
 
   const vuelto: IVueltoLinea[] = useMemo(
     () =>
-      calcularVuelto(
-        totalBase,
-        pagos,
-        monedaCobro,
-        monedaBase,
-        tasas,
-        denominaciones,
-      ),
-    [totalBase, pagos, monedaCobro, monedaBase, tasas, denominaciones],
+      allowChange
+        ? calcularVuelto(
+            totalBase,
+            pagos,
+            monedaCobro,
+            monedaBase,
+            tasas,
+            denominaciones,
+          )
+        : [],
+    [
+      allowChange,
+      totalBase,
+      pagos,
+      monedaCobro,
+      monedaBase,
+      tasas,
+      denominaciones,
+    ],
   );
 
   const totalEnMonedaCobro = useMemo(
@@ -159,7 +190,7 @@ export function MultiCurrencyPayment({
     <Stack gap={1.5}>
       {/* Total en moneda de cobro */}
       <Typography variant="h5" fontWeight="bold">
-        Total:&nbsp;{totalEnMonedaCobro.toFixed(2)} {monedaCobro}
+        Total:&nbsp;{formatMontoEnMoneda(totalEnMonedaCobro, monedaCobro)}
       </Typography>
       {monedaCobro !== monedaBase && (
         <Typography
@@ -168,7 +199,7 @@ export function MultiCurrencyPayment({
           display="block"
           mt={-0.5}
         >
-          = {totalBase.toFixed(2)} {monedaBase}
+          = {formatMontoEnMoneda(totalBase, monedaBase)}
         </Typography>
       )}
 
@@ -217,7 +248,7 @@ export function MultiCurrencyPayment({
           >
             {/* Row 1: moneda + tipo */}
             <Stack direction="row" gap={1} mb={1.5}>
-              <FormControl size="small" sx={{ flex: 1 }}>
+              <FormControl sx={{ flex: 1 }}>
                 <InputLabel>Moneda</InputLabel>
                 <Select
                   value={p.moneda}
@@ -233,7 +264,7 @@ export function MultiCurrencyPayment({
                   ))}
                 </Select>
               </FormControl>
-              <FormControl size="small" sx={{ flex: 1 }}>
+              <FormControl sx={{ flex: 1 }}>
                 <InputLabel>Tipo</InputLabel>
                 <Select
                   value={p.tipo}
@@ -259,7 +290,6 @@ export function MultiCurrencyPayment({
             {/* Row 2: monto + equivalente */}
             <Stack direction="row" gap={1} alignItems="center" mb={1.5}>
               <MoneyField
-                size="small"
                 label={`Monto (${p.moneda})`}
                 value={p.monto || ""}
                 onChange={(e) =>
@@ -273,14 +303,14 @@ export function MultiCurrencyPayment({
                   color="text.secondary"
                   sx={{ whiteSpace: "nowrap" }}
                 >
-                  ≈ {eqBase.toFixed(2)} {monedaBase}
+                  ≈ {formatMontoEnMoneda(eqBase, monedaBase)}
                 </Typography>
               )}
             </Stack>
 
             {/* Row 3: destination */}
             {p.tipo === "transfer" && transferDestinations.length > 0 && (
-              <FormControl size="small" fullWidth sx={{ mb: 1.5 }}>
+              <FormControl fullWidth sx={{ mb: 1.5 }}>
                 <InputLabel>Destino</InputLabel>
                 <Select
                   value={p.transferDestinationId ?? ""}
@@ -302,7 +332,6 @@ export function MultiCurrencyPayment({
             <Button
               variant="outlined"
               color="error"
-              size="small"
               startIcon={<Delete />}
               onClick={() => removePago(idx)}
               fullWidth
@@ -313,7 +342,7 @@ export function MultiCurrencyPayment({
         ) : (
           /* ── Desktop: row layout ── */
           <Stack key={idx} direction="row" gap={1} alignItems="flex-start">
-            <FormControl size="small" sx={{ minWidth: 90 }}>
+            <FormControl sx={{ minWidth: 90 }}>
               <InputLabel>Moneda</InputLabel>
               <Select
                 value={p.moneda}
@@ -330,7 +359,7 @@ export function MultiCurrencyPayment({
               </Select>
             </FormControl>
 
-            <FormControl size="small" sx={{ minWidth: 110 }}>
+            <FormControl sx={{ minWidth: 110 }}>
               <InputLabel>Tipo</InputLabel>
               <Select
                 value={p.tipo}
@@ -353,7 +382,6 @@ export function MultiCurrencyPayment({
             </FormControl>
 
             <MoneyField
-              size="small"
               label={`Monto (${p.moneda})`}
               value={p.monto || ""}
               onChange={(e) =>
@@ -363,7 +391,7 @@ export function MultiCurrencyPayment({
             />
 
             {p.tipo === "transfer" && transferDestinations.length > 0 && (
-              <FormControl size="small" sx={{ minWidth: 130 }}>
+              <FormControl sx={{ minWidth: 130 }}>
                 <InputLabel>Destino</InputLabel>
                 <Select
                   value={p.transferDestinationId ?? ""}
@@ -382,7 +410,7 @@ export function MultiCurrencyPayment({
             )}
 
             {eqBase !== null && (
-              <Tooltip title={`= ${eqBase.toFixed(2)} ${monedaBase}`}>
+              <Tooltip title={`= ${formatMontoEnMoneda(eqBase, monedaBase)}`}>
                 <Chip
                   label={`≈${eqBase.toFixed(0)} ${monedaBase}`}
                   size="small"
@@ -392,7 +420,6 @@ export function MultiCurrencyPayment({
             )}
 
             <IconButton
-              size="small"
               color="error"
               onClick={() => removePago(idx)}
               sx={{ mt: 0.5 }}
@@ -406,7 +433,6 @@ export function MultiCurrencyPayment({
       <Button
         startIcon={<Add />}
         onClick={addPago}
-        size="small"
         sx={{ alignSelf: "flex-start" }}
       >
         Agregar pago
@@ -419,25 +445,32 @@ export function MultiCurrencyPayment({
         <Stack direction="row" justifyContent="space-between">
           <Typography variant="h6">Total recibido:</Typography>
           <Typography variant="h6" fontWeight={600}>
-            {totalPagadoBase.toFixed(2)} {monedaBase}
+            {formatMontoEnMoneda(totalPagadoBase, monedaBase)}
           </Typography>
         </Stack>
+        {/*
+          With `showShortfall` and `allowChange` both false — the debt-collection flow — this
+          whole ternary collapses and the summary is one line, `Total recibido:`. That is what
+          lets the collection dialog own the single sentence about the outcome.
+        */}
         {falta ? (
-          <Stack direction="row" justifyContent="space-between">
-            <Typography variant="h6" color="error">
-              Falta:
-            </Typography>
-            <Typography variant="h6" color="error">
-              {(totalBase - totalPagadoBase).toFixed(2)} {monedaBase}
-            </Typography>
-          </Stack>
-        ) : vuelto.length === 0 ? (
+          showShortfall && (
+            <Stack direction="row" justifyContent="space-between">
+              <Typography variant="h6" color="error">
+                Falta:
+              </Typography>
+              <Typography variant="h6" color="error">
+                {formatMontoEnMoneda(totalBase - totalPagadoBase, monedaBase)}
+              </Typography>
+            </Stack>
+          )
+        ) : !allowChange ? null : vuelto.length === 0 ? (
           <Stack direction="row" justifyContent="space-between">
             <Typography variant="h6" color="success.main">
               Cambio:
             </Typography>
             <Typography variant="h6" color="success.main">
-              0.00
+              {formatMontoEnMoneda(0, monedaBase)}
             </Typography>
           </Stack>
         ) : (
@@ -451,7 +484,7 @@ export function MultiCurrencyPayment({
                 Cambio{vuelto.length > 1 ? ` (${v.moneda})` : ""}:
               </Typography>
               <Typography variant="h6" color="success.main">
-                {v.monto.toFixed(2)} {v.moneda}
+                {formatMontoEnMoneda(v.monto, v.moneda)}
               </Typography>
             </Stack>
           ))

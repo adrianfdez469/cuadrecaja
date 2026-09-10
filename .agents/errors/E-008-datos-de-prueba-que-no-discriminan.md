@@ -1,7 +1,7 @@
 # E-008: Datos de prueba que no discriminan, y el falso aprobado que producen
 
 **Área:** tests
-**Apariciones:** 1 — F-018 (tres veces dentro del mismo feature)
+**Apariciones:** 4 — F-018 (tres veces dentro del mismo feature) · F-029 · F-032 · F-033
 
 ## Síntoma
 
@@ -70,3 +70,96 @@ y **cuyo trabajo es no aparecer nunca**: es el único que delata esa guarda.
 Cada `it()` afirma entonces **tres** cosas, no dos. La primera prueba que la cláusula funciona; la
 segunda, que hace falta; la tercera, que no es más ancha de lo debido — que es
 [E-032](E-032-una-guarda-mas-ancha-que-la-del-contrato.md).
+
+---
+
+## Adenda F-029 — el autor sospecha del test, y solo la mutación mide cuánto
+
+El `dev-tester` de F-029 entregó su suite **declarando él mismo** que sus tests de orden de
+evaluación de `checkCreditInvariant` podían no discriminar: los había construido para no depender
+del valor de `delta`, así que una implementación que evaluara la aritmética antes que las reglas
+duras los pasaría igual. Una confesión honesta, y el tipo de aviso que esta ficha existe para que
+alguien recoja.
+
+Lo que aportó F-029 es **cómo se resuelve una sospecha así**: `qa` no la creyó ni la descartó, la
+midió. Aplicó cuatro mutaciones al código real y contó cuáles detectaba la suite:
+
+| Mutación | ¿La suite la detecta? |
+|---|---|
+| Reordenar el bloque entero (aritmética antes que las tres reglas duras) | Sí — 1 de 23 cae |
+| Intercambiar dos reglas duras entre sí | Sí — 1 de 23 cae |
+| Mover **solo** la regla 4 delante de las reglas duras | **No — 23 de 23 pasan** |
+| Leer `tolerance` con `Number(t) \|\| DEFAULT` en vez de respetar un `0` explícito | **No — 23 de 23 pasan** |
+
+Tres lecciones:
+
+1. **La autoevaluación de quien escribió el test es una hipótesis, no un dato.** Aquí era pesimista
+   en una mitad y exacta en la otra. Sin medir, se habría rechazado cobertura buena o firmado un
+   hueco real; con medir, se supo exactamente cuál era cuál.
+2. **La mutación es el único instrumento que responde «¿con qué datos habría fallado esto?»** —la
+   pregunta que abre esta ficha— sin depender de la imaginación de nadie. El protocolo completo es:
+   romper, comprobar que cae, **revertir**, y confirmar que vuelve a verde.
+3. **Un parámetro con valor por defecto es un discriminador que casi nadie prueba.** `tolerance: 0`
+   explícito y `tolerance` ausente son casos distintos, y la lectura naïve `Number(x) || DEFAULT`
+   los confunde en silencio: convierte un cero deliberado en el default. Si un contrato dice
+   «defaults to X», hay un test que pasar el valor falsy explícitamente.
+
+
+---
+
+## Adenda F-032 — la siembra que no rompe su criterio, rompe los otros cuatro
+
+Las adendas anteriores son sobre datos que **no distinguen** lo que se cree. Esta es su reverso: un
+dato de siembra **correcto para su propio criterio** que invalida en silencio a los demás.
+
+El criterio 6 del diseño de F-032 necesita un carrito con importe 0 para comprobar que la fila «A
+crédito» se deshabilita. La instrucción original decía «un producto de precio 0» — vía **cerrada**:
+`catalogo_pos/route.ts` filtra `precio: { gt: 0 }` y ese producto no llega nunca al carrito. Se
+corrigió a un descuento del 100 %.
+
+Y ahí apareció lo de verdad peligroso. `engine.ts` **solo exige tecleado el descuento cuyo
+`conditions.code` existe**, así que una `DiscountRule` del 100 % **sin código**:
+
+- cumple perfectamente el criterio 6,
+- y **se autoaplica a todos los carritos de ese negocio**, dejando en 0 el total de los criterios
+  1, 3, 4 y 5 —que necesitan exactamente 1.000— sin un solo mensaje de error.
+
+El fallo no se manifiesta donde se sembró. Se manifiesta cuatro criterios más allá, como una cifra
+que no cuadra, y el instinto manda a buscar el bug en el código del feature.
+
+**Regla:** antes de sembrar un dato **global al tenant** —una regla de descuento, un impuesto, una
+configuración de negocio, un permiso de rol—, pregúntate a qué **otros** criterios afecta. Un
+fixture acotado a una fila no necesita esa pregunta; uno que cambia el comportamiento por defecto
+del negocio, sí. Y si el dato tiene forma de «se aplica cuando…», comprueba **cuál es la condición
+real en el motor**, no la que parece.
+
+
+---
+
+## Adenda F-033 — el tamaño del fixture también discrimina, y `sort` lo demuestra
+
+Todas las apariciones anteriores son sobre el **contenido** del dato de prueba: dos tenants que
+comparten el valor literal, un `tolerance: 0` que se lee como el default, una siembra global que
+rompe otros criterios. F-033 añade un eje que no estaba: **cuántos elementos tiene el fixture.**
+
+`buildMovimientoRows` ordenaba con `b.fecha.getTime()` sobre un campo que llegaba como string. El
+detalle de cualquier deudor con **dos o más movimientos** respondía 500 — el caso más ordinario del
+feature. Sobrevivió a los tests unitarios, a una ronda entera de QA y a dos verificaciones más por
+una sola razón:
+
+> **`Array.prototype.sort` no invoca el comparador con 0 o 1 elementos.**
+
+Toda cuenta de un solo movimiento —con lo que se sembró la primera pasada de QA, y con lo que
+estaban escritos los tests— **nunca ejecutaba la línea que rompe**. Nadie eligió mal el dato: se
+eligió el más simple que ejercitaba la función, y resultó ser el único que no la ejercitaba.
+
+**Regla:** al elegir un fixture, pregúntate no solo *qué valores* lleva, sino **cuántos elementos
+tiene y qué caminos del código requieren más de uno**. Un array de uno no ejercita ningún
+comparador de `sort`, ningún `reduce` sin valor inicial, ninguna deduplicación, ninguna
+comparación entre pares y ninguna paginación. Si la función ordena, agrupa o compara, **el fixture
+mínimo son dos**, y el mínimo útil suele ser tres.
+
+Y su reverso, también de F-033: un criterio verificado **por API** con `curl` puede ser correcto y
+aun así no ver un fallo que solo existe **a través de la pantalla**. El bug del diálogo que se
+tragaba un 400 en silencio ([E-071]) sobrevivió a tres rondas por eso: los criterios de la carrera
+concurrente estaban verificados con peticiones directas, correctamente, y ninguno podía verlo.

@@ -1,0 +1,414 @@
+# F-033 — Auditoría de seguridad del contrato (previa a implementación)
+
+> Escrito por el agente `security-guardian`, paso obligatorio del pipeline por tocar permisos y
+> aislamiento entre tenants. No toca `.agents/specs/F-033.md`, `docs/adr/` ni código. **El código
+> de F-033 todavía no existe:** esta auditoría es sobre el contrato de interfaces
+> (`.agents/specs/F-033.md`, líneas ~370-1371) y los ADR 0115-0120, no sobre una implementación.
+> No se ejecutó nada contra la base de desarrollo.
+
+## Dictamen
+
+## **APRUEBA CON CONDICIONES**
+
+El diseño de aislamiento multi-tenant es sólido y consistente: las seis rutas nuevas resuelven el
+eje **siempre** desde `session.user.negocio.id` (nunca de la ruta/query/cuerpo), las cláusulas de
+`withTenantScope` declaradas en § 9 del contrato usan exactamente los mismos `TENANT_RELATION_PATH`
+ya verificados en `src/constants/tenantScope.ts` y en el `schema.prisma` real (`cliente: []`,
+`cuentaPorCobrar: ["tienda"]`, `movimientoCuentaPorCobrar: ["cuentaPorCobrar","tienda"]`), un
+`cuentaId`/`movimientoId`/`clienteId` ajeno responde **404** indistinguible del "no existe" en
+**todos** los casos que auditamos (criterio 13, y su generalización explícita a `movimientoId` en
+§ 5.4), y los tres permisos nuevos quedan correctamente fuera de la plantilla `vendedor` (verificado
+contra el archivo real, no solo contra el contrato). El diseño de concurrencia (ADR 0117: claim de
+idempotencia fuera→dentro de la transacción, bloqueo de fila dentro de la puerta única) sigue el
+patrón ya corregido de E-038 y no lo reintroduce. La reversión de un abono está protegida contra
+mover el saldo de otra cuenta —y por tanto de otro negocio— por una guarda que se repite en dos
+capas (la consulta del llamador y el decisor puro), tal como exige ADR 0116.
+
+Hay **un hallazgo que bloquea el paso 5** (H1) y **dos que el `arch-guardian` debe cerrar por
+escrito antes de implementar** (M1, M2), porque afectan directamente la forma del cuerpo de una
+respuesta de dinero (criterio 9) y la superficie de un campo de texto libre nuevo permanente en un
+libro append-only. El resto son observaciones de consistencia de contrato, no bloqueantes.
+
+## Alcance auditado
+
+- `.agents/specs/F-033.md` completo — spec (líneas 1-369) y contrato de interfaces (líneas
+  ~370-1371, § 0-12).
+- `.agents/progress/F-033.md` completo — las 7 resoluciones del coordinador sobre las preguntas
+  abiertas y las 10 contradicciones reportadas por el arquitecto, con las decisiones tomadas sobre
+  cada una.
+- `docs/adr/0115-*.md` … `docs/adr/0120-*.md`, completos.
+- `.agents/cuentas-por-cobrar.md` § 2 (reglas duras), § 3 (por qué la caja cuadra sola), § 5
+  (vocabulario, append-only), § 7 (las dos trampas), § 8 (ecuación de reconciliación), § 9 (mapa de
+  propiedad), § 11 (errores conocidos aplicables).
+- `AGENTS.md`, sección Seguridad.
+- Código real, leído entero o por síntoma:
+  `src/constants/tenantScope.ts`, `src/lib/tenantScope.ts` (337 líneas, completo),
+  `src/utils/permisos_back.ts`, `src/utils/getPermisosUsuario.ts`,
+  `src/lib/idempotency.ts` (completo), `src/constants/idempotency.ts`,
+  `src/constants/permisos/permisos.templates.ts` (completo, las tres plantillas),
+  `src/constants/routeGuards/routeGuards.json` (formato de fila, contra un precedente real),
+  `src/schemas/cuentaPorCobrar.ts`, `src/schemas/pago.ts`, `src/utils/printableText.ts`,
+  `src/utils/monedas.ts`, `src/lib/currency.ts` (`missingRateCodes`, `convertToBase`),
+  `prisma/schema.prisma` (modelos `Cliente`, `CuentaPorCobrar`, `MovimientoCuentaPorCobrar`,
+  índices e invariantes documentados en los comentarios `///`),
+  `src/app/api/movimiento/route.ts` (patrón de idempotencia real, para contrastar el `endpoint`
+  usado como scope),
+  `src/lib/movimiento/caja.ts` y `src/lib/cierre/loadCierreInput.ts` (para verificar la cita del
+  ADR 0120 sobre el filtro `tipo: "ABONO"`).
+- `.agents/F-032-seguridad.md` completo, como precedente directo: el hallazgo H1 de ese informe
+  (inyección ESC/POS vía `Cliente.nombre` sin cota de caracteres de control) y su cierre en
+  ADR 0113 son el patrón que este informe verifica si F-033 repite o evita.
+- `.agents/COMMON_ERRORS.md` → fichas completas de **E-042**, **E-043**, **E-031**, **E-038**,
+  **E-057**, **E-009**, **E-032**, y además **E-030** (contradicción entre secciones de un mismo
+  contrato) y **E-014** (una señal derivada con dos intérpretes), porque uno de los hallazgos de
+  este informe es exactamente esa figura.
+
+Todo lo citado abajo se leyó, no se dedujo.
+
+---
+
+## 🔴 Hallazgos críticos
+
+Ninguno. No encontré ninguna vía por la que un `cuentaId`, `movimientoId` o `clienteId` de otro
+negocio resuelva, ninguna respuesta que filtre si un recurso ajeno existe (403 en vez de 404, o un
+200 con datos ajenos), ningún camino donde un `VENDEDOR` alcance perdonar/revertir/cobrar sin el
+permiso propio, y ningún `500` que debiera ser un código específico. Ver «Confirmaciones» para el
+detalle punto por punto.
+
+---
+
+## 🟠 Hallazgos de alta severidad — bloquean el paso 5
+
+### H1 — El `motivo` de las tres acciones de escritura es texto libre permanente, sin la cota de caracteres de control que el propio epic ya adoptó como estándar tras F-032 (ADR 0113)
+
+**Dónde:** § 2 del contrato, los tres schemas de escritura —
+`registrarAbonoSchema.motivo`, `perdonarDeudaSchema.motivo`, `revertirAbonoSchema.motivo`—, los
+tres declarados como `z.string().max(300).optional()` sin ningún `.refine`. Confirmado contra el
+código real: `src/schemas/cuentaPorCobrar.ts` (el schema de LECTURA que F-029 ya cerró) tiene la
+misma cota de solo longitud en `movimientoCuentaPorCobrarSchema.motivo`, y por diseño (ADR 0113,
+punto 3: «los modelos de lectura NO se refinan») **eso es correcto para un schema de lectura**. El
+problema es que F-033 **no tiene un schema de escritura equivalente al de F-032** — `pago.ts` sí
+cerró el suyo con `hasControlCharacters`/`CONTROL_CHARACTERS_MESSAGE` (`src/utils/printableText.ts`,
+confirmado leyendo el archivo), y `cliente.ts` también. Los tres schemas nuevos de F-033
+(`registrarAbonoSchema`, `perdonarDeudaSchema`, `revertirAbonoSchema` en
+`src/schemas/cuentasPorCobrarPanel.ts`, § 2 del contrato) son las únicas puertas de **escritura**
+de texto libre que el epic entero introduce después de ADR 0113, y ninguna repite el patrón.
+
+**Por qué esto es exactamente la figura que ADR 0113 existe para prevenir, punto por punto:**
+
+1. **Es append-only y permanente.** El dosier § 5 lo dice sin rodeos: «el log es append-only y no
+   es cosmético». Un `motivo` con bytes de control que entra hoy **no se puede limpiar después**
+   sin mutar una fila del libro — y mutar una fila es exactamente lo que el criterio 11 prohíbe
+   verificar que no pasa. Un dato sucio en `Cliente.nombre` (el caso de H1 de F-032) se puede
+   corregir con un `UPDATE`; un `motivo` sucio en `MovimientoCuentaPorCobrar` es, por diseño,
+   inmutable para siempre.
+2. **El razonamiento de ADR 0113 en su tabla de alternativas descartadas se aplica literalmente:**
+   *«Sanear solo en `buildTicketLines`, sin tocar los schemas: deja la fila envenenada […] para
+   siempre, y con ella cualquier consumidor futuro: un export a Excel, un PDF, un webhook.»* F-033
+   no imprime nada hoy (§ 7 del contrato: la pantalla no tiene ticket ni reimpresión propia, solo
+   reutiliza `VentaDetailDialog` para la **venta**, no para el movimiento de cobro) — pero **F-037
+   es el dueño declarado de `src/lib/reports/**`** (dosier § 9) y el propio dosier § 6 documenta que
+   los reportes ya consumen `pagosDetalle`/campos de texto de otras entidades del mismo epic
+   (`reports/sales-stream.ts`, `payment-mix.ts`). El día que un reporte de cobros muestre el
+   `motivo` de un abono o de un perdón —lectura razonable de un panel de cuentas por cobrar—, hereda
+   el mismo riesgo que H1 de F-032 cerró para `clienteNombre`, sin que nadie lo haya decidido a
+   propósito.
+3. **El actor no necesita ser malicioso**, por el mismo argumento que ADR 0113 usa para
+   `clienteNombre`: un escáner de código de barras en modo teclado disparado sobre el campo
+   `motivo` de un diálogo de perdón inyecta bytes de control sin que el cajero lo note.
+4. **La superficie es más amplia que la de F-032, no menor.** F-032 abrió un escritor nuevo de UN
+   campo (`Cliente.nombre`). F-033 abre **tres** escritores nuevos (abono, perdonar, revertir) del
+   MISMO campo lógico (`motivo`), cada uno detrás de un permiso propio pero ninguno con la cota de
+   caracteres — y el de **perdonar** es, según el propio dosier, «la operación más peligrosa del
+   feature» (el encargo la describe así): el motivo de un perdón es precisamente el campo que un
+   auditor o un dueño de negocio va a leer para entender **por qué** se perdonó una deuda. Si ese
+   campo puede llevar bytes de control, cualquier herramienta futura que lo muestre —una consola,
+   un log estructurado, un CSV abierto en una terminal— hereda el mismo vector de inyección de
+   terminal/log que las notas de perdón están destinadas a auditar.
+
+**Qué NO es este hallazgo:** no es una vía de fuga entre tenants, ni una vía de escalada de
+permisos, ni (hoy, con el alcance que F-033 declara) una inyección ESC/POS activa — no encontré
+ningún camino donde `MovimientoCuentaPorCobrar.motivo` llegue a `encodeTicketToEscPos` dentro del
+alcance de este contrato. Es, con la misma lógica que ADR 0113 ya usó para descartar la opción
+«sanear solo en la última milla», un dato envenenado que **este** feature es el único que puede
+rechazar barato, porque después de escrito no se puede limpiar sin romper el append-only.
+
+**Cambio concreto pedido al `arch-guardian`, en § 2:** aplicar el mismo `.refine` que
+`multimonedaExtrasSchema.clienteNombre` y `createClienteSchema.nombre` ya usan, importando
+`hasControlCharacters`/`CONTROL_CHARACTERS_MESSAGE` de `src/utils/printableText.ts` (módulo hoja,
+sin imports, ya diseñado para ser consumido por schemas nuevos):
+
+```ts
+import { hasControlCharacters, CONTROL_CHARACTERS_MESSAGE } from "@/utils/printableText";
+
+const motivoField = z
+  .string()
+  .max(CUENTAS_POR_COBRAR_MOTIVO_MAX)
+  .refine((v) => !hasControlCharacters(v), { message: CONTROL_CHARACTERS_MESSAGE })
+  .optional();
+
+export const registrarAbonoSchema = z.object({
+  pagos: z.array(abonoPagoLineaSchema).min(1),
+  motivo: motivoField,
+});
+export const perdonarDeudaSchema = z.object({ motivo: motivoField });
+export const revertirAbonoSchema = z.object({
+  movimientoId: z.string().uuid(),
+  motivo: motivoField,
+});
+```
+
+Rechazar (400, mensaje fijo, sin interpolar el valor — E-031) y no limpiar en silencio, por el
+mismo argumento que ADR 0113 ya usó: un `motivo` corregido a espaldas de quien lo escribió en un
+libro que existe justamente para auditar quién hizo qué y por qué es peor que rechazarlo.
+
+---
+
+## 🟡 Media severidad — el `arch-guardian` debería fijarlas por escrito antes del paso 5
+
+### M1 — El orden de guardas de § 3.1 y el ejemplo trabajado de § 5.3 se contradicen para «perdonar una cuenta ya saldada»
+
+**Lo que dice § 5.3:** «Una cuenta con `saldoPendiente` 0 devuelve **400** `SALDO_INSUFICIENTE` con
+`saldoPendiente: 0`: no hay nada que perdonar.»
+
+**Lo que dice § 3.1, literal, y que es el propio contrato quien lo llama "el orden es el
+contrato":**
+
+1. `monto <= 0` o no finito → `MONTO_NO_POSITIVO`
+   …
+8. `SIGN[tipo] === -1` y `monto > saldoPendiente + MIN_OPEN_BALANCE_BASE` → `SALDO_INSUFICIENTE`
+
+`CONDONACION` fija su `monto` en el `saldoPendiente` leído bajo el bloqueo (§ 5.3: «El `monto` lo
+pone el servidor: es el `saldoPendiente` leído bajo el bloqueo»). Si esa cuenta ya está saldada,
+`saldoPendiente = 0`, así que `monto = 0`. La guarda 1 se evalúa **antes** que la 8 y `monto <= 0`
+es cierto: la violación que dispara es `MONTO_NO_POSITIVO`, no `SALDO_INSUFICIENTE`. El cuerpo de
+la respuesta para `MONTO_NO_POSITIVO` no está definido en el contrato como uno que lleve
+`saldoPendiente` — el § 5.2 solo promete ese campo para la violación `SALDO_INSUFICIENTE` («El
+resto de violaciones → el código de `MOVIMIENTO_CUENTA_POR_COBRAR_HTTP_STATUS`», sin mencionar un
+cuerpo con cifra).
+
+**Por qué esto importa para la seguridad, y no es solo un capricho de redacción.** El criterio 9
+del spec fija como propiedad verificable que un 400 de saldo insuficiente **lleva la cifra real** —
+es precisamente el chequeo de valor exacto (E-016) que separa un mensaje correcto de uno genérico.
+Si el `implementer` sigue el orden de guardas al pie de la letra (que es lo que el propio § 3.1
+exige: «el orden es el contrato»), el caso de perdonar una cuenta ya saldada devuelve un cuerpo
+**sin** `saldoPendiente`, contradiciendo la única línea del contrato que describe ese caso
+explícitamente. Y si en cambio alguien "arregla" el orden de guardas para que § 5.3 tenga razón
+—moviendo la guarda 8 antes de la 1, o dándole un trato especial a `CONDONACION`—, cambia el
+comportamiento de **las demás** violaciones que comparten la guarda 1 (un `ABONO` con `monto: 0`
+enviado a mano, que hoy correctamente cae en `MONTO_NO_POSITIVO` y no en un mensaje de saldo),
+exactamente la clase de efecto lateral que **E-032** («una guarda más ancha que la del contrato»)
+y **E-030** («un contrato que se contradice entre dos de sus secciones») existen para atrapar.
+
+**Cambio concreto pedido al `arch-guardian`:** decidir, por escrito, una de las dos:
+
+- (a) El orden de § 3.1 manda, y § 5.3 se corrige: perdonar una cuenta con `saldoPendiente = 0`
+  responde **400 `MONTO_NO_POSITIVO`** (sin cifra en el cuerpo) — y entonces conviene que la ruta
+  de perdonar compruebe `saldoPendiente > 0` **antes** de llamar al helper, con su propio mensaje
+  (`"No hay saldo pendiente que perdonar"`), en vez de dejar que un consumidor del endpoint reciba
+  un `MONTO_NO_POSITIVO` que no explica el motivo real del rechazo.
+- (b) `SALDO_INSUFICIENTE` debe disparar en este caso, y entonces la guarda 1 necesita una excepción
+  explícita y escrita para `CONDONACION` con `monto === 0` (o el decisor recibe `saldoPendiente`
+  antes de construir `monto`, y decide sobre eso en vez de sobre un `monto` ya reducido a cero).
+
+Cualquiera de las dos es aceptable; lo que no vale es que el contrato lo diga de las dos formas —
+igual que M2 de `.agents/F-032-seguridad.md` señaló para un caso análogo.
+
+### M2 — El `endpoint` de idempotencia no escopa por `cuentaId`: una clave reutilizada entre dos cuentas del mismo negocio reproduce la respuesta de la cuenta equivocada
+
+**Contexto verificado en el código real, no solo en el contrato.** Los tres consumidores hoy de
+`src/lib/idempotency.ts` (`api/movimiento/route.ts`, `api/movimiento/import/route.ts`,
+`api/venta/[tiendaId]/devolucion/[ventaId]/route.ts`) usan un `IDEMPOTENCY_ENDPOINT` que es una
+**constante de módulo**, fija por ruta (p. ej. `"POST /api/movimiento"`), **nunca** parametrizada
+por el recurso concreto que la petición toca (`tiendaId`, `ventaId`). `findIdempotentResponse`
+filtra por `{ key, scopeId, endpoint }` — nunca por el `cuentaId`/`ventaId` de la petición actual.
+
+Esto es un patrón **preexistente y compartido**, no una decisión nueva de F-033: si el
+`arch-guardian` reutiliza el mismo molde (`endpoint: "POST /api/cuentas-por-cobrar/abono"` como
+constante fija para las tres rutas de escritura), hereda la misma propiedad que ya tienen las tres
+rutas existentes.
+
+**Por qué lo anoto igual, aunque no sea nuevo.** El impacto de una colisión aquí es distinto al de
+sus tres precedentes. En `api/movimiento`, una clave repetida por accidente entre dos movimientos
+del mismo negocio respondería con un `advertenciasCaja` de otro movimiento — ruido, no dinero mal
+contado. En `cuentas por cobrar`, si una clave de idempotencia se reutiliza —por un bug de cliente,
+una librería de reintentos que no regenera el UUID entre diálogos, o un actor que fabrica la
+petición a mano probando exactamente esto— entre un abono a la **cuenta A** y un abono a la
+**cuenta B** del **mismo negocio**, `findIdempotentResponse` encuentra la fila de A (mismo
+`scopeId`=negocioId, mismo `endpoint`) y la ruta la devuelve como si fuera la respuesta de B: un
+`movimientoAplicadoResponseSchema` con el `cuentaId`, `saldoPendiente` y `movimientoId` de la cuenta
+**A**, en respuesta a una petición sobre la cuenta **B**. **No es una fuga entre tenants** (A y B
+son del mismo negocio, y el atacante ya tenía permiso de cobrar sobre ambas), pero es una respuesta
+que describe el estado de una cuenta distinta a la que el llamador pidió, en un endpoint cuyo
+propósito es decirle a un cajero exactamente cuánto quedó debiendo un cliente — el tipo de dato que,
+si se confunde, hace que alguien dé por cobrada una cuenta que no lo está.
+
+**Cambio sugerido, no exigido — es una mejora sobre un patrón ya aceptado en el proyecto, no un
+hueco que F-033 abra en solitario:** que el `endpoint` (o el `scopeId`) de las tres rutas nuevas
+incluya el `cuentaId`, p. ej. `endpoint: \`POST /api/cuentas-por-cobrar/${cuentaId}/abono\`` en vez
+de una constante fija. Así una clave repetida entre dos cuentas no colisiona en el índice único —
+cada una reclama su propia fila— y una réplica solo puede devolver la respuesta de **la misma**
+cuenta que la petición actual nombra. Si el `arch-guardian` prefiere mantener el molde idéntico al
+de `api/movimiento` por consistencia, que quede escrito que es una decisión consciente y no un
+descuido, porque el criterio 8 no lo ejercita (usa una sola cuenta) y por tanto no lo habría
+detectado.
+
+---
+
+## 🟢 Baja severidad / informativo
+
+### B1 — Confirmado: la puerta de idempotencia usa `scopeId = negocioId`, el patrón correcto de E-043
+
+`src/lib/idempotency.ts` (leído completo) y su único consumidor real hoy (`api/movimiento/route.ts`,
+línea 240: `scopeId: user.negocio.id`) confirman que `findIdempotentResponse` filtra por
+`{ key, scopeId, endpoint }`, nunca por `key` a secas — que es exactamente lo que evita la figura de
+E-043 (`Venta.syncId` como columna `@unique` global mal usada como eje de tenant). § 9 del contrato
+lo fija explícitamente para F-033 («`{ key, scopeId: negocioId, endpoint }` — siempre por los
+helpers, nunca `findUnique({ where: { key } })`»). Sin hallazgo; **la única extensión posible** es
+M2 arriba, que es sobre el segundo eje (el recurso), no sobre el tenant.
+
+### B2 — Confirmado: la guarda de `revierteId` cierra la vía de fuga cruzada que el propio `schema.prisma` advierte
+
+El comentario real de la columna (`prisma/schema.prisma:1499-1502`) dice, sin que el contrato lo
+parafrasee más de lo necesario: *«el FK autorreferenciado solo comprueba que la fila destino
+EXISTE: no comprueba que pertenece al mismo `cuentaPorCobrarId`, y por tanto no que pertenece al
+mismo tenant.»* El contrato cierra esto en **dos** capas independientes, verificado en el texto: (1)
+la propia consulta del llamador en § 5.4 ya filtra
+`{ id: movimientoId, cuentaPorCobrarId: cuentaId }` — así que un `movimientoId` de otra cuenta
+(propia o de otro negocio) nunca resuelve `origen`; y (2) el decisor puro (`decideMovimientoCuentaPorCobrar`,
+guarda 4) repite la comprobación `origen.cuentaPorCobrarId !== cuentaId` por si algún llamador
+futuro se salta el `where` de (1) — exactamente la razón por la que ADR 0116 describe esto como «la
+única defensa contra una reversión que mueva el saldo de otro negocio». Sin hallazgo: es el diseño
+correcto y está verificado contra el código real de la columna, no solo contra el contrato.
+
+### B3 — Confirmado: los tres permisos nuevos están ausentes de `vendedor` y de `almacenero` en el archivo real, no solo en el contrato
+
+`src/constants/permisos/permisos.templates.ts` (leído completo): la plantilla `vendedor` no
+contiene ninguna cadena que empiece por `cuentasporcobrar`, ni la `almacenero`. `administrador` ya
+tiene `recuperaciones.cuentasporcobrar.acceder` (de F-031). El contrato solo añade las tres nuevas
+a `administrador`. `tienePermiso` (`src/utils/getPermisosUsuario.ts`) hace `includes()` exacto sobre
+el array de permisos partido por `|` — sin comodines salvo el literal `"*"`, que ninguna plantilla
+usa —, así que no hay forma de que un permiso de otro dominio conceda por accidente uno de los tres
+nuevos. Sin hallazgo.
+
+### B4 — Confirmado: `buildMonedaOptions` antepone la moneda base incondicionalmente, y es lo que el backend usará (criterio 6, E-059)
+
+`src/utils/monedas.ts` (leído completo): `buildMonedaOptions` siempre coloca la moneda base primero
+—con una fila sintética si `NegocioMoneda` no tiene una propia— antes de los extras. Es la misma
+función que § 5.2 del contrato fija como fuente de la lista de monedas admitidas en el backend
+(«`buildMonedaOptions(negocioMonedas, monedaBase).map((m) => m.monedaCode)`»). Sin hallazgo: la
+cuarta aparición de E-059 que el contrato describe está correctamente cerrada por reutilización, no
+por una cuarta implementación paralela.
+
+### B5 — Observación, no hallazgo: el 500 genérico no está descrito en el contrato, y ninguna ruta existente de este patrón filtra el mensaje de excepción
+
+El § 5.1 y § 5.2 solo mencionan `errorInterno`/`500` como una rama de cierre, sin mostrar el
+`catch`. Dado que el resto del repositorio tiene al menos un precedente donde el `catch` genérico
+propaga `error.message` sin filtrar (`api/venta/[tiendaId]/[cierreId]/route.ts:1041-1046`,
+señalado como deuda preexistente en M3 de `.agents/F-032-seguridad.md`), vale la pena que el
+`arch-guardian` escriba explícitamente, para las tres rutas de escritura de F-033, que el `catch`
+final responde el mensaje **fijo** `CUENTAS_POR_COBRAR_API_ERRORS.errorInterno` y nunca
+`error.message` — el propio § 5.1 ya lo promete para el GET del listado («500 con `errorInterno`
+fijo, nunca el mensaje de la excepción, E-031»), pero no lo repite para los tres POST. No es
+bloqueante porque el patrón correcto ya está declarado una vez y es razonable asumir que se aplica
+a las seis rutas; se anota para que quede escrito seis veces, no una, dado que es la parte del
+contrato que un `implementer` copia y pega.
+
+---
+
+## Confirmaciones — respuesta punto por punto a las preguntas del encargo
+
+1. **¿Hay algún camino por el que un usuario alcance una cuenta, un cliente, una venta o un período
+   de OTRO negocio?** No encontrado. Cuenta (`GET`/`abono`/`perdonar`/`reversion`):
+   `withTenantScope("cuentaPorCobrar", { id: cuentaId }, negocioId)`, verificado contra
+   `TENANT_RELATION_PATH.cuentaPorCobrar = ["tienda"]` real y contra la columna
+   `CuentaPorCobrar.tiendaId` real del schema — un hop, no dos. Cliente
+   (`GET .../cliente/[clienteId]`): `withTenantScope("cliente", { id: clienteId }, negocioId)`,
+   contra `TENANT_RELATION_PATH.cliente = []`, que coincide con que `Cliente.negocioId` es una
+   columna propia (confirmado en el `schema.prisma` real, línea 1393). Venta: el detalle de deudor
+   no acepta un `ventaId` de la petición — la venta se deriva del `ventaId` que ya trae la
+   `CuentaPorCobrar` tenant-verificada, nunca de un parámetro independiente, así que no hay una
+   segunda superficie que comprobar. Período: `{ tiendaId: cuenta.tiendaId, fechaFin: null }`, con
+   `tiendaId` leído de la cuenta ya verificada, nunca de la petición — literal en § 5.2 y § 9.
+2. **¿Los tres permisos nuevos están cableados en las seis filas de `routeGuards.json` y coinciden
+   con `permisos_back.ts`?** Sí. Las seis filas de § 6.3 usan `helper: resolveTenantAxis`, que
+   internamente llama a `verificarPermisoUsuario` (`src/lib/tenantScope.ts`, función
+   `decideTenantScope`, verificado en el código real) — el mismo camino que ya usan las ~152 rutas
+   `tenant` del inventario. El permiso de cada fila coincide exactamente con el de la tabla de § 5.
+   El formato de fila (`kind`, `tenantParam: "session:negocioId"`, `devuelveDatosDeNegocio: true`)
+   coincide con el de una fila real ya existente en el archivo (`clientes/[id]/route.ts DELETE`,
+   contrastada arriba), así que pasará el schema `routeGuardEntrySchema` sin ajustes.
+3. **¿Puede un `VENDEDOR` perdonar, revertir o cobrar por una vía indirecta?** No encontrada
+   ninguna. Los tres permisos son ausentes de `vendedor` en el archivo real (B3), `tienePermiso` no
+   tiene comodín salvo el literal `"*"` que nadie usa, y las tres acciones no tienen ninguna otra
+   puerta de escritura: `applyMovimientoCuentaPorCobrar` es, por diseño (ADR 0116), la única, y las
+   tres rutas son sus tres únicos llamadores dentro del alcance de F-033.
+4. **¿La idempotencia abre un eje de tenant nuevo?** No — `scopeId = negocioId` está fijado
+   explícitamente en § 9 y confirmado contra el único patrón real existente (B1). Sí encontré una
+   variante **no de tenant** de la misma familia de riesgo: la falta de escopeo por `cuentaId` (M2),
+   que es una propiedad heredada de un patrón preexistente, no una introducida por F-033.
+5. **¿Algún mensaje de error cita un valor que no debería salir?** Los mensajes fijos de
+   `CUENTAS_POR_COBRAR_API_ERRORS` no interpolan nada salvo `saldoInsuficiente(saldoPendiente)`, que
+   es una cifra de la **propia** cuenta que el llamador ya tiene derecho a ver (pasó el 404 de
+   tenant y el 403 de permiso antes de llegar ahí) — exactamente lo que el criterio 9 exige y nada
+   más. El único punto sin cerrar es M1: qué violación (y por tanto qué cuerpo) dispara el caso
+   límite de perdonar una cuenta ya saldada, que el contrato describe de dos formas incompatibles.
+6. **¿Hay entrada externa que llegue a la base sin pasar por un schema Zod?** No encontrada. Las
+   tres rutas de escritura parsean con `registrarAbonoSchema`/`perdonarDeudaSchema`/
+   `revertirAbonoSchema` antes de tocar la base (§ 5.2-5.4), y el listado parsea sus filtros con
+   `cuentasPorCobrarFiltrosSchema` (§ 5.1). La única grieta de validación que encontré no es de
+   "sin schema" sino de "schema sin la cota correcta": H1.
+7. **¿F-033 abre una vía nueva a `Cliente.nombre` o a un puerto parecido? ¿El texto libre que
+   introduce necesita el mismo tratamiento que `clienteNombre` (ADR 0113)?** F-033 **no** abre una
+   vía nueva a `Cliente.nombre`: no crea ni edita clientes (los lee, tenant-scoped, sin
+   escribirlos). Pero sí introduce el «puerto parecido»: `motivo`, en sus tres schemas de escritura,
+   sin la cota de caracteres de control que el propio epic adoptó como estándar. Es **H1**, el
+   hallazgo bloqueante de este informe.
+
+---
+
+## Comprobaciones que el `qa` tiene que ejecutar
+
+Todas por ejecución, no por lectura.
+
+1. `POST /api/cuentas-por-cobrar/[cuentaId]/abono` con un `cuentaId` sembrado en el negocio **B**,
+   autenticado como usuario del negocio **A** con el permiso `operaciones.cuentasporcobrar.cobrar`
+   → **404**, sin ninguna fila nueva en `MovimientoCuentaPorCobrar`. Repetir para `perdonar` y para
+   `reversion` con un `movimientoId` real de una cuenta del negocio B.
+2. Un usuario `VENDEDOR` (plantilla real, sin permisos añadidos a mano) intenta `perdonar` y
+   `reversion` sobre una cuenta de su propio negocio → **403** en los dos. Control positivo: un
+   usuario con el permiso correspondiente sí puede.
+3. `POST .../abono` con `motivo` conteniendo una secuencia de control (`"Anap\x1bp\x00\x19\xfa"` o
+   equivalente) contra el código **actual** (sin el fix de H1): confirmar que hoy se acepta y se
+   persiste literal en `MovimientoCuentaPorCobrar.motivo` — y, tras el fix, que la misma petición
+   responde 400 con el mensaje fijo, sin la cadena original en el cuerpo de la respuesta.
+4. Perdonar una cuenta con `saldoPendiente = 0` (ya saldada) y comprobar CUÁL de las dos
+   descripciones de M1 quedó implementada — el cuerpo exacto de la respuesta 400, y si lleva o no
+   el campo `saldoPendiente`.
+5. Dos abonos de 700 en paralelo (`Promise.all`, cabeceras distintas) sobre una cuenta de 1000:
+   exactamente uno 2xx, el otro 400 con `saldoPendiente: 300` (no 1000), y el saldo final nunca
+   negativo en ningún punto observable (criterio 10, protocolo ya escrito en el spec).
+6. Si el `arch-guardian` no adopta el cambio sugerido de M2: dos abonos con la **misma** cabecera de
+   idempotencia contra **dos cuentas distintas** del mismo negocio, secuenciales — confirmar
+   explícitamente si la segunda petición recibe la respuesta (equivocada) de la primera cuenta, y
+   dejarlo escrito como comportamiento conocido si no se corrige.
+7. Revertir el mismo `ABONO` dos veces → la segunda, **409** `REVERSION_DUPLICADA`, y
+   `MovimientoCuentaPorCobrar` con exactamente dos filas para ese `ABONO` (el original y una sola
+   reversión), nunca tres.
+8. Condonar una cuenta y comparar el resumen de caja del período abierto antes/después —
+   **idéntico**, cifra por cifra (criterio 11, protocolo ya escrito en el spec, E-060: el "antes" se
+   captura, no se asume).
+
+---
+
+## Resumen — hallazgos bloqueantes en una línea
+
+- **H1** — `motivo` en `registrarAbonoSchema`/`perdonarDeudaSchema`/`revertirAbonoSchema` (§ 2 del
+  contrato) no rechaza caracteres de control, a diferencia del estándar que el propio epic fijó en
+  ADR 0113 para `clienteNombre`. Es texto libre permanente en un libro append-only sin dueño que
+  pueda limpiarlo después. **Bloqueante**: el `arch-guardian` debe añadir el mismo `.refine` con
+  `hasControlCharacters`/`CONTROL_CHARACTERS_MESSAGE` a los tres schemas antes del paso 5.
+
+No bloqueantes pero exigidos por escrito antes de implementar, porque afectan directamente la forma
+del cuerpo de una respuesta de dinero (M1) y la integridad de una réplica idempotente entre cuentas
+del mismo negocio (M2): ver arriba. El resto (B1-B5) son confirmaciones sin hallazgo.
