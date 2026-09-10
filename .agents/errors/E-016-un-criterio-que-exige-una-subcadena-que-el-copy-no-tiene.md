@@ -196,3 +196,20 @@ palabra del copy. El `qa` lo ejecutó así y confirmó las dos mitades: la tarje
 > Antes de escribir un criterio de ausencia sobre un nombre corto (`admin`, `id`, `pos`, `test`),
 > búscalo como **subcadena** en el copy, no como palabra. Y prefiere como sujeto del criterio un
 > valor que no sea subcadena de nada: la lista de cuentas del seed da donde elegir.
+
+## Adenda F-031 (2026-09-10) — dos formas más, y una de ellas por creerle a un JSDoc
+
+**La granularidad del formateador.** `formatDateTime` produce `HH:mm:ss` —compone con `formatTime`,
+que pide `second: "2-digit"`— mientras `formatTimeShort` da `HH:mm`. Un criterio de «la fila y el
+diálogo muestran la misma hora» comparando la **cadena entera** rechaza la única implementación
+posible con los formateadores que la pantalla ya usa: la fila pinta `22:00:00` y el diálogo
+`22:00`. La comparación correcta es por `HH:mm`.
+
+Lo instructivo es **de dónde salió el dato falso**: el JSDoc de `formatDateTime` dice
+`(dd/mm/aaaa • HH:mm)` y **miente**. Quien escribió el criterio leyó el comentario y no el código.
+Un comentario no es una fuente: **abre el formateador**.
+
+**Una subcadena prohibida escondida dentro de otra palabra, otra vez.** Se iba a prohibir `sync` en
+un criterio de ausencia sobre `src/app/ventas/`; el `grep` da seis coincidencias y **todas son de
+`async`**. Es la misma forma que `administre` conteniendo `admin`, ya registrada arriba: antes de
+prohibir una subcadena, búscala **en el código que la rodea**, no solo en el copy.

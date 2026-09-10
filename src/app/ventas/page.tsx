@@ -54,6 +54,8 @@ import { LoadingState } from "@/components/LoadingState";
 import SelectableTextField from "@/components/SelectableTextField";
 import VentaDetailDialog from "./components/VentaDetailDialog";
 import { formatDate, formatDateTime, isToday } from "@/utils/formatters";
+import { saleReportedAt } from "@/lib/venta/saleTime";
+import { toSaleTimestamps } from "@/lib/venta/ventaTimestamps";
 import { usePermisos } from "@/utils/permisos_front";
 import { MultiCurrencyAmount } from "@/components/MultiCurrencyAmount";
 
@@ -216,8 +218,9 @@ const Ventas = () => {
   const filteredVentas = ventas.filter((venta) => {
     const searchLower = searchTerm.toLowerCase();
     const ventaId = venta.id?.toLowerCase() || "";
-    const ventaDate = formatDate(venta.createdAt).toLowerCase();
-    const ventaTime = formatDateTime(venta.createdAt).toLowerCase();
+    const reportedAt = saleReportedAt(toSaleTimestamps(venta));
+    const ventaDate = formatDate(reportedAt).toLowerCase();
+    const ventaTime = formatDateTime(reportedAt).toLowerCase();
     const ventaProductos =
       venta.productos?.map((p) => p.name?.toLowerCase()).join(" ") || "";
     const ventaUsuario = (venta.usuario?.nombre || "").toLocaleLowerCase();
@@ -248,7 +251,7 @@ const Ventas = () => {
   );
 
   const montoHoy = filteredVentas
-    .filter((v) => isToday(v.createdAt))
+    .filter((v) => isToday(saleReportedAt(toSaleTimestamps(v))))
     .reduce((sum, venta) => sum + (venta.total || 0), 0);
 
   if (loadingContext || isDataLoading) {
@@ -526,112 +529,116 @@ const Ventas = () => {
                   : undefined
               }
             >
-              {ventasVirtual.visible.map(({ item: venta, virtual }) => (
-                <Card
-                  key={venta.id}
-                  {...(virtual
-                    ? {
-                        "data-index": virtual.index,
-                        ref: ventasVirtual.measureElement,
-                        style: {
-                          position: "absolute",
-                          top: 0,
-                          left: 0,
-                          right: 0,
-                          transform: `translateY(${virtual.start - ventasVirtual.offset}px)`,
-                        },
-                      }
-                    : {})}
-                  onClick={() => handleOpenVenta(venta)}
-                  sx={{
-                    cursor: "pointer",
-                    "&:hover": {
-                      backgroundColor: "semantic.surface.sunken",
-                    },
-                  }}
-                >
-                  <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
-                    <Box
-                      display="flex"
-                      justifyContent="space-between"
-                      alignItems="flex-start"
-                      gap={1.5}
-                    >
-                      {/* venta.total ya está en moneda base; mostramos base + equivalentes */}
-                      <MultiCurrencyAmount
-                        amount={venta.total}
-                        variant="stat"
-                      />
-                      <Stack direction="row" gap={0.5} sx={{ flexShrink: 0 }}>
-                        <IconButton
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenVenta(venta);
-                          }}
-                          color="primary"
-                        >
-                          <Visibility fontSize="small" />
-                        </IconButton>
-                        <IconButton
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleCancelVenta(venta);
-                          }}
-                          color="error"
-                          disabled={deletingVentaId === venta.id}
-                        >
-                          {deletingVentaId === venta.id ? (
-                            <CircularProgress size={18} />
-                          ) : (
-                            <Delete fontSize="small" />
-                          )}
-                        </IconButton>
-                      </Stack>
-                    </Box>
+              {ventasVirtual.visible.map(({ item: venta, virtual }) => {
+                const reportedAt = saleReportedAt(toSaleTimestamps(venta));
 
-                    <Stack
-                      direction="row"
-                      alignItems="center"
-                      gap={1}
-                      sx={{
-                        mt: 1.5,
-                        pt: 1.25,
-                        borderTop: 1,
-                        borderColor: "divider",
-                      }}
-                    >
+                return (
+                  <Card
+                    key={venta.id}
+                    {...(virtual
+                      ? {
+                          "data-index": virtual.index,
+                          ref: ventasVirtual.measureElement,
+                          style: {
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            transform: `translateY(${virtual.start - ventasVirtual.offset}px)`,
+                          },
+                        }
+                      : {})}
+                    onClick={() => handleOpenVenta(venta)}
+                    sx={{
+                      cursor: "pointer",
+                      "&:hover": {
+                        backgroundColor: "semantic.surface.sunken",
+                      },
+                    }}
+                  >
+                    <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
+                      <Box
+                        display="flex"
+                        justifyContent="space-between"
+                        alignItems="flex-start"
+                        gap={1.5}
+                      >
+                        {/* venta.total ya está en moneda base; mostramos base + equivalentes */}
+                        <MultiCurrencyAmount
+                          amount={venta.total}
+                          variant="stat"
+                        />
+                        <Stack direction="row" gap={0.5} sx={{ flexShrink: 0 }}>
+                          <IconButton
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenVenta(venta);
+                            }}
+                            color="primary"
+                          >
+                            <Visibility fontSize="small" />
+                          </IconButton>
+                          <IconButton
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCancelVenta(venta);
+                            }}
+                            color="error"
+                            disabled={deletingVentaId === venta.id}
+                          >
+                            {deletingVentaId === venta.id ? (
+                              <CircularProgress size={18} />
+                            ) : (
+                              <Delete fontSize="small" />
+                            )}
+                          </IconButton>
+                        </Stack>
+                      </Box>
+
+                      <Stack
+                        direction="row"
+                        alignItems="center"
+                        gap={1}
+                        sx={{
+                          mt: 1.5,
+                          pt: 1.25,
+                          borderTop: 1,
+                          borderColor: "divider",
+                        }}
+                      >
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          sx={{ fontVariantNumeric: "tabular-nums" }}
+                        >
+                          #{venta.id.slice(-8)}
+                        </Typography>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          sx={{ fontVariantNumeric: "tabular-nums" }}
+                        >
+                          · {formatDateTime(reportedAt)}
+                        </Typography>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          sx={{ ml: "auto", fontVariantNumeric: "tabular-nums" }}
+                        >
+                          {venta.productos?.length || 0} prod.
+                        </Typography>
+                      </Stack>
                       <Typography
                         variant="caption"
                         color="text.secondary"
-                        sx={{ fontVariantNumeric: "tabular-nums" }}
+                        sx={{ display: "block", mt: 0.5 }}
                       >
-                        #{venta.id.slice(-8)}
+                        {venta.usuario?.nombre || ""}
                       </Typography>
-                      <Typography
-                        variant="caption"
-                        color="text.secondary"
-                        sx={{ fontVariantNumeric: "tabular-nums" }}
-                      >
-                        · {formatDateTime(venta.createdAt)}
-                      </Typography>
-                      <Typography
-                        variant="caption"
-                        color="text.secondary"
-                        sx={{ ml: "auto", fontVariantNumeric: "tabular-nums" }}
-                      >
-                        {venta.productos?.length || 0} prod.
-                      </Typography>
-                    </Stack>
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      sx={{ display: "block", mt: 0.5 }}
-                    >
-                      {venta.usuario?.nombre || ""}
-                    </Typography>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </Stack>
           </Box>
         ) : (
@@ -655,96 +662,100 @@ const Ventas = () => {
                     <TableCell colSpan={6} sx={{ p: 0, border: 0 }} />
                   </TableRow>
                 )}
-                {ventasVirtual.visible.map(({ item: venta, virtual }) => (
-                  <TableRow
-                    key={venta.id}
-                    {...(virtual
-                      ? {
-                          "data-index": virtual.index,
-                          ref: ventasVirtual.measureElement,
-                        }
-                      : {})}
-                    onClick={() => handleOpenVenta(venta)}
-                    sx={{
-                      cursor: "pointer",
-                      "&:hover": {
-                        backgroundColor: "semantic.surface.sunken",
-                      },
-                    }}
-                  >
-                    <TableCell>
-                      <Typography variant="body2" fontWeight="medium">
-                        #{venta.id.slice(-8)}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                        sx={{ fontVariantNumeric: "tabular-nums" }}
-                      >
-                        {formatDate(venta.createdAt)} ·{" "}
-                        {formatDateTime(venta.createdAt).split(" • ")[1]}
-                      </Typography>
-                    </TableCell>
-                    <TableCell align="right">
-                      {/* venta.total ya está en moneda base; mostramos base + equivalentes */}
-                      <MultiCurrencyAmount amount={venta.total} align="right" />
-                    </TableCell>
-                    <TableCell align="right">
-                      <Typography
-                        variant="body2"
-                        sx={{ fontVariantNumeric: "tabular-nums" }}
-                      >
-                        {venta.productos?.length || 0}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" color="text.secondary">
-                        {venta.usuario?.nombre || ""}
-                      </Typography>
-                    </TableCell>
-                    <TableCell align="center">
-                      <Stack
-                        direction="row"
-                        spacing={0.5}
-                        justifyContent="center"
-                      >
-                        <Tooltip title="Ver detalles">
-                          <IconButton
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleOpenVenta(venta);
-                            }}
-                            size="small"
-                            color="primary"
-                          >
-                            <Visibility fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Eliminar venta">
-                          <span>
+                {ventasVirtual.visible.map(({ item: venta, virtual }) => {
+                  const reportedAt = saleReportedAt(toSaleTimestamps(venta));
+
+                  return (
+                    <TableRow
+                      key={venta.id}
+                      {...(virtual
+                        ? {
+                            "data-index": virtual.index,
+                            ref: ventasVirtual.measureElement,
+                          }
+                        : {})}
+                      onClick={() => handleOpenVenta(venta)}
+                      sx={{
+                        cursor: "pointer",
+                        "&:hover": {
+                          backgroundColor: "semantic.surface.sunken",
+                        },
+                      }}
+                    >
+                      <TableCell>
+                        <Typography variant="body2" fontWeight="medium">
+                          #{venta.id.slice(-8)}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          sx={{ fontVariantNumeric: "tabular-nums" }}
+                        >
+                          {formatDate(reportedAt)} ·{" "}
+                          {formatDateTime(reportedAt).split(" • ")[1]}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        {/* venta.total ya está en moneda base; mostramos base + equivalentes */}
+                        <MultiCurrencyAmount amount={venta.total} align="right" />
+                      </TableCell>
+                      <TableCell align="right">
+                        <Typography
+                          variant="body2"
+                          sx={{ fontVariantNumeric: "tabular-nums" }}
+                        >
+                          {venta.productos?.length || 0}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" color="text.secondary">
+                          {venta.usuario?.nombre || ""}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="center">
+                        <Stack
+                          direction="row"
+                          spacing={0.5}
+                          justifyContent="center"
+                        >
+                          <Tooltip title="Ver detalles">
                             <IconButton
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleCancelVenta(venta);
+                                handleOpenVenta(venta);
                               }}
                               size="small"
-                              color="error"
-                              disabled={deletingVentaId === venta.id}
+                              color="primary"
                             >
-                              {deletingVentaId === venta.id ? (
-                                <CircularProgress size={18} />
-                              ) : (
-                                <Delete fontSize="small" />
-                              )}
+                              <Visibility fontSize="small" />
                             </IconButton>
-                          </span>
-                        </Tooltip>
-                      </Stack>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                          </Tooltip>
+                          <Tooltip title="Eliminar venta">
+                            <span>
+                              <IconButton
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleCancelVenta(venta);
+                                }}
+                                size="small"
+                                color="error"
+                                disabled={deletingVentaId === venta.id}
+                              >
+                                {deletingVentaId === venta.id ? (
+                                  <CircularProgress size={18} />
+                                ) : (
+                                  <Delete fontSize="small" />
+                                )}
+                              </IconButton>
+                            </span>
+                          </Tooltip>
+                        </Stack>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
                 {ventasVirtual.paddingBottom > 0 && (
                   <TableRow style={{ height: ventasVirtual.paddingBottom }}>
                     <TableCell colSpan={6} sx={{ p: 0, border: 0 }} />
