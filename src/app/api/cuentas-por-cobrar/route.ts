@@ -28,7 +28,7 @@ import {
  * The tenant axis comes ONLY from the session (contract § 9). No `negocioId` is ever read from
  * the path, the query or the body.
  *
- * There is no pagination, by decision: ADR 0119. `total` is the length of `data`.
+ * There is no pagination, by decision: ADR 0126. `total` is the length of `data`.
  */
 export async function GET(req: Request) {
   try {

@@ -93,7 +93,7 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
   // THE ONLY source of truth for whether this sale gives up a product or itself
   // (`evaluateVentaDeleteGuard`, contract § 4.3). What blocks are the collections already
   // received, not the live debt: a credit sale with nothing collected against it blocks nothing
-  // (ADR 0126). With one product left, `producto` mirrors `venta` — which is the branch this
+  // (ADR 0133). With one product left, `producto` mirrors `venta` — which is the branch this
   // dialog's button takes when it calls `onDeleteSale`.
   const gate = evaluateVentaDeleteGuard({
     credito: venta.credito ?? null,
@@ -268,7 +268,7 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
             Va aquí —justo tras las cuatro InfoCard y ANTES del detalle de pago— porque en una
             venta fiada la deuda es el dato que trae al usuario, y a 320 px el diálogo es
             `fullScreen`: lo que quede bajo el pliegue exige desplazar. No se pinta en
-            `SaleExtrasSummary`, que no se toca (ADR 0127). */}
+            `SaleExtrasSummary`, que no se toca (ADR 0134). */}
         {venta.credito && (
           <VentaCreditoBlock
             tiendaId={venta.tiendaId}

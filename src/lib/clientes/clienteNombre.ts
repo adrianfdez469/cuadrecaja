@@ -4,7 +4,7 @@
  * unique index compares, so folding here would change what the user typed.
  *
  * Consequence, written on purpose: two names differing only in case or in accents remain two
- * rows. Merging two clientes is out of scope for this feature (notes of F-031).
+ * rows. Merging two clientes is out of scope for this feature (notes of F-033).
  */
 export function normalizeClienteNombre(raw: string): string {
   if (typeof raw !== "string") return "";

@@ -7,7 +7,7 @@ import type { IZoneCatalog, IZoneCatalogEntry } from "@/schemas/qabZone";
  *
  * Read as the imported object, NOT validated at import time: the hash test is
  * the guarantee, and a throw while importing in production would be worse than
- * a red test. See ADR 0136.
+ * a red test. See ADR 0143.
  *
  * The assertion goes through `unknown` on purpose: TypeScript widens `level` to
  * `string` when it infers the JSON, so the direct assertion to the union does

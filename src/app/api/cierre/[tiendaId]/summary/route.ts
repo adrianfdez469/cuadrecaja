@@ -225,7 +225,7 @@ export async function GET(
         totaltransfer: v.totaltransfer,
         // Synthetic sale for the drift check only: valueSales/sumSalesTotals never read
         // creditoBase, so 0 changes no figure this route reports. It is here because
-        // CierreSale.creditoBase is required; the real value belongs to F-034, which owns
+        // CierreSale.creditoBase is required; the real value belongs to F-036, which owns
         // this file and the two credit sums it has to add.
         creditoBase: 0,
         tasaSnapshot: (v.tasaSnapshot as ITasaSnapshot | null) ?? null,

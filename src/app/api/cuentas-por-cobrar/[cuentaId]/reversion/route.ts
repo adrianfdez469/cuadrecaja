@@ -34,8 +34,8 @@ import {
  * The original entry keeps its `id`, its `tipo` and its `monto` untouched: there is no UPDATE and
  * no DELETE over the ledger anywhere in this feature (criterion 11). The new row is a
  * REVERSION_ABONO whose `revierteId` points at it, written with `pagosDetalle: null` and
- * `tasaSnapshot: null` (ADR 0120) — the composition of the money is read through `revierteId`,
- * and the SIGN is applied when reading, by `netCollectionRows` (ADR 0121).
+ * `tasaSnapshot: null` (ADR 0127) — the composition of the money is read through `revierteId`,
+ * and the SIGN is applied when reading, by `netCollectionRows` (ADR 0128).
  *
  * The reversal is TOTAL: the amount is the origin's own `monto`, never one the client sends.
  */

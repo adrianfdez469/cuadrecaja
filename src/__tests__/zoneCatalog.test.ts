@@ -5,9 +5,9 @@ import path from "path";
 import type { IZoneCatalogEntry } from "@/schemas/qabZone";
 
 /**
- * F-039 — the shared zone catalog (184 rows: 16 FIRST_LEVEL, 168 MUNICIPALITY).
+ * F-041 — the shared zone catalog (184 rows: 16 FIRST_LEVEL, 168 MUNICIPALITY).
  *
- * Written against the interface contract in `.agents/specs/F-039.md` §§ 4.2, 10.2, without
+ * Written against the interface contract in `.agents/specs/F-041.md` §§ 4.2, 10.2, without
  * reading the implementer's `src/constants/zones/zoneCatalog.ts`. Every import of production
  * code is a per-test dynamic import so a missing export in one symbol never tumbles the whole
  * file (E-019).

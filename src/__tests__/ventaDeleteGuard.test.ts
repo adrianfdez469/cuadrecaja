@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 
 /**
- * F-035 — `src/lib/cuentasPorCobrar/ventaDeleteGuard.ts` (contract § 4.3, amended by the
+ * F-037 — `src/lib/cuentasPorCobrar/ventaDeleteGuard.ts` (contract § 4.3, amended by the
  * design's § 6; criteria 5, 6, 7, 8).
  *
  * Dynamic import (E-019): the module does not exist until the `implementer` creates it,
@@ -21,7 +21,7 @@ describe("VENTA_DELETE_BLOCK_REASONS — the order IS the contract (first to fir
   });
 });
 
-describe("VENTA_DELETE_BLOCK_HTTP_STATUS — 409 for the two credit reasons, 400 stays for MULTIPLES_PAGOS (ADR 0126, E-009 rules out 403)", () => {
+describe("VENTA_DELETE_BLOCK_HTTP_STATUS — 409 for the two credit reasons, 400 stays for MULTIPLES_PAGOS (ADR 0133, E-009 rules out 403)", () => {
   it("maps every reason to the exact code the contract fixes", () => {
     expect(guard.VENTA_DELETE_BLOCK_HTTP_STATUS).toEqual({
       CREDITO_CON_COBROS: 409,
@@ -56,7 +56,7 @@ describe("evaluateVentaDeleteGuard — the composed gate, no credit at all", () 
   });
 });
 
-describe("evaluateVentaDeleteGuard — credit that blocks NOTHING: a live balance with zero collections (criterion 8, ADR 0126: cobros, not live debt)", () => {
+describe("evaluateVentaDeleteGuard — credit that blocks NOTHING: a live balance with zero collections (criterion 8, ADR 0133: cobros, not live debt)", () => {
   it("allows deleting a product AND the whole sale when the account has no ABONO/REVERSION_ABONO and no ledger rows at all", () => {
     const result = guard.evaluateVentaDeleteGuard({
       credito: { cobros: 0, movimientos: 0 },

@@ -1,7 +1,7 @@
 # E-036: `strict: false` rompe el estrechamiento de una unión discriminada por booleano
 
 **Área:** build
-**Apariciones:** 2 — F-009, F-039 (`zoneTariffPrecedence.ts`)
+**Apariciones:** 2 — F-009, F-041 (`zoneTariffPrecedence.ts`)
 
 ## Síntoma
 
@@ -62,12 +62,12 @@ Dos notas de proceso, porque aquí funcionaron:
 
 ---
 
-## Adenda F-039 — la dirección contraria, y es la peligrosa
+## Adenda F-041 — la dirección contraria, y es la peligrosa
 
 En F-009 `strict: false` hizo que `tsc` **fallara** sobre código correcto: el estrechamiento no
 ocurría y el compilador se quejaba. Molesto, pero ruidoso: hay un error, se ve, se arregla.
 
-F-039 dio con el reverso, que no hace ruido ninguno. La primera versión de `resolveZoneTariff`
+F-041 dio con el reverso, que no hace ruido ninguno. La primera versión de `resolveZoneTariff`
 calculaba el veredicto de un escalón en una función auxiliar y, ya de vuelta en el llamador, leía
 `row.deliveryFee` para formatearlo — confiando en un estrechamiento que había ocurrido **dentro de
 la otra función** y que no viaja de vuelta. Con `strict: false`, `row` posiblemente `undefined` y

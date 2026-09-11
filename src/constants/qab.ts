@@ -761,7 +761,7 @@ export const QAB_ORDER_WHATSAPP_HOST = "wa.me";
  *
  * EMPTY TODAY, and that is a state, not a retirement. BUSINESS was the one
  * member, held back while QAB's `entity` did not admit it; contract v12.2 said
- * the applier was up and F-038 emptied the list. The mechanism stays wired for
+ * the applier was up and F-040 emptied the list. The mechanism stays wired for
  * the next entity that has to wait for the other side to be ready —
  * ZONE_TARIFF is the immediate candidate.
  *
@@ -776,7 +776,7 @@ export const QAB_ORDER_WHATSAPP_HOST = "wa.me";
  * no line is written.
  *
  * The release procedure, and why a released backlog drains on its own with no
- * re-emission and no manual cleanup: ADR 0092 § 1, executed by F-038.
+ * re-emission and no manual cleanup: ADR 0092 § 1, executed by F-040.
  */
 export const QAB_OUTBOX_WITHHELD_ENTITIES = [] as const;
 

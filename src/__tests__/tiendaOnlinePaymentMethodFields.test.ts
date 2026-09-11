@@ -9,7 +9,7 @@ import {
 } from "@/constants/tiendaOnline";
 
 /**
- * F-036 (contract § 2.2, § 2.4, § 8.2 points 4 and 5). A NEW file and not an
+ * F-038 (contract § 2.2, § 2.4, § 8.2 points 4 and 5). A NEW file and not an
  * extension of `tiendaOnlineLandingConstants.test.ts` or
  * `pedidoEntrantePagoSchema.test.ts`: every symbol imported above is marked
  * NUEVO in contract § 8.1 and does not exist until the `implementer` writes

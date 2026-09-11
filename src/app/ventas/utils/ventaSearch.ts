@@ -16,7 +16,7 @@ export interface IVentaSearchable {
  * a test (E-015), and criterion 4 is exactly a predicate test.
  *
  * It matches, and the list is exhaustive: the sale id, its formatted date, its formatted date and
- * time, the names of its products, the seller's name, and — NEW in F-035 — `clienteNombre`, the
+ * time, the names of its products, the seller's name, and — NEW in F-037 — `clienteNombre`, the
  * debtor of a credit sale (criterion 4).
  *
  * An empty or whitespace-only term matches every sale, which is what the screen shows today with
@@ -33,7 +33,7 @@ export function matchesVentaSearch(
   if (needle.length === 0) return true;
   if (!venta) return false;
 
-  // `createdAt` crosses the wire as a string even though the type says Date (E-070), so it is
+  // `createdAt` crosses the wire as a string even though the type says Date (E-074), so it is
   // normalized here instead of trusting the declared type.
   const createdAt = new Date(venta.createdAt);
 

@@ -623,7 +623,7 @@ export function CheckoutView({
   );
 
   const activateCredit = (selection: ICreditSelection) => {
-    // A tip on a credit sale would be lending the customer money to tip with (ADR 0104), and
+    // A tip on a credit sale would be lending the customer money to tip with (ADR 0111), and
     // the server rejects it with a 400. Cleared here, before the block appears.
     clearTip();
     // Mirrors what picking any other form of payment does: while the base cash line is still
@@ -684,7 +684,7 @@ export function CheckoutView({
     // does the credit: `Venta.totalcash + totaltransfer + creditoBase` must add up to
     // `total`. A tip settled by transfer would otherwise push totaltransfer past it, and a
     // debt would be booked as cash in the drawer. The untouched `pagosDetalle` keeps the
-    // full amount handed over, so the drawer is unaffected (ADR 0104).
+    // full amount handed over, so the drawer is unaffected (ADR 0111).
     const totalCashBase =
       sumBase(pagosDetalle, "cash") - sumBase(tipDetail, "cash");
     const totalTransferBase =
@@ -974,7 +974,7 @@ export function CheckoutView({
         }}
       />
 
-      {/* F-031's selector, mounted as it ships, with the one prop the contract § 7.1 adds.
+      {/* F-033's selector, mounted as it ships, with the one prop the contract § 7.1 adds.
           `ClienteAutocomplete` is NOT mounted at any width: the checkout is the same touch
           column of 369-400 px on a desktop as on a phone.
 

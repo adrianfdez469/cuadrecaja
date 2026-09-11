@@ -7,7 +7,7 @@ import {
 
 /**
  * The two forms of money physically received. Credit is NOT one of them and never will
- * be a third value here: it travels in Venta.creditoBase (ADR 0104). The test of
+ * be a third value here: it travels in Venta.creditoBase (ADR 0111). The test of
  * criterion 12 exists to keep this from being reverted by accident.
  */
 export const pagoLineaSchema = z.object({
@@ -74,8 +74,8 @@ export const multimonedaExtrasSchema = z.object({
   // transportarla. El servidor la valida contra el excedente, no la deriva.
   tipTotal: z.number().nonnegative().optional(),
   tipDetail: tipDetalleSchema.optional(),
-  // Credit sale, sent by the checkout alongside the payment lines. F-032 is what
-  // validates them on the server; F-029 only declares their shape.
+  // Credit sale, sent by the checkout alongside the payment lines. F-034 is what
+  // validates them on the server; F-031 only declares their shape.
   creditoBase: z.number().nonnegative().optional(),
   clienteId: z.string().uuid().optional(),
   // The name of the customer the cashier typed when no row exists yet — an offline sale
@@ -87,7 +87,7 @@ export const multimonedaExtrasSchema = z.object({
   // The character bound is not decoration. This string is written verbatim into
   // Cliente.nombre and printed on the ticket, and the ESC/POS encoder writes ticket text to
   // the printer with no escaping at all: a control byte inside a name is a command to the
-  // hardware, not text (ADR 0113). Rejected here rather than cleaned, so what reaches the
+  // hardware, not text (ADR 0120). Rejected here rather than cleaned, so what reaches the
   // row is what the cashier typed.
   clienteNombre: z
     .string()

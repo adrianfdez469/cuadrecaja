@@ -41,7 +41,7 @@ export default function OperacionPage() {
   const showCredit = hasCreditKpi(credit);
 
   // The percentage notes keep dividing by `totalBase` — credit included — so they
-  // say exactly what the "Participación" column of the table below says (ADR 0132).
+  // say exactly what the "Participación" column of the table below says (ADR 0139).
   const totalSold = data?.pagos.totalBase ?? 0;
 
   const stats: Stat[] = data

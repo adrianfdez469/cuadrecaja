@@ -44,7 +44,7 @@ export const ventaDeleteBloqueadaResponseSchema = z.object({
 
 /** GET .../[ventaId]/credito — the debt of ONE sale, with its whole ledger. */
 export const ventaCreditoDetalleResponseSchema = z.object({
-  /** The instant the response was measured against, echoed like the panel of F-033 does. */
+  /** The instant the response was measured against, echoed like the panel of F-035 does. */
   at: z.coerce.date(),
   cuenta: ventaCreditoResumenSchema.extend({
     ventaId: z.string().uuid(),
@@ -52,7 +52,7 @@ export const ventaCreditoDetalleResponseSchema = z.object({
     clienteNombre: z.string(),
     monedaDeudaCode: z.string().nullable(),
     montoDeudaMonedaOriginal: z.number().nullable(),
-    /** Newest first. IMPORTED from F-029, never restated (E-039). */
+    /** Newest first. IMPORTED from F-031, never restated (E-039). */
     movimientosDetalle: z.array(movimientoCuentaPorCobrarSchema),
   }),
 });
@@ -65,7 +65,7 @@ export const ventaCreditoDetalleResponseSchema = z.object({
  *   alike would invite one to overwrite the other in the `extend`.
  * - `settledAt` CROSSES THE WIRE AS A STRING. `/ventas` consumes `getSells` WITHOUT going
  *   through Zod, so on that screen the field is a string even though the type says `Date`
- *   (E-070). That is why `resolveVentaCreditoEstado` only compares it against `null` and calls
+ *   (E-074). That is why `resolveVentaCreditoEstado` only compares it against `null` and calls
  *   no `Date` method. The detail GET's response IS parsed with its schema in the service,
  *   which is what turns it into a `Date` before anything sorts or formats it.
  */

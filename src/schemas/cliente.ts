@@ -22,7 +22,7 @@ export const createClienteSchema = z.object({
     .min(1, "El nombre es requerido")
     .max(200, "Máximo 200 caracteres")
     // Same bound and same reason as multimonedaExtrasSchema.clienteNombre: this column is
-    // printed on a receipt, and the ESC/POS encoder does not escape ticket text (ADR 0113).
+    // printed on a receipt, and the ESC/POS encoder does not escape ticket text (ADR 0120).
     // This is the OTHER writer of Cliente.nombre; closing one door and not the other would
     // fix nothing.
     .refine((value) => !hasControlCharacters(value), {

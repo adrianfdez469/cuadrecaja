@@ -28,7 +28,7 @@ interface PerdonarDeudaDialogProps {
 
 /**
  * The gravest of the three actions: it destroys value with nothing coming back into the till, and
- * it cannot be undone from this screen — the ledger is append-only and F-033 offers no undo for a
+ * it cannot be undone from this screen — the ledger is append-only and F-035 offers no undo for a
  * CONDONACION.
  *
  * The friction is the reason, and only the reason: writing one is a deliberate act, and it leaves

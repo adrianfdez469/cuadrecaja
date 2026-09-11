@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 
 /**
- * F-032, ADR 0113, contract § 3.2, § 3.3, § 3.4, § 9.1 (H1) — the asymmetry that is the
+ * F-034, ADR 0120, contract § 3.2, § 3.3, § 3.4, § 9.1 (H1) — the asymmetry that is the
  * whole point of the amendment: WRITE schemas reject a name carrying control
  * characters, READ schemas do not. Refining the read models would make a row written
  * before the bound existed unreadable — `reloadSales`/`clienteConSaldoSchema` would
@@ -75,7 +75,7 @@ describe("the four assertions of H1, together", () => {
     expect(result.success).toBe(true);
   });
 
-  it("4) clienteSchema.nombre (READ) ACCEPTS the kick sequence — same reasoning, and clienteConSaldoSchema (F-031) extends this schema", () => {
+  it("4) clienteSchema.nombre (READ) ACCEPTS the kick sequence — same reasoning, and clienteConSaldoSchema (F-033) extends this schema", () => {
     const result = clienteSchema.safeParse({
       ...validClienteRowBase(),
       nombre: KICK_SEQUENCE,
@@ -96,7 +96,7 @@ describe("updateClienteSchema — the .refine survives .partial() (§ 3.4)", () 
   });
 });
 
-describe("the duplicated 200-character bound stays in sync across the two files it lives in (ADR 0111: the pago.ts -> cliente.ts edge is forbidden)", () => {
+describe("the duplicated 200-character bound stays in sync across the two files it lives in (ADR 0118: the pago.ts -> cliente.ts edge is forbidden)", () => {
   it("both multimonedaExtrasSchema.clienteNombre and createClienteSchema.nombre reject 201 clean characters", () => {
     const tooLong = "a".repeat(201);
 
@@ -113,7 +113,7 @@ describe("the duplicated 200-character bound stays in sync across the two files 
     expect(fromCliente.success).toBe(false);
   });
 
-  it("the § 3.2 docstring names clienteSchema.nombre (the READ model) as the number to stay in step with, and that pre-existing (F-029) length bound also rejects 201 CLEAN characters — a length check, unrelated to the new control-character refine", () => {
+  it("the § 3.2 docstring names clienteSchema.nombre (the READ model) as the number to stay in step with, and that pre-existing (F-031) length bound also rejects 201 CLEAN characters — a length check, unrelated to the new control-character refine", () => {
     const tooLong = "a".repeat(201);
     const fromClienteRow = clienteSchema.safeParse({
       ...validClienteRowBase(),

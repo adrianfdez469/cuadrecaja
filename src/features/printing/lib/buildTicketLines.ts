@@ -33,14 +33,14 @@ function feedLine(marker: boolean): ITicketRenderedLine {
 
 /**
  * The two module functions that build EVERY text line of the ticket, and therefore the one
- * place the control bytes are taken out (ADR 0113).
+ * place the control bytes are taken out (ADR 0120).
  *
  * Here and not at the customer's interpolation, for three reasons: it closes the whole class
  * in one place — `Cajero: …` carries Usuario.nombre, the product blocks carry the product
  * name and the footer carries `plantilla.pie`, none of which has a character bound and none
- * of which is F-032's; it covers what the schema cannot, because the `.refine` is an ENTRANCE
+ * of which is F-034's; it covers what the schema cannot, because the `.refine` is an ENTRANCE
  * door and says nothing about rows written before it existed; and it is the cheapest place
- * F-032 is entitled to touch — `escpos/encoder.ts`, where the debt really lives, is not in
+ * F-034 is entitled to touch — `escpos/encoder.ts`, where the debt really lives, is not in
  * its list and is NOT touched.
  *
  * What this does NOT promise (E-017): it does not stop ESC bytes from reaching the printer —

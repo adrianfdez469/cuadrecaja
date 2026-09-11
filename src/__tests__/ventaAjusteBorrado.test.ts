@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 
 /**
- * F-035 — `src/lib/cuentasPorCobrar/ventaAjusteBorrado.ts` (contract § 4.4; criterion 8).
+ * F-037 — `src/lib/cuentasPorCobrar/ventaAjusteBorrado.ts` (contract § 4.4; criterion 8).
  *
  * Dynamic import (E-019): the module does not exist until the `implementer` creates it.
  */
@@ -9,7 +9,7 @@ const { splitAjusteBorrado } = await import(
   "@/lib/cuentasPorCobrar/ventaAjusteBorrado"
 );
 
-describe("splitAjusteBorrado — debt absorbs the adjustment FIRST (ADR 0128)", () => {
+describe("splitAjusteBorrado — debt absorbs the adjustment FIRST (ADR 0135)", () => {
   it("is the contract's own worked example, criterion 8 exact: 1000/600cash/400credit, a 300 product removed leaves credit 100 and cash UNCHANGED at 600", () => {
     const result = splitAjusteBorrado({
       totalAnterior: 1000,

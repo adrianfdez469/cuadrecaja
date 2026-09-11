@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 
 /**
- * F-030, criterion 9 — the two `where` builders of `@/lib/cierre/loadCierreInput.ts`
+ * F-032, criterion 9 — the two `where` builders of `@/lib/cierre/loadCierreInput.ts`
  * (contract § 4.1), extracted to exported functions precisely so the `OR` trap can be
  * asserted with `toEqual` on the whole object, without a database.
  *
@@ -16,7 +16,7 @@ const { openReceivablesWhere, periodCollectionsWhere } = await import(
 
 const corte = new Date("2026-09-03T00:00:00Z");
 
-describe("openReceivablesWhere (F-030, criterion 9)", () => {
+describe("openReceivablesWhere (F-032, criterion 9)", () => {
   it("selects tiendaId, fechaVenta <= corte, AND settled-null OR settled-after-corte — never `settledAt: null` alone", () => {
     expect(openReceivablesWhere("T1", corte)).toEqual({
       tiendaId: "T1",
@@ -50,14 +50,14 @@ describe("openReceivablesWhere (F-030, criterion 9)", () => {
   });
 });
 
-describe("periodCollectionsWhere (F-030, criterion 8 / criterion 3-6 support; F-033 § 12.1, ADR 0121)", () => {
+describe("periodCollectionsWhere (F-032, criterion 8 / criterion 3-6 support; F-035 § 12.1, ADR 0128)", () => {
   const fechaInicio = new Date("2026-09-01T00:00:00Z");
   const fechaFin = new Date("2026-09-03T01:18:00Z");
 
-  // F-033 § 12.1 (ADR 0121, the negative mirror) widens this where's `tipo` clause from the
+  // F-035 § 12.1 (ADR 0128, the negative mirror) widens this where's `tipo` clause from the
   // single value `"ABONO"` to `{ in: ["ABONO", "REVERSION_ABONO"] }`: a reversal now has to
   // enter the same period-collections query as the ABONO it undoes, so `netCollectionRows`
-  // can net the two against each other. This is F-030 code broken FROM OUTSIDE by F-033's
+  // can net the two against each other. This is F-032 code broken FROM OUTSIDE by F-035's
   // contract, exactly the E-026 addendum shape (tsc/lint green, this suite red) — updating it
   // is dev-tester's boundary, not the implementer's (E-046), and it is fixed against § 12.1's
   // literal text, not against whatever the real function happens to return.

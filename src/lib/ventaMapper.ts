@@ -77,7 +77,7 @@ function mapProductoNombre(p: VentaProductoRow): string | undefined {
 /**
  * The credit block of a serialized sale, or `null` when the sale has no CuentaPorCobrar.
  *
- * EXPORTED on purpose: the listing GET of F-032 builds the same block for the same sales
+ * EXPORTED on purpose: the listing GET of F-034 builds the same block for the same sales
  * (contract § 1.3). If each one assembled it its own way, the chip of `/ventas` and the chip of
  * the mobile app could disagree about the very same sale.
  *

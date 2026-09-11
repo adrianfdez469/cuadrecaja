@@ -38,7 +38,7 @@ type CreditCopy = {
  * transcription of it (E-016).
  */
 export const CREDIT_COPY: CreditCopy = {
-  // Literals from .agents/designs/F-034.md
+  // Literals from .agents/designs/F-036.md
   cardTitle: "Crédito del período",
   cardGrantedLabel: "Ventas a crédito",
   cardCollectedLabel: "Cobros de crédito",

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 /**
- * F-033 — REGRESSION for a bug QA found by executing, that the rest of this suite did not
+ * F-035 — REGRESSION for a bug QA found by executing, that the rest of this suite did not
  * catch: `src/services/cuentasPorCobrarService.ts` returned `response.data` VERBATIM instead
  * of parsing it through the response schemas of `src/schemas/cuentasPorCobrarPanel.ts`. Every
  * one of those schemas declares its date fields with `z.coerce.date()` — but coercion only
@@ -39,7 +39,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * in isolation (parsing a schema directly proves the schema coerces — it says nothing about
  * whether the service actually calls it, which is precisely what broke).
  *
- * Written against the contract (`.agents/specs/F-033.md` § 2 for the schemas, § 7 for the
+ * Written against the contract (`.agents/specs/F-035.md` § 2 for the schemas, § 7 for the
  * service's six exported functions), not against the implementer's fix — which is landing in
  * parallel, in `src/services/cuentasPorCobrarService.ts`, which this file never reads. Red here
  * until that fix lands is expected.

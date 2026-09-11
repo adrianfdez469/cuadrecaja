@@ -548,7 +548,7 @@ export const TIENDA_ONLINE_ORDER_COPY = {
    */
   pagoSinDestinos:
     "Este local no tiene destinos de transferencia configurados, así que un cobro por transferencia no se puede registrar todavía. Créalos en Destinos de Transferencia, o registra el cobro en efectivo o a crédito.",
-  /* F-036 — the debtor of a collection on credit. */
+  /* F-038 — the debtor of a collection on credit. */
   /**
    * Label of the debtor row. The SAME word `VENTA_CREDITO_COPY.bloqueDeudor`
    * gives this field in the sale detail: two names for one field is two
@@ -695,7 +695,7 @@ export function orderStatusFailureOffersRetry(qabError: string): boolean {
  * invent vocabulary: it reuses what is already in five places and puts it, for
  * the first time, in a named map instead of a sixth ternary.
  *
- * `A crédito` is the same rule applied to the third one (F-036): it is, character
+ * `A crédito` is the same rule applied to the third one (F-038): it is, character
  * for character, `VENTA_CREDITO_COPY.chipConSaldo` and
  * `CREDIT_CHECKOUT_COPY.addPaymentRow`. It is written here as a literal and NOT
  * imported from them, exactly like its two sisters, because crossing
@@ -749,7 +749,7 @@ const BLOCKED_COPY: Record<IOrderLandingBlockerValue, string> = {
   // `negocio` and NOT `local`: `Cliente` hangs from the business, while the
   // transfer destination above hangs from the store. The word is the difference
   // between the two scopes, and saying «local» here would teach the manager a
-  // data model that is false (ADR 0130).
+  // data model that is false (ADR 0137).
   UNKNOWN_CLIENTE: `El cliente que elegiste como deudor no es de este negocio. Vuelve a pulsar ${CAMBIAR_ESTADO_QUOTED} y elígelo de la lista de clientes. ${NOTHING_LEFT_THIS_POS}`,
 };
 

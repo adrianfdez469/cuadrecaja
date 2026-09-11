@@ -1,10 +1,10 @@
 import { describe, it, expect } from "vitest";
 
 /**
- * F-031, contract § 4.6, § 11.1 — `src/lib/clientes/clienteCacheOwner.ts` (enmienda S2,
- * `.agents/F-031-seguridad.md` hallazgo 🔴-2).
+ * F-033, contract § 4.6, § 11.1 — `src/lib/clientes/clienteCacheOwner.ts` (enmienda S2,
+ * `.agents/F-033-seguridad.md` hallazgo 🔴-2).
  *
- * These two symbols close the read-side window the ADR 0108 left open: a shared
+ * These two symbols close the read-side window the ADR 0115 left open: a shared
  * counter tablet where a different employee (or a different negocio) logs in must not
  * inherit the previous session's cached clientes.
  *

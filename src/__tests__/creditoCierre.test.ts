@@ -2,9 +2,9 @@ import { describe, it, expect, beforeAll } from "vitest";
 import { formatCurrency } from "@/utils/formatters";
 
 /**
- * F-034 — `src/app/cierre/utils/creditoCierre.ts` (contract § 3, testability § 9) and
+ * F-036 — `src/app/cierre/utils/creditoCierre.ts` (contract § 3, testability § 9) and
  * `src/app/cierre/utils/creditoCierreCopy.ts` (contract § 4; the twelve literals are
- * frozen in `.agents/designs/F-034.md` § 0).
+ * frozen in `.agents/designs/F-036.md` § 0).
  *
  * Written against the contract, without reading the implementation.
  *
@@ -75,7 +75,7 @@ describe("readCreditFlow", () => {
     ).toEqual({ granted: 1000, collected: 300 });
   });
 
-  it("preserves a negative totalCobrosCredito (ADR 0121 reversal) instead of clamping it to 0", () => {
+  it("preserves a negative totalCobrosCredito (ADR 0128 reversal) instead of clamping it to 0", () => {
     expect(
       mod.readCreditFlow({ totalCreditoOtorgado: 0, totalCobrosCredito: -300 }),
     ).toEqual({ granted: 0, collected: -300 });
@@ -94,7 +94,7 @@ describe("hasCreditToExplain — gate by absolute value and epsilon, not '> 0' (
     expect(mod.hasCreditToExplain({ granted: 0, collected: 0 })).toBe(false);
   });
 
-  it("is true when only 'collected' is negative — the sign a '> 0' gate would miss (ADR 0121)", () => {
+  it("is true when only 'collected' is negative — the sign a '> 0' gate would miss (ADR 0128)", () => {
     expect(mod.hasCreditToExplain({ granted: 0, collected: -300 })).toBe(true);
   });
 
@@ -192,7 +192,7 @@ describe("shouldShowCreditColumns — permission AND data (contract § 3, criter
     ).toBe(true);
   });
 
-  it("is true when sumTotalCobrosCredito is negative past the epsilon — the reversal case (ADR 0121)", () => {
+  it("is true when sumTotalCobrosCredito is negative past the epsilon — the reversal case (ADR 0128)", () => {
     expect(
       mod.shouldShowCreditColumns(true, {
         sumTotalCreditoOtorgado: 0,
@@ -266,7 +266,7 @@ describe("shouldShowCreditColumns — permission AND data (contract § 3, criter
   });
 });
 
-describe("resolveCurrencyCreditLines — only the base-currency row, codes compared trimmed/upper-cased (ADR 0124)", () => {
+describe("resolveCurrencyCreditLines — only the base-currency row, codes compared trimmed/upper-cased (ADR 0131)", () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- module not guaranteed to exist yet (E-019)
   let mod: any;
 
@@ -325,7 +325,7 @@ describe("resolveCurrencyCreditLines — only the base-currency row, codes compa
   });
 });
 
-describe("CREDIT_COPY — the twelve literals frozen in .agents/designs/F-034.md § 0", () => {
+describe("CREDIT_COPY — the twelve literals frozen in .agents/designs/F-036.md § 0", () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- module not guaranteed to exist yet (E-019)
   let copy: any;
 

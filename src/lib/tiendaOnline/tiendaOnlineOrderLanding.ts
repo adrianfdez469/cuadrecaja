@@ -74,7 +74,7 @@ const UNIQUE_VIOLATION_CODE = "P2002";
  * - UNKNOWN_CLIENTE              `pago.clienteId` is not of THIS BUSINESS. The
  *                                only one of the four scoped to the business and
  *                                not to the store, because that is where
- *                                `Cliente` hangs from (ADR 0130)
+ *                                `Cliente` hangs from (ADR 0137)
  * - MISSING_EXCHANGE_RATE        the order's currency cannot be converted to the
  *                                business's monedaBase without inventing a rate.
  *                                It defers to `missingRateCodes`, which is THE
@@ -645,7 +645,7 @@ async function sellOrder(args: {
   });
 
   // The debt, in the SAME transaction as the sale and immediately after it —
-  // the pattern F-032 fixed for the POS sale route and this one replicates
+  // the pattern F-034 fixed for the POS sale route and this one replicates
   // without redesigning it. If anything later in this transaction fails, the
   // debt is undone with the sale.
   //

@@ -1,7 +1,7 @@
 # E-054: una recarga completa no es «volver en la misma sesión», y el caché parece no funcionar
 
 **Área:** tests
-**Apariciones:** 2 — F-025 · F-032 (adenda: `setOffline`)
+**Apariciones:** 2 — F-025 · F-034 (adenda: `setOffline`)
 
 ## Síntoma
 
@@ -48,12 +48,12 @@ que se creía distinguir.
 
 ---
 
-## Adenda F-032 — `context.setOffline(true)` de Playwright bloquea también `localhost`
+## Adenda F-034 — `context.setOffline(true)` de Playwright bloquea también `localhost`
 
 El mismo error de fondo —**el arnés no reproduce el gesto real del usuario**— con otro mecanismo,
 y este cuesta media hora de desconcierto porque el fallo aparece **lejos** de la causa.
 
-Para verificar los criterios «sin conexión» de F-032 hacía falta modo avión. El gesto intuitivo es
+Para verificar los criterios «sin conexión» de F-034 hacía falta modo avión. El gesto intuitivo es
 cortar la red y **entonces** navegar a la pantalla:
 
 ```

@@ -25,7 +25,7 @@ export interface ICuentaPanelInput {
   tiendaNombre: string;
   fechaVenta: Date;
   montoOriginal: number;
-  /** The denormalized column, read as it is. The ledger is not walked here (ADR 0119). */
+  /** The denormalized column, read as it is. The ledger is not walked here (ADR 0126). */
   saldoPendiente: number;
   settledAt: Date | null;
   monedaDeudaCode: string | null;
@@ -66,7 +66,7 @@ export function withAging(
  *
  * Classification goes through `bucketAntiguedad`, which `src/lib/cuentasPorCobrar/aging.ts`
  * declares the only interpreter of AGING_BUCKETS: the cut is NOT rewritten as a date range
- * (E-014, ADR 0119).
+ * (E-014, ADR 0126).
  *
  * Worked, with `at` fixed and three accounts aged 30, 45 and 61 days: filtering by "31-60" keeps
  * only the one aged 45. The one aged 30 lands in "0-30" (30 <= 30) and the one aged 61 in

@@ -63,7 +63,7 @@ export const ventaSchema = z.object({
   tipTotal: z.number().optional(),
   tipDetail: tipDetalleSchema.optional(),
   // Credit sale. `creditoBase` is the part of `total` NOT paid at the counter, in base
-  // currency. It is NEVER a line of pagosDetalle (ADR 0104).
+  // currency. It is NEVER a line of pagosDetalle (ADR 0111).
   creditoBase: z.number().nonnegative().optional(),
   clienteId: z.string().uuid().nullable().optional(),
   // Denormalized for reading only: the debtor's name as the server has it at the moment of

@@ -131,7 +131,7 @@ export interface CierreStoredTotals {
    * Sum of Venta.creditoBase of the period. Inside totalVentas, outside the drawer.
    *
    * These three columns are mirrored in `cierreStoredTotalsSchema` and `cierreDataSchema`
-   * (src/schemas/cierre.ts). That file belongs to F-034 and is extended there, when the
+   * (src/schemas/cierre.ts). That file belongs to F-036 and is extended there, when the
    * closing screens start rendering the figures; until then the three travel in the JSON
    * of every response without a declared type.
    */
@@ -269,7 +269,7 @@ export function valueAbonos(
       if (linea.tipo !== "cash" && linea.tipo !== "transfer") continue;
       // linea.equivalenteBase is NOT read: the drawer values this same line with
       // convertToBase, and taking a different number here would open a gap in the
-      // reconciliation equation (ADR 0105).
+      // reconciliation equation (ADR 0112).
       const enBase = convertToBase(
         linea.monto,
         linea.moneda,
@@ -505,7 +505,7 @@ export function computeCierreTotals(
   // A STOCK, not a flow: recomputed from scratch against the cutoff on every run, never
   // added to the previous period's. The cutoff that decides the figure is the one the
   // loader already applied to each account's movements; `corteCierre` here only drives
-  // `dias`/`bucket`, which F-030 neither exposes nor stores.
+  // `dias`/`bucket`, which F-032 neither exposes nor stores.
   const totalPorCobrarAlCierre = buildCuentasPorCobrarSnapshot(
     input.cuentasPorCobrar,
     corteCierre,
@@ -618,7 +618,7 @@ export function computeCierreTotals(
             )
           : (m.montoReembolso ?? 0));
       // The SAME ratio applyComprasYDevolucionesToResumenMap takes off the drawer, so the
-      // panel line and the total agree on what left it. ADR 0105 reads
+      // panel line and the total agree on what left it. ADR 0112 reads
       // `reembolsosEnEfectivo` of the reconciliation equation from this very entry, and a
       // refund applied in full against the debt has to show 0 here: the profit went down,
       // the cash did not.

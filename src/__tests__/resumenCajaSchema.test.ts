@@ -2,10 +2,10 @@ import { describe, it, expect } from "vitest";
 import { resumenCajaMonedaSchema } from "@/schemas/resumenCaja";
 
 /**
- * F-030, contract § 7 — `resumenCajaMonedaSchema` gains `cobrosCreditoEfectivo`,
+ * F-032, contract § 7 — `resumenCajaMonedaSchema` gains `cobrosCreditoEfectivo`,
  * required (not `.optional()`): the route always sends it.
  */
-describe("resumenCajaMonedaSchema (F-030)", () => {
+describe("resumenCajaMonedaSchema (F-032)", () => {
   const valid = {
     monedaCode: "CUP",
     fondoInicial: 0,

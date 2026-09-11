@@ -1,7 +1,7 @@
 # E-019: `it.each` con un símbolo que aún no existe revienta el archivo entero
 
 **Área:** tests
-**Apariciones:** 2 — F-020 (`qabSync.test.ts` y `qabOutboxLog.test.ts`), F-039 (`zoneTariffPrecedence.test.ts`)
+**Apariciones:** 2 — F-020 (`qabSync.test.ts` y `qabOutboxLog.test.ts`), F-041 (`zoneTariffPrecedence.test.ts`)
 
 ## Síntoma
 
@@ -69,9 +69,9 @@ archivo entero y no solo su propio caso.
 
 ---
 
-## Adenda F-039 — el mismo fallo sin ningún símbolo ausente, y quien lo encontró fue el propio autor
+## Adenda F-041 — el mismo fallo sin ningún símbolo ausente, y quien lo encontró fue el propio autor
 
-La ficha de arriba nace de un símbolo que aún no existía. F-039 llegó al **mismo colapso de
+La ficha de arriba nace de un símbolo que aún no existía. F-041 llegó al **mismo colapso de
 colección sin que faltara ningún símbolo**: la causa fue un `JSON.parse` de un *fixture* colocado a
 nivel de `describe`, alimentando la tabla de un `it.each`.
 

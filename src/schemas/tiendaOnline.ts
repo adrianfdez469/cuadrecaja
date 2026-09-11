@@ -681,7 +681,7 @@ const DELIVERED_STATUS =
 /**
  * How an online order was collected, declared by the person marking it DELIVERED.
  * ONE method for the whole amount: `pagosDetalle` is an array and will accept a
- * split the day a criterion asks for one (ADR 0073, ADR 0130).
+ * split the day a criterion asks for one (ADR 0073, ADR 0137).
  */
 export const pedidoEntrantePagoSchema = z
   .object({
@@ -691,7 +691,7 @@ export const pedidoEntrantePagoSchema = z
     /**
      * The debtor. REQUIRED for CREDITO, FORBIDDEN for the other two. Shape only:
      * that it exists and belongs to THIS business is a database question, and it
-     * is answered in `findOrderLandingBlocker` before QAB is called (ADR 0130).
+     * is answered in `findOrderLandingBlocker` before QAB is called (ADR 0137).
      */
     clienteId: z.string().uuid().optional(),
   })

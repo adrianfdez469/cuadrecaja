@@ -4,7 +4,7 @@ import { movimientoCuentaPorCobrarSchema } from "@/schemas/cuentaPorCobrar";
 import { CONTROL_CHARACTERS_MESSAGE } from "@/utils/printableText";
 
 /**
- * F-033 — `src/schemas/cuentasPorCobrarPanel.ts` (contract § 2). Covers testability
+ * F-035 — `src/schemas/cuentasPorCobrarPanel.ts` (contract § 2). Covers testability
  * symbols 11, 12, 13, 14, plus the sibling schemas in the same file that back the API
  * responses and the perdonar/revertir bodies.
  *
@@ -28,7 +28,7 @@ const {
   MOTIVO_CONTROL_CHARACTERS_MESSAGE,
 } = await import("@/schemas/cuentasPorCobrarPanel");
 
-/** A byte built at runtime, never written literally in the file (E-067). */
+/** A byte built at runtime, never written literally in the file (E-071). */
 const controlByte = (code: number) => String.fromCharCode(code);
 
 describe("agingBucketEnum — symbol 12: derived from AGING_BUCKETS, never a second list (E-014)", () => {
@@ -52,7 +52,7 @@ describe("deudorEstadoEnum / DEUDOR_ESTADOS — exactly two values, no 'vencido'
   });
 });
 
-describe("motivoField — symbol 13: rejects the ENTIRE control-character range, including \\n (E-067-safe: bytes built at runtime)", () => {
+describe("motivoField — symbol 13: rejects the ENTIRE control-character range, including \\n (E-071-safe: bytes built at runtime)", () => {
   it("accepts a normal string of exactly the max length (300)", () => {
     expect(motivoField.safeParse("a".repeat(CUENTAS_POR_COBRAR_MOTIVO_MAX)).success).toBe(true);
   });
@@ -100,7 +100,7 @@ describe("MOTIVO_CONTROL_CHARACTERS_MESSAGE — symbol 14: its OWN message, not 
   });
 });
 
-describe("abonoPagoLineaSchema — symbol 11: equivalenteBase is NOT part of the accepted body (ADR 0118)", () => {
+describe("abonoPagoLineaSchema — symbol 11: equivalenteBase is NOT part of the accepted body (ADR 0125)", () => {
   it("strips equivalenteBase even when the client sends it", () => {
     const result = abonoPagoLineaSchema.safeParse({
       tipo: "cash",
@@ -279,7 +279,7 @@ describe("saldoInsuficienteResponseSchema", () => {
   });
 });
 
-describe("movimientoCuentaPorCobrarConAutorSchema — extends the F-029 read schema, read side only (§ 5.6)", () => {
+describe("movimientoCuentaPorCobrarConAutorSchema — extends the F-031 read schema, read side only (§ 5.6)", () => {
   function validMovimiento(over: Record<string, unknown> = {}) {
     return {
       id: crypto.randomUUID(),

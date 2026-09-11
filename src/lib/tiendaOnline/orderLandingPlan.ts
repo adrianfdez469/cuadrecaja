@@ -249,7 +249,7 @@ export interface IOnlineSaleAmounts {
   /**
    * The part of `total` handed over on credit. `total` for CREDITO, 0 for the
    * other two. This is `Venta.creditoBase`, and it is a COLUMN and never a line
-   * of `pagosDetalle` (ADR 0104).
+   * of `pagosDetalle` (ADR 0111).
    */
   creditoBase: number;
   /** The order's own currency: what the buyer agreed to pay in. */
@@ -262,7 +262,7 @@ export interface IOnlineSaleAmounts {
    * Informative only, and present ONLY for CREDITO: the order's own denomination
    * of the debt, so the customer can be told "you owe 20 USD". NO arithmetic
    * reads these — the debt is denominated in base currency. They are the two
-   * columns `CuentaPorCobrar` reserved and that F-029 left for this feature to
+   * columns `CuentaPorCobrar` reserved and that F-031 left for this feature to
    * be the first to write.
    */
   monedaDeudaCode?: string;
@@ -296,7 +296,7 @@ const PAYMENT_CREDIT = "CREDITO";
  * because `pagoLineaSchema.monto` is `positive()` and a zero line would not
  * validate.
  *
- * CREDITO is the third branch (ADR 0130) and it invents NO arithmetic: `total`
+ * CREDITO is the third branch (ADR 0137) and it invents NO arithmetic: `total`
  * is the same `convertToBase` as the other two, and everything else is a zero
  * or an absence — `totalcash: 0`, `totaltransfer: 0`, `pagosDetalle: []` and
  * the whole `total` in `creditoBase`. No line of payment is what keeps the

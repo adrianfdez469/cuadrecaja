@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 
 /**
- * F-031, contract § 2.2, § 11.1 — `src/schemas/clienteSaldo.ts`.
+ * F-033, contract § 2.2, § 11.1 — `src/schemas/clienteSaldo.ts`.
  *
  * Namespace import: the module is new and may land with only some of its schemas
  * defined while `implementer` works in parallel (E-019).

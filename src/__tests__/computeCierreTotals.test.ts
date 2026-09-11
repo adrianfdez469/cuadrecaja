@@ -42,7 +42,7 @@ const sale = (over: Partial<CierreSale>): CierreSale => ({
   discountTotal: 0,
   tipTotal: 0,
   totaltransfer: 0,
-  // F-030: part of `total` handed over on credit, in base currency. 0 is every sale that
+  // F-032: part of `total` handed over on credit, in base currency. 0 is every sale that
   // predates the feature and every cash sale in these fixtures unless overridden.
   creditoBase: 0,
   tasaSnapshot: { USD: 680, EUR: 775 },
@@ -65,8 +65,8 @@ const baseInput = (over: Partial<CierreComputationInput> = {}) =>
     gastos: [],
     movimientos: [],
     initialFundAmounts: {},
-    // F-030: ABONO rows of the period, receivables still open at the cutoff, and the
-    // store's transfer destinations — see the "credit (F-030)" suite below.
+    // F-032: ABONO rows of the period, receivables still open at the cutoff, and the
+    // store's transfer destinations — see the "credit (F-032)" suite below.
     abonos: [],
     cuentasPorCobrar: [],
     transferDestinations: [],
@@ -459,7 +459,7 @@ describe("mergeLiquidaciones", () => {
 });
 
 /**
- * F-030 — computeCierreTotals gains three figures and reads two new input
+ * F-032 — computeCierreTotals gains three figures and reads two new input
  * arrays (abonos, cuentasPorCobrar) plus transferDestinations. `sale`/`baseInput`
  * above already carry the two mandatory additions (contract § 1.3): `creditoBase: 0`
  * and `abonos: []`/`cuentasPorCobrar: []`/`transferDestinations: []`.
@@ -489,7 +489,7 @@ const abono = (over: {
   ...over,
 });
 
-describe("computeCierreTotals — credit (F-030)", () => {
+describe("computeCierreTotals — credit (F-032)", () => {
   it("a cash sale of 1000 and a credit sale of 1000 in the same period give totalVentas 2000, totalCreditoOtorgado 1000, and totalGanancia equal to the sum of the two margins (criterion 1)", () => {
     const { totals } = computeCierreTotals(
       creditBaseInput({
@@ -722,7 +722,7 @@ describe("computeCierreTotals — credit (F-030)", () => {
     expect(refundedInCash.totals.totalGananciaFinal).toBe(300 - 60);
 
     // The SECOND caller of refundCashRatio (contract § 3.3f): the DEVOLUCION entry of
-    // cajaDeducciones — the very line ADR 0105 reads `reembolsosEnEfectivo` from — has to
+    // cajaDeducciones — the very line ADR 0112 reads `reembolsosEnEfectivo` from — has to
     // agree with resumenMonedas on how much of the refund left the drawer. It is a
     // DIFFERENT code path than applyComprasYDevolucionesToResumenMap (which only moves
     // resumenMonedas), so asserting on resumenMonedas alone does not exercise it: a
@@ -807,7 +807,7 @@ describe("computeCierreTotals — credit (F-030)", () => {
     expect(totals.totalCobrosCredito).toBe(150);
     expect(totals.totalTips).toBe(0);
     // Only one OPERATIVO gasto and no refund in this fixture, deliberately: it keeps
-    // "totalGastos(caja)" and "reembolsosEnEfectivo" from the ADR 0105 equation equal to
+    // "totalGastos(caja)" and "reembolsosEnEfectivo" from the ADR 0112 equation equal to
     // totalGastos and 0 respectively, sidestepping the two precisions the contract
     // documents for a GET-shaped verification (a non-OPERATIVO gasto, or a partial
     // refund) — which is qa's job, not a pure unit test's.
@@ -889,7 +889,7 @@ describe("computeCierreTotals — credit (F-030)", () => {
 });
 
 /**
- * F-030 § 3.2 — valueAbonos, dynamically imported: `computeCierreTotals.ts` does not
+ * F-032 § 3.2 — valueAbonos, dynamically imported: `computeCierreTotals.ts` does not
  * import Prisma, but valueAbonos itself may not exist yet while the implementer is
  * still writing it in parallel (E-019) — a static `import { valueAbonos } from "..."`
  * would crash the whole file's collection the moment that named export is missing.
@@ -910,7 +910,7 @@ const valueAbonosFn = (
   }
 ).valueAbonos;
 
-describe("valueAbonos (F-030)", () => {
+describe("valueAbonos (F-032)", () => {
   it.skipIf(typeof valueAbonosFn !== "function")(
     "values an abono's cash line with convertToBase, ignoring whatever equivalenteBase the line carries (criterion 4/5 support)",
     () => {

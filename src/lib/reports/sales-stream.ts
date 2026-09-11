@@ -98,7 +98,7 @@ export type NormalizedSale = {
   deliveryFeeBase: number;
   /**
    * Part of the sale handed over on credit, in base currency. Read verbatim from
-   * `Venta.creditoBase` (ADR 0104), NEVER deduced as `netAmount - sum(payments)`: an
+   * `Venta.creditoBase` (ADR 0111), NEVER deduced as `netAmount - sum(payments)`: an
    * online order charges delivery that the lines do not carry, so that subtraction
    * gives a different number for the same sale (spec criterion 3, E-013).
    *

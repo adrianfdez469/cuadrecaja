@@ -10,7 +10,7 @@ import type {
  *
  * It is NOT `> 0`, which is what `PropinasCard` uses for tips, and the
  * difference is deliberate: `totalCobrosCredito` can be negative when a
- * collection of an earlier period is reversed inside this one (ADR 0121
+ * collection of an earlier period is reversed inside this one (ADR 0128
  * builds the reversal as a negative mirror), and a period whose drawer went
  * DOWN because of a reversal is precisely a period that needs explaining.
  */
@@ -85,7 +85,7 @@ export function hasCreditToExplain(flow: ICreditFlow): boolean {
  * every period the filter matched, not only the visible page.
  *
  * Note what this does NOT promise: because `totalCobrosCredito` can be
- * negative (ADR 0121), two periods whose collections cancel out exactly would
+ * negative (ADR 0128), two periods whose collections cancel out exactly would
  * leave a sum of zero with non-zero rows, and the columns would stay hidden.
  * The two sums are therefore tested separately, never added together, so that
  * only the collections axis can cancel and never the granted one —
@@ -110,7 +110,7 @@ export function shouldShowCreditColumns(
  * Only the row of the negocio's base currency gets them: both figures are
  * denominated in base currency and the engine stores no per-currency split of
  * either, so putting a period total on a non-base row would claim a precision
- * the data does not have (ADR 0124).
+ * the data does not have (ADR 0131).
  *
  * Codes are compared trimmed and upper-cased: a case mismatch between
  * `ResumenMonedaCierre.monedaCode` and `Negocio.monedaBase` would hide both

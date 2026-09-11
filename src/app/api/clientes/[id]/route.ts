@@ -119,7 +119,7 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
     if (nombre !== undefined && nombre !== existing.nombre) {
       // The composite unique index counts the soft-deleted rows, so this check counts them
       // too. Renaming towards a deleted cliente's name neither reactivates nor merges it:
-      // reactivation has a single path, the POST (ADR 0107).
+      // reactivation has a single path, the POST (ADR 0114).
       const duplicate = await prisma.cliente.findFirst({
         where: withTenantScope(
           "cliente",
@@ -175,7 +175,7 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
  * DELETE /api/clientes/[id] — soft deletes the cliente.
  *
  * It is an UPDATE of `deletedAt`, never a row DELETE, and it touches no `CuentaPorCobrar`
- * (decided in F-029 § 2.1; F-031 only implements it). A cliente with any live account
+ * (decided in F-031 § 2.1; F-033 only implements it). A cliente with any live account
  * (`settledAt IS NULL`) answers 409 naming the amount.
  */
 export async function DELETE(_request: NextRequest, { params }: RouteContext) {

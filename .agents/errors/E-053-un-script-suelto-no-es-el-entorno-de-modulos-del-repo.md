@@ -1,7 +1,7 @@
 # E-053: un script de verificación suelto no es el entorno de módulos del repositorio
 
 **Área:** tests
-**Apariciones:** 3 — F-008 (dos veces, por dos mecanismos distintos) · F-028 parte B · F-038
+**Apariciones:** 3 — F-008 (dos veces, por dos mecanismos distintos) · F-028 parte B · F-040
 
 ## Síntoma
 
@@ -85,7 +85,7 @@ créalo fuera de esa carpeta, o espera a que el paso cierre.
 
 **Y la regla que añade la adenda de F-028:** cuando el mensaje de un cargador ajeno **nombra justo el fallo que estabas buscando**, desconfía antes de celebrarlo: reprodúcelo contra un caso donde ese fallo sea **imposible por construcción** (un módulo sin imports, un fixture vacío). Si también falla ahí, el mensaje habla del cargador y no de tu código. Un control negativo cuesta un comando y evita rehacer un diseño correcto.
 
-## Adenda F-038: el mismo mecanismo de ubicación, tres features después
+## Adenda F-040: el mismo mecanismo de ubicación, tres features después
 
 El coordinador quiso tomar las líneas base del outbox con un script de Prisma en el **scratchpad de
 la sesión**:

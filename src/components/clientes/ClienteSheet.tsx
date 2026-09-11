@@ -30,7 +30,7 @@ export interface IClienteSheetProps {
   /**
    * Offline only: what to do with a typed name when no row can be created yet. When it is
    * given, the create action stays enabled with no connection and hands the typed term over
-   * instead of POSTing it. When it is not, the sheet behaves EXACTLY as F-031 shipped it —
+   * instead of POSTing it. When it is not, the sheet behaves EXACTLY as F-033 shipped it —
    * the action dimmed with CLIENTE_CREATE_BLOCK_COPY.offline beside it.
    *
    * It returns `void` and this sheet NEVER calls `onClose` from it: whoever owns the open
@@ -45,8 +45,8 @@ export interface IClienteSheetProps {
  * Picking a debtor with a thumb, standing up, with or without a connection.
  *
  * Built on the `BottomSheet` the checkout already has — no second bottom sheet — and it takes
- * neither the term nor the results by prop: it calls `useClienteSearch()` itself, so F-032
- * mounts it with these four props and nothing else (ADR 0106).
+ * neither the term nor the results by prop: it calls `useClienteSearch()` itself, so F-034
+ * mounts it with these four props and nothing else (ADR 0113).
  *
  * There is no «Listo»: choosing a row already is finishing.
  */
@@ -80,10 +80,10 @@ export function ClienteSheet({
   /**
    * With no connection AND a caller that knows what to do with a bare name, the create
    * action stays alive and hands the typed term over instead of POSTing it: that is the
-   * whole of criterion 8 of F-032, and it is the only thing this component gains.
+   * whole of criterion 8 of F-034, and it is the only thing this component gains.
    *
    * Gated on being offline rather than on `blockReason === "offline"`: selling on credit
-   * takes no permission (ADR 0112), and `resolveCreateAvailability` reports "sin-permiso"
+   * takes no permission (ADR 0119), and `resolveCreateAvailability` reports "sin-permiso"
    * ahead of "offline", so a cashier without `configuracion.clientes.acceder` would
    * otherwise be locked out of the very path the contract § 10.9 says they have.
    */
@@ -123,7 +123,7 @@ export function ClienteSheet({
 
         {source === "cache" && <ClienteCacheNotice />}
 
-        {/* `ClienteQuickCreate` is F-031's and is NOT touched. Offline with `onNameOnly`,
+        {/* `ClienteQuickCreate` is F-033's and is NOT touched. Offline with `onNameOnly`,
             this sheet renders its own row in the same slot, with the same shape and the
             same location class, so the locators the qa already knows keep working. It does
             NOT unfold the short form: there is no row to write yet, and a phone number

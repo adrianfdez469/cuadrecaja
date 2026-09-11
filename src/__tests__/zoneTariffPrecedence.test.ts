@@ -9,10 +9,10 @@ import type {
 } from "@/schemas/qabZone";
 
 /**
- * F-039 — resolveZoneTariff / formatZoneDeliveryFee, and the committed 13-case contract
+ * F-041 — resolveZoneTariff / formatZoneDeliveryFee, and the committed 13-case contract
  * vector that fixes the ZONE_TARIFF precedence algorithm (contract v13).
  *
- * Written against `.agents/specs/F-039.md` §§ 4.3, 5, 6, 10.3, without reading the
+ * Written against `.agents/specs/F-041.md` §§ 4.3, 5, 6, 10.3, without reading the
  * implementer's `src/lib/tiendaOnline/zoneTariffPrecedence.ts`. This file REPLACES the one
  * from F-026 wholesale: that implementation's shape (four-digit codes, level 1|2, prefix
  * inference) is exactly what this contract retires (contract § 1).

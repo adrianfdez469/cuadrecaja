@@ -913,7 +913,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
     negocioRecienCambiado,
   ]);
 
-  // Whose the persisted cliente cache is (F-031, amendment S2 / ADR 0108). ONE hook that
+  // Whose the persisted cliente cache is (F-033, amendment S2 / ADR 0115). ONE hook that
   // watches the identity of the session, instead of hanging a call off each `signOut()`:
   // there is more than one in the tree, and none of them covers the case that matters most
   // — a DIFFERENT user signing in on the same counter tablet.

@@ -1,4 +1,4 @@
-# Cuentas por Cobrar — dosier del epic (F-029 … F-037)
+# Cuentas por Cobrar — dosier del epic (F-031 … F-039)
 
 > **Léelo antes de tocar cualquiera de los nueve features.** Aquí está lo que los nueve
 > comparten: la decisión central, los bugs que el epic destapa, la auditoría de los archivos
@@ -131,9 +131,9 @@ tercero es un agujero de integridad que ya existe hoy.
 
 | # | Dónde | Qué pasa | Lo arregla |
 |---|---|---|---|
-| 1 | `src/app/pos/page.tsx:927-929` | `if (Math.round(total*100) <= Math.round((totalCash+totalTransfer)*100))`. Con crédito la condición es **siempre falsa** y su `else` (~1203) muestra «El pago no cubre el total de la venta»: la venta se pierde culpando al cajero. → comparar contra `totalCash + totalTransfer + creditoBase` | **F-032** |
-| 2 | `src/app/pos/page.tsx:961` | `const cash = total - totalTransfer;` — y es `cash`, no `totalCash`, lo que llega a `createSell`. Con crédito, **la deuda se contabilizaría como efectivo en gaveta** | **F-032** |
-| 3 | `src/lib/currency.ts:329` | `pagadaConUnSoloPago` es `(pagosDetalle?.length ?? 0) <= 1`: con `[]` devuelve `true`. Una venta 100 % a crédito **permitiría borrar productos**, desincronizando el importe de la deuda del de la venta | **F-035** |
+| 1 | `src/app/pos/page.tsx:927-929` | `if (Math.round(total*100) <= Math.round((totalCash+totalTransfer)*100))`. Con crédito la condición es **siempre falsa** y su `else` (~1203) muestra «El pago no cubre el total de la venta»: la venta se pierde culpando al cajero. → comparar contra `totalCash + totalTransfer + creditoBase` | **F-034** |
+| 2 | `src/app/pos/page.tsx:961` | `const cash = total - totalTransfer;` — y es `cash`, no `totalCash`, lo que llega a `createSell`. Con crédito, **la deuda se contabilizaría como efectivo en gaveta** | **F-034** |
+| 3 | `src/lib/currency.ts:329` | `pagadaConUnSoloPago` es `(pagosDetalle?.length ?? 0) <= 1`: con `[]` devuelve `true`. Una venta 100 % a crédito **permitiría borrar productos**, desincronizando el importe de la deuda del de la venta | **F-037** |
 
 **El bug 3 es peor en el backend.** En
 `src/app/api/venta/[tiendaId]/[cierreId]/[ventaId]/producto/[ventaProductoId]/route.ts:129` la
@@ -152,14 +152,14 @@ de la API.
 Endurecer el `else` de `buildResumenMonedas` (`caja.ts:167`) y `buildResumenPropinas`
 (`tips.ts:152`) a `else if (pago.tipo === "transfer")`, con un aviso en el caso restante — y
 **sacar también el `equivalenteBase` de la rama muerta**, que es la mitad que se olvida. Va en
-**F-029**, se puede mergear sola, y es la parte de este trabajo que sobrevive al epic: cierra la
+**F-031**, se puede mergear sola, y es la parte de este trabajo que sobrevive al epic: cierra la
 trampa para cualquier tipo de pago futuro (vales, puntos), no solo para el crédito.
 
 ---
 
 ## 5. Vocabulario
 
-Nombres que los nueve features usan igual. **El contrato de interfaces de F-029 es quien los fija**;
+Nombres que los nueve features usan igual. **El contrato de interfaces de F-031 es quien los fija**;
 esto es la forma propuesta, para que nadie invente un sinónimo mientras tanto.
 
 Convención: modelos y columnas de Prisma **en español**, como el resto de `schema.prisma`
@@ -206,35 +206,35 @@ archivos.
 
 | Archivo | Qué hacer | Feature |
 |---|---|---|
-| `caja.ts:144` `buildResumenMonedas` | Endurecer el `else`. Su lógica no cambia, pero ahora recibe ventas **y** abonos: documentarlo | F-029 / F-030 |
-| `caja.ts:273` `construirResumenCajaAbierta` | **Cargar los abonos del período abierto.** Sin esto el POS cree que hay menos efectivo del que hay: un vuelto legítimo se rechaza con `InsufficientCashForChangeError` y una `COMPRA` en efectivo se marca `MIXTO` sin motivo | F-030 |
-| `caja.ts` `ResumenCajaMoneda` | Añadir `cobrosCreditoEfectivo`, **fuera** de `ventasEfectivo`: el widget debe distinguir venta de cobro | F-030 |
-| `caja.ts` `applyComprasYDevolucionesToResumenMap` | Restar solo la parte en efectivo: `montoReembolso − (montoAplicadoADeuda ?? 0)` | F-030 |
+| `caja.ts:144` `buildResumenMonedas` | Endurecer el `else`. Su lógica no cambia, pero ahora recibe ventas **y** abonos: documentarlo | F-031 / F-032 |
+| `caja.ts:273` `construirResumenCajaAbierta` | **Cargar los abonos del período abierto.** Sin esto el POS cree que hay menos efectivo del que hay: un vuelto legítimo se rechaza con `InsufficientCashForChangeError` y una `COMPRA` en efectivo se marca `MIXTO` sin motivo | F-032 |
+| `caja.ts` `ResumenCajaMoneda` | Añadir `cobrosCreditoEfectivo`, **fuera** de `ventasEfectivo`: el widget debe distinguir venta de cobro | F-032 |
+| `caja.ts` `applyComprasYDevolucionesToResumenMap` | Restar solo la parte en efectivo: `montoReembolso − (montoAplicadoADeuda ?? 0)` | F-032 |
 | `caja.ts` `calcularTotalesMovimientosPeriodo` | **Sin cambios** — es la reversión de margen, correcta con o sin deuda | — |
 | `caja.ts` `applyInitialFundToResumenMap` | **Sin cambios** | — |
-| `tips.ts:152` `buildResumenPropinas` | Endurecer el `else`. **No** recibe abonos | F-029 |
+| `tips.ts:152` `buildResumenPropinas` | Endurecer el `else`. **No** recibe abonos | F-031 |
 | `tips.ts:63` `validateTip` | **Sin cambios**, gracias a la regla `creditoBase > 0 ⟹ tipTotal === 0` | — |
 
 ### Motor de cierre
 
 | Archivo | Qué hacer | Feature |
 |---|---|---|
-| `cierre/computeCierreTotals.ts` | Tres cifras nuevas; abonos a `buildResumenMonedas` en la misma llamada; `totalTransferenciasByDestination` acumula también desde abonos; `hasTotalsDrift` **no cambia** | F-030 |
-| `cierre/loadCierreInput.ts` | Dos consultas más. **Ver el aviso del §7** | F-030 |
-| `cierre/persistCierreTotals.ts` | Sin cambio estructural: `...computation.totals` ya escribe las columnas nuevas. Añadir el comentario de que las cuentas por cobrar **nunca** se reescriben desde el motor, a diferencia de `ProductoProveedorLiquidacion` | F-030 |
+| `cierre/computeCierreTotals.ts` | Tres cifras nuevas; abonos a `buildResumenMonedas` en la misma llamada; `totalTransferenciasByDestination` acumula también desde abonos; `hasTotalsDrift` **no cambia** | F-032 |
+| `cierre/loadCierreInput.ts` | Dos consultas más. **Ver el aviso del §7** | F-032 |
+| `cierre/persistCierreTotals.ts` | Sin cambio estructural: `...computation.totals` ya escribe las columnas nuevas. Añadir el comentario de que las cuentas por cobrar **nunca** se reescriben desde el motor, a diferencia de `ProductoProveedorLiquidacion` | F-032 |
 | `api/cierre/[tiendaId]/[cierreId]/close/route.ts` | **Ni una línea.** Es la evidencia de que el ADR 0036 valió la pena | — |
-| `.../recalculate/route.ts` | Añadir los campos al `select` de `before`, o no tipa contra `CierreStoredTotals` | F-030 |
-| `.../summary/route.ts` | `creditoBase: 0` en la venta sintética del drift check; dos sumas nuevas; **`totalPorCobrarAlCierre` no se suma** | F-034 |
+| `.../recalculate/route.ts` | Añadir los campos al `select` de `before`, o no tipa contra `CierreStoredTotals` | F-032 |
+| `.../summary/route.ts` | `creditoBase: 0` en la venta sintética del drift check; dos sumas nuevas; **`totalPorCobrarAlCierre` no se suma** | F-036 |
 
 ### Rutas de venta
 
 | Archivo | Qué hacer | Feature |
 |---|---|---|
-| `api/venta/[tiendaId]/[cierreId]/route.ts` | Campos nuevos, las cuatro reglas duras, y crear la `CuentaPorCobrar` **en la misma `$transaction`** que la venta. `reconcileSaleTotal` y el `movimientoStock.createMany` de la línea 857 **no cambian**: el inventario baja igual | F-032 |
-| `api/app/venta/[tiendaId]/[periodoId]/route.ts` | Espejo completo. `pagosDetalleAppSchema` exige `.min(1)`: una venta 100 % a crédito necesita `superRefine` → `pagosDetalle.length >= 1 \|\| creditoBase > 0` | F-032 |
-| `.../[ventaId]/route.ts` (DELETE) | **409** si hay abonos. Sin abonos, `onDelete: Cascade` limpia la deuda | F-035 |
-| `.../producto/[ventaProductoId]/route.ts` | 409 si hay abonos; sin abonos el ajuste descuenta **primero** del crédito; `ratioCash`/`ratioTransfer` (~:230) sobre `total − creditoBase`; **y el bug 3** | F-035 |
-| `.../devolucion/[ventaId]/route.ts` | Reparto **deuda primero** vía `splitRefundBetweenDebtAndCash` | F-035 |
+| `api/venta/[tiendaId]/[cierreId]/route.ts` | Campos nuevos, las cuatro reglas duras, y crear la `CuentaPorCobrar` **en la misma `$transaction`** que la venta. `reconcileSaleTotal` y el `movimientoStock.createMany` de la línea 857 **no cambian**: el inventario baja igual | F-034 |
+| `api/app/venta/[tiendaId]/[periodoId]/route.ts` | Espejo completo. `pagosDetalleAppSchema` exige `.min(1)`: una venta 100 % a crédito necesita `superRefine` → `pagosDetalle.length >= 1 \|\| creditoBase > 0` | F-034 |
+| `.../[ventaId]/route.ts` (DELETE) | **409** si hay abonos. Sin abonos, `onDelete: Cascade` limpia la deuda | F-037 |
+| `.../producto/[ventaProductoId]/route.ts` | 409 si hay abonos; sin abonos el ajuste descuenta **primero** del crédito; `ratioCash`/`ratioTransfer` (~:230) sobre `total − creditoBase`; **y el bug 3** | F-037 |
+| `.../devolucion/[ventaId]/route.ts` | Reparto **deuda primero** vía `splitRefundBetweenDebtAndCash` | F-037 |
 
 ### POS y cola offline
 
@@ -254,17 +254,17 @@ resta la hace el llamador (`pendingInCurrency(finalTotal − creditoBase)`).
 
 | Archivo | Qué hacer | Feature |
 |---|---|---|
-| `reports/sales-stream.ts:408` | `creditAmount` en `NormalizedSale`. Hoy el mix de una venta a crédito suma menos que `netAmount` y nadie lo notaría | F-037 |
-| `reports/aggregators/payment-mix.ts` | Fila sintética `credito`. Es una **fila de reporte**, no un método de pago | F-037 |
-| `reports/income-statement.ts` | Aritmética **intacta**; dos líneas informativas fuera de todo subtotal | F-037 |
-| `app/reportes/operacion/page.tsx:27-31` | Tercer bucket | F-037 |
-| `features/printing/` (`ITicketData.ts`, `buildTicketLines.ts`, `buildTicketPayload.ts`, `ventaToSale.ts`) | Línea «Saldo a crédito» y nombre del cliente. **Sin flag de plantilla**: lo que un cliente debe es el comprobante mismo de la operación | F-032 |
-| `lib/ventaMapper.ts`, `VentaDetailDialog.tsx`, `SaleExtrasSummary.tsx` | Propagar y mostrar | F-035 |
+| `reports/sales-stream.ts:408` | `creditAmount` en `NormalizedSale`. Hoy el mix de una venta a crédito suma menos que `netAmount` y nadie lo notaría | F-039 |
+| `reports/aggregators/payment-mix.ts` | Fila sintética `credito`. Es una **fila de reporte**, no un método de pago | F-039 |
+| `reports/income-statement.ts` | Aritmética **intacta**; dos líneas informativas fuera de todo subtotal | F-039 |
+| `app/reportes/operacion/page.tsx:27-31` | Tercer bucket | F-039 |
+| `features/printing/` (`ITicketData.ts`, `buildTicketLines.ts`, `buildTicketPayload.ts`, `ventaToSale.ts`) | Línea «Saldo a crédito» y nombre del cliente. **Sin flag de plantilla**: lo que un cliente debe es el comprobante mismo de la operación | F-034 |
+| `lib/ventaMapper.ts`, `VentaDetailDialog.tsx`, `SaleExtrasSummary.tsx` | Propagar y mostrar | F-037 |
 
 ### Verificados y **sin cambios** — no los vuelvas a buscar
 
-`orderLandingPlan.ts` y `tiendaOnlineOrderLanding.ts` salvo la rama nueva de F-036 ·
-`components/MultiCurrencyPayment/` (legacy sin consumidores: se **reutiliza** en F-033, ver §8) ·
+`orderLandingPlan.ts` y `tiendaOnlineOrderLanding.ts` salvo la rama nueva de F-038 ·
+`components/MultiCurrencyPayment/` (legacy sin consumidores: se **reutiliza** en F-035, ver §8) ·
 `app/configuracion/ticket/page.tsx` (mock de preview) · `app/pos/utils/syncErrors.ts` ·
 `app/pos/utils/tipMath.ts`, `changeMath.ts`, `useChangeDistribution.ts` ·
 `lib/currency.ts` `pagadaConUnSoloPago` (el gate compuesto se arma en los llamadores) ·
@@ -290,7 +290,7 @@ select: { …, movimientos: { where: { fecha: { lte: corte } } } }
 
 Si alguien «simplifica» ese `OR` a `settledAt: null` a secas —que parece más limpio y pasa el caso
 obvio— **toda cuenta ya cobrada desaparece del recálculo de los cierres anteriores y el saldo
-histórico de todos ellos se derrumba a cero.** El criterio correspondiente de F-030 existe para
+histórico de todos ellos se derrumba a cero.** El criterio correspondiente de F-032 existe para
 atraparlo, y el comentario va junto al `where`.
 
 ### La antigüedad se calcula contra el corte
@@ -335,15 +335,15 @@ Para que dos features en paralelo no colisionen. Cada archivo tiene **un** dueñ
 
 | Feature | Es dueño de |
 |---|---|
-| **F-029** | `prisma/schema.prisma` + su migración · `src/constants/tenantScope.ts` · `src/schemas/cliente.ts`, `cuentaPorCobrar.ts` y las extensiones de `venta.ts`/`pago.ts` · `src/lib/cuentasPorCobrar/{saldo,aging,refundSplit,creditInvariant}.ts` · el endurecimiento de `caja.ts:167` y `tips.ts:152` |
-| **F-030** | `src/lib/cierre/**` · el resto de `src/lib/movimiento/caja.ts` · `api/cierre/**` salvo lo de F-034 |
-| **F-031** | `api/clientes/**` · `src/hooks/useClienteSearch.ts` · `src/components/clientes/**` · `src/store/clientesStore.ts` · `permisos.json` y `permisos.templates.ts` · `Layout.tsx` y `home/page.tsx` |
-| **F-032** | `src/app/pos/**` · `api/venta/[tiendaId]/[cierreId]/route.ts` y su espejo `api/app/venta/**` · `src/store/salesStore.ts` · `src/services/sellService.ts` · `src/features/printing/**` |
-| **F-033** | `src/app/cuentas-por-cobrar/**` · `api/cuentas-por-cobrar/**` · `src/components/MultiCurrencyPayment/**` · `src/constants/cuentasPorCobrar.ts` |
-| **F-034** | `src/app/cierre/**` · `src/app/resumen_cierre/**` · `src/schemas/cierre.ts` · `api/cierre/[tiendaId]/summary/route.ts` |
-| **F-035** | `src/app/ventas/**` · `api/venta/**/[ventaId]/**` (los dos DELETE y la devolución) · `src/lib/ventaMapper.ts` |
-| **F-036** | `src/lib/tiendaOnline/**` · `src/components/tiendaOnline/**` · `src/schemas/tiendaOnline.ts` · `src/constants/tiendaOnline.ts` |
-| **F-037** | `src/lib/reports/**` · `src/app/reportes/**` |
+| **F-031** | `prisma/schema.prisma` + su migración · `src/constants/tenantScope.ts` · `src/schemas/cliente.ts`, `cuentaPorCobrar.ts` y las extensiones de `venta.ts`/`pago.ts` · `src/lib/cuentasPorCobrar/{saldo,aging,refundSplit,creditInvariant}.ts` · el endurecimiento de `caja.ts:167` y `tips.ts:152` |
+| **F-032** | `src/lib/cierre/**` · el resto de `src/lib/movimiento/caja.ts` · `api/cierre/**` salvo lo de F-036 |
+| **F-033** | `api/clientes/**` · `src/hooks/useClienteSearch.ts` · `src/components/clientes/**` · `src/store/clientesStore.ts` · `permisos.json` y `permisos.templates.ts` · `Layout.tsx` y `home/page.tsx` |
+| **F-034** | `src/app/pos/**` · `api/venta/[tiendaId]/[cierreId]/route.ts` y su espejo `api/app/venta/**` · `src/store/salesStore.ts` · `src/services/sellService.ts` · `src/features/printing/**` |
+| **F-035** | `src/app/cuentas-por-cobrar/**` · `api/cuentas-por-cobrar/**` · `src/components/MultiCurrencyPayment/**` · `src/constants/cuentasPorCobrar.ts` |
+| **F-036** | `src/app/cierre/**` · `src/app/resumen_cierre/**` · `src/schemas/cierre.ts` · `api/cierre/[tiendaId]/summary/route.ts` |
+| **F-037** | `src/app/ventas/**` · `api/venta/**/[ventaId]/**` (los dos DELETE y la devolución) · `src/lib/ventaMapper.ts` |
+| **F-038** | `src/lib/tiendaOnline/**` · `src/components/tiendaOnline/**` · `src/schemas/tiendaOnline.ts` · `src/constants/tiendaOnline.ts` |
+| **F-039** | `src/lib/reports/**` · `src/app/reportes/**` |
 
 `src/constants/routeGuards/routeGuards.json` lo tocan varios: cada uno **solo añade sus propias
 filas**. El censo de `src/__tests__/routeGuardInventory.test.ts` compara los pares (ruta, verbo)
@@ -358,9 +358,9 @@ olvide.
 
 | Feature | ADR | Debe contener |
 |---|---|---|
-| F-029 | El crédito es una columna, no una línea de pago | La invariante, las cuatro razones del §2, las reglas duras, y **por qué la caja sigue cuadrando sola** (§3) — para que nadie lo «arregle» |
-| F-030 | La ecuación de reconciliación de caja | La fórmula del §8 y las dos trampas del §7 |
-| F-036 | `CREDITO` como tercer método del `DELIVERED` | **Enmienda** el 0073 (su frase «un solo método para el importe completo» sobrevive: `CREDITO` sigue siendo un método para el importe entero) y **reafirma** 0071 y 0072. Incluye la alternativa descartada —crear la venta en `IN_TRANSIT`— con sus dos razones, y la salida real si el `DELIVERED` prematuro molestara: pedirle a QAB un `HANDED_TO_COURIER` por la vía de `.agents/solicitudes-qab.md`, no mover la venta |
+| F-031 | El crédito es una columna, no una línea de pago | La invariante, las cuatro razones del §2, las reglas duras, y **por qué la caja sigue cuadrando sola** (§3) — para que nadie lo «arregle» |
+| F-032 | La ecuación de reconciliación de caja | La fórmula del §8 y las dos trampas del §7 |
+| F-038 | `CREDITO` como tercer método del `DELIVERED` | **Enmienda** el 0073 (su frase «un solo método para el importe completo» sobrevive: `CREDITO` sigue siendo un método para el importe entero) y **reafirma** 0071 y 0072. Incluye la alternativa descartada —crear la venta en `IN_TRANSIT`— con sus dos razones, y la salida real si el `DELIVERED` prematuro molestara: pedirle a QAB un `HANDED_TO_COURIER` por la vía de `.agents/solicitudes-qab.md`, no mover la venta |
 
 ---
 
@@ -376,7 +376,7 @@ Abre la ficha antes de tropezar con ella, no después.
 | [E-014](errors/E-014-una-senal-derivada-cuya-definicion-se-parafrasea.md) | Una señal derivada cuya definición se parafrasea. Los tramos de antigüedad se definen **una vez** |
 | [E-015](errors/E-015-un-simbolo-en-un-tsx-no-es-importable-desde-un-test.md) | Un símbolo en un `.tsx` no es importable desde un test. Toda la lógica pura va en `.ts` |
 | [E-016](errors/E-016-un-criterio-que-exige-una-subcadena-que-el-copy-no-tiene.md) | Un criterio que exige una subcadena que el copy no tiene. Aplica al copy de `PedidoPagoFields` y a las notas del desglose de caja |
-| [E-018](errors/E-018-la-redaccion-congelada-de-un-criterio-diferido.md) | La redacción congelada de un criterio ya cerrado. F-036 cambia el copy de `PedidoPagoFields`, pero **no puede reescribir** los `acceptance_criteria` de F-014 que se verificaron contra él: la regla del backlog lo prohíbe |
+| [E-018](errors/E-018-la-redaccion-congelada-de-un-criterio-diferido.md) | La redacción congelada de un criterio ya cerrado. F-038 cambia el copy de `PedidoPagoFields`, pero **no puede reescribir** los `acceptance_criteria` de F-014 que se verificaron contra él: la regla del backlog lo prohíbe |
 | [E-019](errors/E-019-it-each-con-un-simbolo-que-aun-no-existe.md) | Un `it.each` con un símbolo inexistente tumba el archivo entero en silencio |
 | [E-023](errors/E-023-medir-un-plan-sobre-una-tabla-que-no-tiene-las-filas.md) | Medir un plan sobre una tabla sin filas. Aplica a los índices de `CuentaPorCobrar` |
 | [E-024](errors/E-024-createmany-skipduplicates-conserva-la-primera-escritura.md) | `createMany({skipDuplicates:true})` conserva en silencio la fila vieja, y el desglose acaba describiendo otro período. Aplica al recrear `ResumenMonedaCierre` ahora que también lo alimentan los abonos |

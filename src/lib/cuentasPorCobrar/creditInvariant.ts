@@ -25,7 +25,7 @@ export type ICreditInvariantViolation =
 
 /**
  * The HTTP status each violation gets when a sale route rejects with it. Declared here
- * so F-032 does not restate the mapping in two routes.
+ * so F-034 does not restate the mapping in two routes.
  *
  * CREDIT_WITHOUT_CUSTOMER is a 409 and not a 400 because `isPermanentSyncError` parks a
  * 409 instead of retrying it forever: an offline sale naming a customer that does not
@@ -86,8 +86,8 @@ function round2(value: number): number {
  * lines, which carry no equivalenteBase, are converted with `convertToBase` against
  * `tasaSnapshot`. Same definition, one place.
  *
- * F-029 only ships this function. Calling it from the two sale routes and turning a
- * violation into a 400 or a 409 is F-032.
+ * F-031 only ships this function. Calling it from the two sale routes and turning a
+ * violation into a 400 or a 409 is F-034.
  */
 export function checkCreditInvariant(
   input: ICreditInvariantInput,

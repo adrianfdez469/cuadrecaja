@@ -3,10 +3,10 @@ import { isPermanentSyncError } from "@/app/pos/utils/syncErrors";
 import { RETRYABLE_CLIENT_ERROR_STATUSES } from "@/constants/pos";
 
 /**
- * F-032, contract § 5.6, § 8, § 9.1 — criterion 6, the half that is verifiable with NO
+ * F-034, contract § 5.6, § 8, § 9.1 — criterion 6, the half that is verifiable with NO
  * database at all.
  *
- * These two symbols are NOT new and NOT modified by F-032 (contract § 1: neither
+ * These two symbols are NOT new and NOT modified by F-034 (contract § 1: neither
  * `src/app/pos/utils/syncErrors.ts` nor `src/constants/pos.ts` is in the implementer's
  * write list). They are imported statically on purpose: unlike the feature's own new
  * modules, there is nothing here that could still be missing while the implementer

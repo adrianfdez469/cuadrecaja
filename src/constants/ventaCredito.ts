@@ -4,11 +4,11 @@ import { formatMontoEnMoneda } from "@/utils/formatters";
 
 /**
  * Every literal and every location class the credit of a sale adds to `/ventas`, to its detail
- * dialog and to the POS drawer, fixed by `.agents/designs/F-035.md` § 0.3 and § 0.4. NO component
+ * dialog and to the POS drawer, fixed by `.agents/designs/F-037.md` § 0.3 and § 0.4. NO component
  * writes a literal of its own (E-015, E-016).
  *
  * The nine labels that say here what the debtor panel already says are IMPORTED from
- * `CUENTAS_POR_COBRAR_COPY` (F-033) by the components that need them, never restated here: a
+ * `CUENTAS_POR_COBRAR_COPY` (F-035) by the components that need them, never restated here: a
  * second wording for the same fact is E-014/E-039.
  *
  * `PillHue` arrives through an `import type`, which is erased before anything runs: no value of
@@ -16,7 +16,7 @@ import { formatMontoEnMoneda } from "@/utils/formatters";
  * does.
  */
 export const VENTA_CREDITO_COPY = {
-  /* ---- The chip, shared with F-036 ---- */
+  /* ---- The chip, shared with F-038 ---- */
   chipConSaldo: "A crédito",
   chipSaldada: "Crédito saldado",
   chipConSaldoConSaldo: (saldo: number, monedaBase: string): string =>
@@ -41,7 +41,7 @@ export const VENTA_CREDITO_COPY = {
   bloqueColumnaFormaDePago: "Forma de pago",
   /**
    * Credit is NOT a third form of payment: `pagoLineaSchema.tipo` is `cash | transfer` and stays
-   * that way (ADR 0104). There are two labels and no more.
+   * that way (ADR 0111). There are two labels and no more.
    */
   bloqueFormaDePago: (tipo: "cash" | "transfer", moneda: string): string =>
     `${tipo === "cash" ? "Efectivo" : "Transferencia"} (${moneda})`,
@@ -85,7 +85,7 @@ export const CREDITO_ESTADO_LABEL: Record<IVentaCreditoEstado, string | null> = 
  *
  * NEITHER is `accent` — the violet is reserved for action and selection and a state pill is not
  * pressable — and neither is `negative`: owing money is not a fault, it is the business model of
- * this epic (F-033 § 6). `caution` is the same ink the panel paints an open account with.
+ * this epic (F-035 § 6). `caution` is the same ink the panel paints an open account with.
  */
 export const CREDITO_ESTADO_HUE: Record<IVentaCreditoEstado, PillHue | null> = {
   SIN_CREDITO: null,
@@ -94,8 +94,8 @@ export const CREDITO_ESTADO_HUE: Record<IVentaCreditoEstado, PillHue | null> = {
 };
 
 /**
- * The location classes. Same mould and same rule as `CREDIT_DOM` (F-032) and
- * `CUENTAS_POR_COBRAR_DOM` (F-033): compared ALWAYS with `classList.contains`, never by prefix,
+ * The location classes. Same mould and same rule as `CREDIT_DOM` (F-034) and
+ * `CUENTAS_POR_COBRAR_DOM` (F-035): compared ALWAYS with `classList.contains`, never by prefix,
  * and NONE of these is a prefix of another, on purpose. They exist so a verification finds the
  * element that IS the thing, without climbing up from an icon or leaning on an internal MUI
  * class (E-011).

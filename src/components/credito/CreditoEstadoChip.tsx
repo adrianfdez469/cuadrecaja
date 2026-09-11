@@ -42,12 +42,12 @@ const PILL_SX = {
   whiteSpace: "nowrap",
 } as const;
 
-/** `"medium"` is the same pill, taller. F-035 never passes `size`; F-036 may. */
+/** `"medium"` is the same pill, taller. F-037 never passes `size`; F-038 may. */
 const MEDIUM_SX = { height: 28, fontSize: "0.8125rem" } as const;
 
 /**
- * The credit state of a sale, as a tinted pill. Created by F-035 and SHARED with the online
- * order tray of F-036 from day one — "no se escriben dos" (dosier § 4), which is why it lives in
+ * The credit state of a sale, as a tinted pill. Created by F-037 and SHARED with the online
+ * order tray of F-038 from day one — "no se escriben dos" (dosier § 4), which is why it lives in
  * `src/components/credito/` and not under `src/app/ventas/`.
  *
  * It holds NO logic worth testing, on purpose (E-015: nothing of a `.tsx` is importable from a

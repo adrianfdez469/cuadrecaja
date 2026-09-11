@@ -6,8 +6,8 @@ import type { Sale, SaleProduct } from "@/store/salesStore";
 import type { IVenta } from "@/schemas/venta";
 
 /**
- * F-032, contract § 7.2, § 7.3, § 7.4 — criterion 11 ("the printed ticket says the
- * customer's name and the credit balance") and the ADR 0113 sanitization at the
+ * F-034, contract § 7.2, § 7.3, § 7.4 — criterion 11 ("the printed ticket says the
+ * customer's name and the credit balance") and the ADR 0120 sanitization at the
  * printing boundary. Also propagation point P10 of § 2 (`ventaToSale`, server -> client).
  *
  * `buildTicketPayload`, `buildTicketLines`/`ticketLinesToStrings` and `ventaToSale`
@@ -157,7 +157,7 @@ describe("buildTicketLines — criterion 11: the customer's name and the credit 
     expect(joined).toContain(CREDIT_TICKET_COPY.saldoLabel);
   });
 
-  it("ADR 0113: left()/center() strip control characters from EVERY rendered line, including a dirty clienteNombre that bypassed the schema (a row written before the bound existed)", () => {
+  it("ADR 0120: left()/center() strip control characters from EVERY rendered line, including a dirty clienteNombre that bypassed the schema (a row written before the bound existed)", () => {
     const payload = fullPayload({
       creditoBase: 400,
       clienteNombre: "Ana\x1Bp\x00\x19\xFA",

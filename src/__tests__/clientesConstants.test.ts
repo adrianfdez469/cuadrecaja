@@ -3,8 +3,8 @@ import { clienteSchema } from "@/schemas/cliente";
 import permisosJson from "@/constants/permisos/permisos.json";
 
 /**
- * F-031, contract § 3, § 11.1 — `src/constants/clientes.ts`.
- * `CLIENTES_COPY` values come from `.agents/designs/F-031.md`, § 5 (cited, not
+ * F-033, contract § 3, § 11.1 — `src/constants/clientes.ts`.
+ * `CLIENTES_COPY` values come from `.agents/designs/F-033.md`, § 5 (cited, not
  * paraphrased — E-039). `CLIENTES_PERMISO_CONFIGURACION`, `CUENTAS_POR_COBRAR_PERMISO`
  * and `CLIENTES_EXTRA_COPY` entered the testability list in the "Segunda enmienda"
  * (dictamen A, § 11.1 "Ampliación tras la implementación"), found while implementing.
@@ -29,7 +29,7 @@ describe("CLIENTES_LIST_LIMIT vs CLIENTES_CACHE_SIZE — the relationship E-008 
 });
 
 describe("CLIENTES_UPSERT_RETRIES", () => {
-  it("is exactly 1 — a single retry resolves only a lost race (ADR 0107)", () => {
+  it("is exactly 1 — a single retry resolves only a lost race (ADR 0114)", () => {
     expect(constants.CLIENTES_UPSERT_RETRIES).toBe(1);
   });
 });
@@ -92,7 +92,7 @@ describe("CLIENTE_CREATE_LABEL_MAX_CHARS", () => {
   });
 
   it("is strictly less than clienteSchema's nombre length cap — a truncation above the cap never truncates", () => {
-    // Derive the real cap from the F-029 schema instead of hardcoding 200 here.
+    // Derive the real cap from the F-031 schema instead of hardcoding 200 here.
     const cap = constants.CLIENTE_CREATE_LABEL_MAX_CHARS;
     const atCap = "a".repeat(200);
     const overCap = "a".repeat(201);

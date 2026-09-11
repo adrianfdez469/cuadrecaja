@@ -80,7 +80,7 @@ export interface PedidoEntregaDialogProps {
  * survives a trip through `Efectivo` and the default destination stays loaded
  * while `A crédito` is chosen. What guarantees neither leaks into the other's
  * body is the early `return` of each branch of `handleConfirm`, and nothing
- * else (ADR 0130).
+ * else (ADR 0137).
  */
 export function PedidoEntregaDialog({
   open,

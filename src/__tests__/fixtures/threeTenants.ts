@@ -53,7 +53,7 @@ export const MODEL_SCALAR_KEYS = {
   cashBreakdownCierre: ["cierrePeriodoId"],
   cashBreakdownMoneda: ["cierrePeriodoId"],
   productoProveedorLiquidacion: ["cierreId", "proveedorId"],
-  // F-029, contract § 6.2: three new TENANT_RELATION_PATH entries need a matching
+  // F-031, contract § 6.2: three new TENANT_RELATION_PATH entries need a matching
   // entry here or this `satisfies` fails to compile (criterion 2). Chosen with the
   // same criterion as the thirteen above — the scalar key a route would identify the
   // row by: `cliente` mirrors `proveedor` (empty path), `cuentaPorCobrar` mirrors

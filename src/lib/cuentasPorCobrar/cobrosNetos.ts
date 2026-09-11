@@ -51,7 +51,7 @@ export interface ICobroRowInput {
  * exact rather than approximate.
  *
  * THESE ROWS ARE NEVER PERSISTED. A negative `monto` does not satisfy `pagoLineaSchema`
- * (`.positive()`), which is exactly why the sign is applied on the read side (ADR 0120, amended).
+ * (`.positive()`), which is exactly why the sign is applied on the read side (ADR 0127, amended).
  *
  * Worked, and verified by running it: an ABONO of 100 USD cash at 120 plus 500 CUP by transfer is
  * worth 12500 in base; its mirror is worth -12500; the two together net to 0.

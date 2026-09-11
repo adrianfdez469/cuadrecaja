@@ -4,7 +4,7 @@ import { tasaSnapshotSchema } from "./tasaCambio";
 
 /**
  * The four things that move a balance. THE ONLY declaration of this list in the
- * project: `src/constants/cuentasPorCobrar.ts` (F-033) imports it from here instead
+ * project: `src/constants/cuentasPorCobrar.ts` (F-035) imports it from here instead
  * of restating it.
  */
 export const TIPOS_MOVIMIENTO_CUENTA_POR_COBRAR = [

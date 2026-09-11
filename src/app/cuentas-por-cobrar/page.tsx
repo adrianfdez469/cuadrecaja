@@ -40,7 +40,7 @@ const SIN_OPCIONES: IFiltroOpciones = { deudores: [], tiendas: [] };
  * `/cuentas-por-cobrar` — who owes what, since when.
  *
  * State is LOCAL to the screen: nothing here is needed outside its own route, so no Zustand
- * store is added (contract § 7). There is no pagination either (ADR 0119), so no paginator is
+ * store is added (contract § 7). There is no pagination either (ADR 0126), so no paginator is
  * mounted: a control that governs nothing is noise.
  */
 export default function CuentasPorCobrarPage() {
@@ -218,7 +218,7 @@ export default function CuentasPorCobrarPage() {
       {/*
         The strip does not mount at 320 px: on a phone it pushes the list half a screen down, and
         the two figures that matter travel in the card's subtitle instead. Same departure the
-        clientes screen of F-031 already took.
+        clientes screen of F-033 already took.
       */}
       {!isMobile && (
         <Box sx={{ mb: 3 }}>

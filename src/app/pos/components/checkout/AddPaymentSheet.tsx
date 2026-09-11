@@ -180,7 +180,7 @@ export function AddPaymentSheet({
         {/* The credit row: ALWAYS the last one, after the options. No icon — no row of this
             sheet carries one, and giving one only to this row would take it off the grid.
             What tells it apart is its second line. No `≈` equivalence either: credit has no
-            currency of its own, it is always the base one (ADR 0104). */}
+            currency of its own, it is always the base one (ADR 0111). */}
         {creditEnabled ? (
           <ButtonBase
             className={CREDIT_DOM.addRow}

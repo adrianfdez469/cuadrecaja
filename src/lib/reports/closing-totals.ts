@@ -7,7 +7,7 @@ export type ClosingCreditFlow = {
   otorgado: number;
   /**
    * Sum of `CierrePeriodo.totalCobrosCredito` over the same closings. It CAN be
-   * negative: a reversal of a collection is stored as a negative mirror (ADR 0121).
+   * negative: a reversal of a collection is stored as a negative mirror (ADR 0128).
    */
   cobrado: number;
 };

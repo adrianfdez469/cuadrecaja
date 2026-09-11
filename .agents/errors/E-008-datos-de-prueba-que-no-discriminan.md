@@ -1,7 +1,7 @@
 # E-008: Datos de prueba que no discriminan, y el falso aprobado que producen
 
 **Área:** tests
-**Apariciones:** 4 — F-018 (tres veces dentro del mismo feature) · F-029 · F-032 · F-033
+**Apariciones:** 4 — F-018 (tres veces dentro del mismo feature) · F-031 · F-034 · F-035
 
 ## Síntoma
 
@@ -73,15 +73,15 @@ segunda, que hace falta; la tercera, que no es más ancha de lo debido — que e
 
 ---
 
-## Adenda F-029 — el autor sospecha del test, y solo la mutación mide cuánto
+## Adenda F-031 — el autor sospecha del test, y solo la mutación mide cuánto
 
-El `dev-tester` de F-029 entregó su suite **declarando él mismo** que sus tests de orden de
+El `dev-tester` de F-031 entregó su suite **declarando él mismo** que sus tests de orden de
 evaluación de `checkCreditInvariant` podían no discriminar: los había construido para no depender
 del valor de `delta`, así que una implementación que evaluara la aritmética antes que las reglas
 duras los pasaría igual. Una confesión honesta, y el tipo de aviso que esta ficha existe para que
 alguien recoja.
 
-Lo que aportó F-029 es **cómo se resuelve una sospecha así**: `qa` no la creyó ni la descartó, la
+Lo que aportó F-031 es **cómo se resuelve una sospecha así**: `qa` no la creyó ni la descartó, la
 midió. Aplicó cuatro mutaciones al código real y contó cuáles detectaba la suite:
 
 | Mutación | ¿La suite la detecta? |
@@ -107,12 +107,12 @@ Tres lecciones:
 
 ---
 
-## Adenda F-032 — la siembra que no rompe su criterio, rompe los otros cuatro
+## Adenda F-034 — la siembra que no rompe su criterio, rompe los otros cuatro
 
 Las adendas anteriores son sobre datos que **no distinguen** lo que se cree. Esta es su reverso: un
 dato de siembra **correcto para su propio criterio** que invalida en silencio a los demás.
 
-El criterio 6 del diseño de F-032 necesita un carrito con importe 0 para comprobar que la fila «A
+El criterio 6 del diseño de F-034 necesita un carrito con importe 0 para comprobar que la fila «A
 crédito» se deshabilita. La instrucción original decía «un producto de precio 0» — vía **cerrada**:
 `catalogo_pos/route.ts` filtra `precio: { gt: 0 }` y ese producto no llega nunca al carrito. Se
 corrigió a un descuento del 100 %.
@@ -136,11 +136,11 @@ real en el motor**, no la que parece.
 
 ---
 
-## Adenda F-033 — el tamaño del fixture también discrimina, y `sort` lo demuestra
+## Adenda F-035 — el tamaño del fixture también discrimina, y `sort` lo demuestra
 
 Todas las apariciones anteriores son sobre el **contenido** del dato de prueba: dos tenants que
 comparten el valor literal, un `tolerance: 0` que se lee como el default, una siembra global que
-rompe otros criterios. F-033 añade un eje que no estaba: **cuántos elementos tiene el fixture.**
+rompe otros criterios. F-035 añade un eje que no estaba: **cuántos elementos tiene el fixture.**
 
 `buildMovimientoRows` ordenaba con `b.fecha.getTime()` sobre un campo que llegaba como string. El
 detalle de cualquier deudor con **dos o más movimientos** respondía 500 — el caso más ordinario del
@@ -159,7 +159,7 @@ comparador de `sort`, ningún `reduce` sin valor inicial, ninguna deduplicación
 comparación entre pares y ninguna paginación. Si la función ordena, agrupa o compara, **el fixture
 mínimo son dos**, y el mínimo útil suele ser tres.
 
-Y su reverso, también de F-033: un criterio verificado **por API** con `curl` puede ser correcto y
+Y su reverso, también de F-035: un criterio verificado **por API** con `curl` puede ser correcto y
 aun así no ver un fallo que solo existe **a través de la pantalla**. El bug del diálogo que se
-tragaba un 400 en silencio ([E-071]) sobrevivió a tres rondas por eso: los criterios de la carrera
+tragaba un 400 en silencio ([E-075]) sobrevivió a tres rondas por eso: los criterios de la carrera
 concurrente estaban verificados con peticiones directas, correctamente, y ninguno podía verlo.

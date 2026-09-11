@@ -302,13 +302,13 @@ export const TIENDA_ONLINE_ORDER_LANDING_BLOCKERS = [
   "NO_OPEN_PERIOD",
   "UNKNOWN_TRANSFER_DESTINATION",
   "MISSING_EXCHANGE_RATE",
-  // F-036. The declared debtor does not resolve to a Cliente OF THIS BUSINESS.
+  // F-038. The declared debtor does not resolve to a Cliente OF THIS BUSINESS.
   // Cliente hangs from negocioId, NOT from tiendaId: this is the one blocker of
-  // the four whose scope is the business and not the store (ADR 0130).
+  // the four whose scope is the business and not the store (ADR 0137).
   "UNKNOWN_CLIENTE",
 ] as const;
 
-/** How the order was collected. ONE method for the whole amount (ADR 0073, ADR 0130). */
+/** How the order was collected. ONE method for the whole amount (ADR 0073, ADR 0137). */
 export const TIENDA_ONLINE_PAYMENT_METHODS = [
   "EFECTIVO",
   "TRANSFERENCIA",
@@ -323,7 +323,7 @@ export const TIENDA_ONLINE_PAYMENT_METHODS = [
 export const TIENDA_ONLINE_ORDER_MOVEMENT_MOTIVO_PREFIX = "Pedido tienda online";
 
 /* -------------------------------------------------------------------------- */
-/* F-036 — CREDITO, the third method of a DELIVERED                            */
+/* F-038 — CREDITO, the third method of a DELIVERED                            */
 /* -------------------------------------------------------------------------- */
 
 /** What an extra field of `pago` can be for a method. */
@@ -370,7 +370,7 @@ export const TIENDA_ONLINE_PAYMENT_METHOD_FIELDS = {
 /**
  * The Zod issue message of each extra field. NOT an HTTP body: the PATCH answers
  * `400 { error: "INVALID_BODY" }` and never returns `parsed.error.issues`, so
- * these strings only ever reach a caller of `.safeParse` (E-065). English, like
+ * these strings only ever reach a caller of `.safeParse` (E-069). English, like
  * every other message in this schema module.
  */
 export const TIENDA_ONLINE_PAYMENT_FIELD_MESSAGES = {

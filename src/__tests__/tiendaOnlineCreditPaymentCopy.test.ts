@@ -8,7 +8,7 @@ import { VENTA_CREDITO_COPY } from "@/constants/ventaCredito";
 import { CREDIT_CHECKOUT_COPY } from "@/constants/creditoVenta";
 
 /**
- * F-036, the (4b) additions of contract § 8.2 (points 6, 7, 8) — the three
+ * F-038, the (4b) additions of contract § 8.2 (points 6, 7, 8) — the three
  * copy-only assertions the ui-designer pass levied. A NEW file and not an
  * extension of `orderLandingPresentation.test.ts`: `TIENDA_ONLINE_ORDER_COPY`
  * gains three keys this feature adds (`pagoClienteRotulo`, `pagoClienteElegir`,

@@ -1,7 +1,7 @@
 # E-011: `querySelector('.MuiContainer-root')` mide el contenedor del Layout, no el de la página
 
 **Área:** ui
-**Apariciones:** 5 — F-037 (dos nodos distintos con la MISMA etiqueta en la misma página; ver la adenda del final) · F-004 (paso 6, verificación del contrato de diseño) · F-006 (ver la adenda del final) · F-023 (el snippet venía **escrito en el propio contrato de diseño**; ver la adenda del final). En F-011 NO llegó a ocurrir: se anticipó en el contrato de diseño y el `qa` midió con el filtro correcto. Ver la adenda de F-011 al final. · F-035 (la variante **estructural**: tres criterios del mismo documento apuntando a un nodo que no existe; ver la adenda de F-035 al final).
+**Apariciones:** 5 — F-039 (dos nodos distintos con la MISMA etiqueta en la misma página; ver la adenda del final) · F-004 (paso 6, verificación del contrato de diseño) · F-006 (ver la adenda del final) · F-023 (el snippet venía **escrito en el propio contrato de diseño**; ver la adenda del final). En F-011 NO llegó a ocurrir: se anticipó en el contrato de diseño y el `qa` midió con el filtro correcto. Ver la adenda de F-011 al final. · F-037 (la variante **estructural**: tres criterios del mismo documento apuntando a un nodo que no existe; ver la adenda de F-037 al final).
 
 ## Síntoma
 
@@ -126,10 +126,10 @@ actúan bien. La ayuda es el error.
 
 ---
 
-## Adenda F-035 — la variante estructural: tres criterios sobre un nodo que no existe
+## Adenda F-037 — la variante estructural: tres criterios sobre un nodo que no existe
 
 Las tres apariciones anteriores eran **el selector equivocado**: se medía el contenedor de fuera en
-vez del elemento buscado. En F-035 el defecto fue **de reparto**, y no lo arregla ningún selector.
+vez del elemento buscado. En F-037 el defecto fue **de reparto**, y no lo arregla ningún selector.
 
 El contrato de diseño exigía, sobre el chip de estado de crédito:
 
@@ -147,7 +147,7 @@ El `implementer` lo pagó en tres intentos: pasar `className` a `StatusPill` —
 luego dejar la clase en la raíz, donde el `ownTextEquals` del criterio 6 nunca la encuentra.
 
 **La corrección elegida fue un nodo único, no dos clases**, y la razón vale más que el arreglo: con
-dos clases los tres criterios pasarían, pero F-036 va a reutilizar ese mismo chip **sin leer este
+dos clases los tres criterios pasarían, pero F-038 va a reutilizar ese mismo chip **sin leer este
 documento** y tendría que averiguar cuál de las dos mide qué. El contrato de diseño ganó una
 subsección «Un solo nodo, y **no** envuelve `StatusPill`» con las dos razones verificadas, para que
 nadie lo revierta por parecer más idiomático.
@@ -160,13 +160,13 @@ el paso 5 cuesta tres intentos y una enmienda.
 
 ---
 
-## Adenda F-037 — dos nodos con la misma etiqueta, y el localizador toma el que va primero
+## Adenda F-039 — dos nodos con la misma etiqueta, y el localizador toma el que va primero
 
 Variante nueva, y la destapó el propio `qa` en su script de verificación antes de dar por bueno
 ningún criterio.
 
 En `/reportes/rentabilidad`, «Ganancia final» y «Margen bruto» **etiquetan dos nodos cada una**:
-uno en el `StatStrip` de arriba —que F-037 no toca— y otro en la cascada del estado de resultados,
+uno en el `StatStrip` de arriba —que F-039 no toca— y otro en la cascada del estado de resultados,
 que es el que el criterio quería medir. Un localizador por texto devuelve el primero del DOM, que
 es el equivocado.
 

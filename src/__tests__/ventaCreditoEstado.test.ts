@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 
 /**
- * F-035 — `src/lib/cuentasPorCobrar/ventaCreditoEstado.ts` (contract § 4.1, § 4.2;
+ * F-037 — `src/lib/cuentasPorCobrar/ventaCreditoEstado.ts` (contract § 4.1, § 4.2;
  * criteria 1, 2, 6).
  *
  * Dynamic import (E-019): the module does not exist until the `implementer` creates it,
@@ -70,7 +70,7 @@ describe("resolveVentaCreditoEstado — read from EXPLICIT fields, never deduced
     ).toBe("SALDADA");
   });
 
-  it("reads settledAt as a STRING too (E-070: /ventas gets it over the wire unparsed) and still resolves SALDADA", () => {
+  it("reads settledAt as a STRING too (E-074: /ventas gets it over the wire unparsed) and still resolves SALDADA", () => {
     expect(
       ventaCreditoEstado.resolveVentaCreditoEstado({
         creditoBase: 300,

@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import type { Sale, SaleProduct } from "@/store/salesStore";
 
 /**
- * F-032, contract § 6.6 — `src/app/pos/utils/syncPayload.ts`, NEW.
+ * F-034, contract § 6.6 — `src/app/pos/utils/syncPayload.ts`, NEW.
  *
  * `buildSyncMultimoneda` is THE ONLY place that rebuilds a queued sale's multimoneda
  * payload. It replaces three field-by-field constructions that had already drifted —

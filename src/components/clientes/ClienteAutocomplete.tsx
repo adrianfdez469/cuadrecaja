@@ -23,7 +23,7 @@ export interface IClienteAutocompleteProps {
 
 /**
  * The same job as the sheet, with a keyboard: type, walk the list with the arrows, pick with
- * Enter. Like the sheet it calls `useClienteSearch()` itself, so F-036 mounts it in
+ * Enter. Like the sheet it calls `useClienteSearch()` itself, so F-038 mounts it in
  * `PedidoEntregaDialog` without changing it.
  *
  * The create action lives UNDER the field and never inside the listbox: the listbox only

@@ -1,7 +1,7 @@
 # E-033: `Intl.NumberFormat("es-ES")` no agrupa los millares de un número de cuatro dígitos
 
 **Área:** ui
-**Apariciones:** 2 — F-011 · F-037 (la variante que NO es de `Intl`; ver la adenda del final)
+**Apariciones:** 2 — F-011 · F-039 (la variante que NO es de `Intl`; ver la adenda del final)
 
 ## Síntoma
 
@@ -41,9 +41,9 @@ una implementación coincidiendo en la misma suposición falsa.
 
 ---
 
-## Adenda F-037 — `Intl` da coma decimal; `toFixed` da punto, y no sabe de locales
+## Adenda F-039 — `Intl` da coma decimal; `toFixed` da punto, y no sabe de locales
 
-La ficha original es sobre el separador de **millares**. En F-037 costó una vuelta la mitad menos
+La ficha original es sobre el separador de **millares**. En F-039 costó una vuelta la mitad menos
 obvia, que es la del separador **decimal**.
 
 En la misma pantalla conviven dos formateadores:
@@ -52,13 +52,13 @@ En la misma pantalla conviven dos formateadores:
   **coma** decimal: `$1000,00`.
 - `Number.prototype.toFixed`, que da **punto** y es **independiente del locale**: `50.0`.
 
-El contrato de diseño de F-037 fija los porcentajes con `` `${s.toFixed(1)}% del total vendido` ``,
+El contrato de diseño de F-039 fija los porcentajes con `` `${s.toFixed(1)}% del total vendido` ``,
 así que el DOM guarda `50.0%`. La **prosa del spec** los escribió a mano como `50,0 %`, con coma y
 con espacio, por analogía con el resto de las cifras de la pantalla. Un criterio verificado contra
 esa prosa rechaza código correcto — es E-016 alimentado por esta ficha.
 
 Y el detalle que cierra el círculo con la ficha original: los valores del escenario de prueba de
-F-037 (1.000 y 2.000) son de **cuatro dígitos**, así que renderizan `$1000,00`, sin punto de
+F-039 (1.000 y 2.000) son de **cuatro dígitos**, así que renderizan `$1000,00`, sin punto de
 millar. Las dos mitades de esta ficha se dan a la vez en la misma pantalla.
 
 **La regla:** antes de escribir una cifra esperada en un criterio, pregúntate **qué función la

@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { pagoLineaSchema } from "@/schemas/pago";
 
 /**
- * F-029, criterion 12 (ADR 0104, decision 1). Credit is `Venta.creditoBase`, never a
+ * F-031, criterion 12 (ADR 0111, decision 1). Credit is `Venta.creditoBase`, never a
  * line of `pagosDetalle`: `pagoLineaSchema.tipo` stays `z.enum(["cash", "transfer"])`.
  * This is the test that documents the decision and would catch anyone reverting it by
  * accident (contract § 3.5).

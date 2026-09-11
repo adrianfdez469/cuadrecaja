@@ -205,7 +205,7 @@ export interface IAbonoValuation {
  * second definition of what "money in the drawer" means (dosier § 5).
  *
  * It does NOT read the client's `equivalenteBase`: the request schema omits the field, and the
- * rate comes from the business's own TasaCambio rows (ADR 0118). The caller is what rejects a
+ * rate comes from the business's own TasaCambio rows (ADR 0125). The caller is what rejects a
  * missing rate with `missingRateCodes` BEFORE calling this: `convertToBase` converts at 1 in
  * silence when a rate is absent.
  *
@@ -338,7 +338,7 @@ export async function lockCuentaPorCobrar(
  * ITS FIRST OPERATION is `SELECT ... FOR UPDATE` over `CuentaPorCobrar`, with the table name
  * literal in the template and the id parameterised. That is what serialises two concurrent
  * movements against the SAME account: the second one decides against the balance the first one
- * left (ADR 0117). The lock lives here and not in the routes so that a fourth caller does not
+ * left (ADR 0124). The lock lives here and not in the routes so that a fourth caller does not
  * have to remember it.
  *
  * When `movimiento.revierteId` is present, the implementation verifies, BEFORE inserting, that
@@ -355,10 +355,10 @@ export async function lockCuentaPorCobrar(
  * rolls back — which also releases the idempotency key it claimed, as `src/lib/idempotency.ts`
  * documents.
  *
- * A REVERSION_ABONO is written with `pagosDetalle: null` and `tasaSnapshot: null` (ADR 0120): the
+ * A REVERSION_ABONO is written with `pagosDetalle: null` and `tasaSnapshot: null` (ADR 0127): the
  * cash effect of a reversal is a SUBTRACTION, and IPagoLinea cannot express one — `monto` is
  * `.positive()`. The sign is applied when READING, by `netCollectionRows` in
- * `src/lib/cuentasPorCobrar/cobrosNetos.ts` (ADR 0121). Nothing negative is ever persisted.
+ * `src/lib/cuentasPorCobrar/cobrosNetos.ts` (ADR 0128). Nothing negative is ever persisted.
  *
  * @throws {MovimientoCuentaPorCobrarError} when the decision refuses. It always carries the
  *         account balance at the moment of the refusal, whatever the violation.

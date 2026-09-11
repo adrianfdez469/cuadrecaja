@@ -1,11 +1,11 @@
 import { describe, it, expect } from "vitest";
 
 /**
- * F-032, contract § 4, § 4.2, § 9.1 — `src/constants/creditoVenta.ts`, NEW.
+ * F-034, contract § 4, § 4.2, § 9.1 — `src/constants/creditoVenta.ts`, NEW.
  *
  * All the fixed literals of the feature: server error messages/codes, and the
  * checkout/ticket copy and DOM localisation classes closed by
- * `.agents/designs/F-032.md` § 8/§ 9 (D2 of the second amendment: eleven checkout keys,
+ * `.agents/designs/F-034.md` § 8/§ 9 (D2 of the second amendment: eleven checkout keys,
  * `payBarStatus` retired; twelve DOM classes).
  *
  * Dynamic top-level `await import`: the module does not exist until the `implementer`
@@ -28,7 +28,7 @@ const { CREDIT_INVARIANT_VIOLATIONS } = await import(
 const { hasControlCharacters } = await import("@/utils/printableText");
 
 describe("CREDIT_INVARIANT_ERROR_MESSAGE", () => {
-  it("has exactly one fixed message per violation of CREDIT_INVARIANT_VIOLATIONS (F-029) — a sixth violation would fail to compile before it could ship without a message", () => {
+  it("has exactly one fixed message per violation of CREDIT_INVARIANT_VIOLATIONS (F-031) — a sixth violation would fail to compile before it could ship without a message", () => {
     expect(Object.keys(CREDIT_INVARIANT_ERROR_MESSAGE).sort()).toEqual(
       [...CREDIT_INVARIANT_VIOLATIONS].sort(),
     );
@@ -58,7 +58,7 @@ describe("CREDIT_EXTRAS_INVALID_MESSAGE / CREDIT_CUSTOMER_CONFLICT_* / CREDIT_CU
     expect(CREDIT_CUSTOMER_CONFLICT_MESSAGE.length).toBeGreaterThan(0);
   });
 
-  it("CREDIT_CUSTOMER_UPSERT_RETRIES is exactly 1 — ADR 0110: one retry, and only one", () => {
+  it("CREDIT_CUSTOMER_UPSERT_RETRIES is exactly 1 — ADR 0117: one retry, and only one", () => {
     expect(CREDIT_CUSTOMER_UPSERT_RETRIES).toBe(1);
   });
 });
@@ -109,7 +109,7 @@ describe("CREDIT_CHECKOUT_COPY — closed at eleven keys (D2: payBarStatus retir
     }
   });
 
-  it('no value contains "por cobrar" — that belongs to the F-033 screen, and here it would send the cashier looking for a panel the POS does not have (E-016)', () => {
+  it('no value contains "por cobrar" — that belongs to the F-035 screen, and here it would send the cashier looking for a panel the POS does not have (E-016)', () => {
     for (const value of Object.values(CREDIT_CHECKOUT_COPY)) {
       expect((value as string).toLowerCase()).not.toContain("por cobrar");
     }

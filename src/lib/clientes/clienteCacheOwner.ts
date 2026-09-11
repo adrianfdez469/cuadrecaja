@@ -3,7 +3,7 @@
  *
  * It exists because `CLIENTES_CACHE_STORAGE_KEY` is a global browser key and a counter tablet
  * sees several employees come and go: without this, the next user reads the name, phone and
- * debt of the previous one's clientes. ADR 0108 closed the WRITE window — the server rejects a
+ * debt of the previous one's clientes. ADR 0115 closed the WRITE window — the server rejects a
  * credit sale with a foreign `clienteId` — not the READ one.
  */
 

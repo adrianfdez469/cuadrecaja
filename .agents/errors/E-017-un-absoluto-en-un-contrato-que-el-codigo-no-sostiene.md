@@ -1,7 +1,7 @@
 # E-017: Un absoluto escrito en un contrato o un ADR que el código no sostiene
 
 **Área:** build
-**Apariciones:** 3 — F-020 (la misma frase en **cinco** sitios, más una segunda del mismo género) · F-006 (**cuatro** criterios de diseño, ver la primera adenda) · F-036 (una afirmación de uso cierta del **valor** y falsa del **símbolo**, ver la segunda adenda)
+**Apariciones:** 3 — F-020 (la misma frase en **cinco** sitios, más una segunda del mismo género) · F-006 (**cuatro** criterios de diseño, ver la primera adenda) · F-038 (una afirmación de uso cierta del **valor** y falsa del **símbolo**, ver la segunda adenda)
 
 ## Síntoma
 
@@ -108,12 +108,12 @@ Dos matices que hicieron falta al corregirlos:
 
 ---
 
-## Adenda (F-036): la afirmación de uso que es cierta del valor y falsa del símbolo
+## Adenda (F-038): la afirmación de uso que es cierta del valor y falsa del símbolo
 
 La variante más silenciosa de las tres, porque **no usa ningún superlativo** y por eso no la caza
 ninguna búsqueda de «NEVER», «ningún» o «siempre».
 
-El contrato de F-036 escribió, sobre una constante del módulo de schemas que el propio contrato
+El contrato de F-038 escribió, sobre una constante del módulo de schemas que el propio contrato
 mandaba conservar:
 
 ```

@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { formatDate, formatDateTime } from "@/utils/formatters";
 
 /**
- * F-035 — `src/app/ventas/utils/ventaSearch.ts` (contract § 6; criterion 4).
+ * F-037 — `src/app/ventas/utils/ventaSearch.ts` (contract § 6; criterion 4).
  *
  * Dynamic import (E-019): the module does not exist until the `implementer` creates it.
  */

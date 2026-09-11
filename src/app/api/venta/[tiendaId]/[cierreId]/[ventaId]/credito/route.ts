@@ -12,7 +12,7 @@ import type { IMovimientoCuentaPorCobrar } from "@/schemas/cuentaPorCobrar";
  * NO PERMISSION, exactly like the listing GET it is the sibling of
  * (`api/venta/[tiendaId]/[cierreId]/route.ts`): it returns, for a single sale, a subset of what
  * that one already returns without a permission for every sale of the period, and it is the
- * cashier flow of `/ventas`. The panel of F-033 is the one that requires
+ * cashier flow of `/ventas`. The panel of F-035 is the one that requires
  * `recuperaciones.cuentasporcobrar.acceder`, and this route is not it.
  *
  * The CuentaPorCobrar is reached ONLY through the Venta already resolved under the tenant axis —
@@ -113,7 +113,7 @@ export async function GET(
         movimientos: resumen.movimientos,
         // `pagosDetalle` and `tasaSnapshot` are Json columns, so Prisma types them as
         // `JsonValue`; the rows travel VERBATIM as persisted and the shape is the one
-        // `movimientoCuentaPorCobrarSchema` declares (IMPORTED from F-029, never restated).
+        // `movimientoCuentaPorCobrarSchema` declares (IMPORTED from F-031, never restated).
         movimientosDetalle:
           cuenta.movimientos as unknown as IMovimientoCuentaPorCobrar[],
       },

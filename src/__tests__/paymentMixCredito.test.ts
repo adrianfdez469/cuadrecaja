@@ -6,7 +6,7 @@ import type { NormalizedSale } from "@/lib/reports/sales-stream";
 import type { IPagoLinea } from "@/schemas/pago";
 
 /**
- * F-037 (spec criteria 1, 2, 3, 4, 7; contract § 2, § 8.3.A; ADR 0131).
+ * F-039 (spec criteria 1, 2, 3, 4, 7; contract § 2, § 8.3.A; ADR 0138).
  *
  * `createPaymentMixAggregator` stays pure over `NormalizedSale` (§ 8.1), so
  * every one of these is verified WITHOUT a database.
@@ -66,7 +66,7 @@ function findRow(
     | undefined;
 }
 
-describe("createPaymentMixAggregator — the credit row (F-037)", () => {
+describe("createPaymentMixAggregator — the credit row (F-039)", () => {
   it("criterion 1: a 1000-cash sale plus a 1000-credit sale sum to 2000 across two rows, the credit row included, never deduced into cash", () => {
     const aggregator = createPaymentMixAggregator(BASE_CURRENCY);
     aggregator.consume(

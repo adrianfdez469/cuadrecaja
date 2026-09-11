@@ -1419,7 +1419,7 @@ model CuentaPorCobrar {
   ///
   /// INVARIANT: this MUST equal the tiendaId of the Venta that created the row. Nothing in
   /// the schema enforces it — there is no composite FK against a simple FK — so the writer
-  /// (F-032, which creates this row inside the same $transaction as the Venta) derives it
+  /// (F-034, which creates this row inside the same $transaction as the Venta) derives it
   /// from the SAME variable already persisted as Venta.tiendaId. It is never re-read from
   /// the request, from a route param, or from another part of the payload.
   tienda   Tienda @relation(fields: [tiendaId], references: [id])
@@ -1439,7 +1439,7 @@ model CuentaPorCobrar {
   settledAt DateTime?
 
   /// Informative only, so the customer can be told "you owe 20 USD". No arithmetic
-  /// reads these: the debt is denominated in base currency (ADR 0104).
+  /// reads these: the debt is denominated in base currency (ADR 0111).
   monedaDeudaCode          String?
   montoDeudaMonedaOriginal Float?
 

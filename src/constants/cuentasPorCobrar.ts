@@ -12,7 +12,7 @@ import type { IFiltroOpciones } from "@/lib/cuentasPorCobrar/panel";
  */
 export { TIPOS_MOVIMIENTO_CUENTA_POR_COBRAR };
 
-/** The permission gating the panel. Already declared by F-031; re-exported, not redefined. */
+/** The permission gating the panel. Already declared by F-033; re-exported, not redefined. */
 export { CUENTAS_POR_COBRAR_PERMISO } from "@/constants/clientes";
 
 export const CUENTAS_POR_COBRAR_PERMISO_COBRAR =
@@ -25,7 +25,7 @@ export const CUENTAS_POR_COBRAR_PERMISO_REVERTIR =
 /**
  * The visible label of each ledger entry type. `CONDONACION` reads "Perdon de deuda" on purpose:
  * the persisted value and the visible name diverge, and neither is corrected into the other
- * (ADR 0115). A Record over the closed vocabulary, so a fifth type does not compile until its
+ * (ADR 0122). A Record over the closed vocabulary, so a fifth type does not compile until its
  * label is written.
  */
 export const TIPO_MOVIMIENTO_LABEL: Record<
@@ -94,7 +94,7 @@ export const CUENTAS_POR_COBRAR_API_ERRORS = {
 
 /**
  * The literal copy of the panel, the detail and the three dialogs, fixed by
- * `.agents/designs/F-033.md` § 8. NO component writes a literal of its own.
+ * `.agents/designs/F-035.md` § 8. NO component writes a literal of its own.
  */
 export const CUENTAS_POR_COBRAR_COPY = {
   /* ---- The panel ---- */

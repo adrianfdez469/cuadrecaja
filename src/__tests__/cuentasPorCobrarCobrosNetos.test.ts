@@ -3,14 +3,14 @@ import { convertToBase } from "@/lib/currency";
 import type { IPagoLinea } from "@/schemas/pago";
 
 /**
- * F-033 — `src/lib/cuentasPorCobrar/cobrosNetos.ts` (contract § 4bis, ADR 0121). Covers
+ * F-035 — `src/lib/cuentasPorCobrar/cobrosNetos.ts` (contract § 4bis, ADR 0128). Covers
  * testability symbol 15: `netCollectionRows`, the mirror-in-negative that lets a
  * REVERSION_ABONO subtract from the cash engines (`buildResumenMonedas`, `valueAbonos`)
  * WITHOUT either of them changing a line.
  *
- * This is the pure test that sustains ADR 0121: without negating the mirror, the net of
+ * This is the pure test that sustains ADR 0128: without negating the mirror, the net of
  * a collection and its reversal comes out DOUBLE instead of zero (E-008) — the whole
- * point of § 12's delegation onto F-030's two touched points.
+ * point of § 12's delegation onto F-032's two touched points.
  *
  * Dynamic import (E-019): the module does not exist until the `implementer` creates it.
  */
@@ -49,8 +49,8 @@ describe("netCollectionRows — a REVERSION_ABONO becomes the origin's lines, NE
         id: "rev1",
         tipo: "REVERSION_ABONO",
         fecha: fechaReversion,
-        tasaSnapshot: null, // ADR 0120: a REVERSION_ABONO is persisted with tasaSnapshot: null
-        pagosDetalle: null, // ADR 0120: and with pagosDetalle: null
+        tasaSnapshot: null, // ADR 0127: a REVERSION_ABONO is persisted with tasaSnapshot: null
+        pagosDetalle: null, // ADR 0127: and with pagosDetalle: null
         revierte: { pagosDetalle: origenPagos, tasaSnapshot: { USD: 120 } },
       },
     ]);

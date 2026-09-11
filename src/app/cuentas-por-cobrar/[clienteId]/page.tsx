@@ -405,7 +405,7 @@ export default function DeudorDetallePage() {
 
       {/*
         `VentaDetailDialog` is used EXACTLY as it stands and its file is not touched (criterion 3).
-        It gets three props and no more: `onDeleteProduct` / `onDeleteSale` belong to F-035, and
+        It gets three props and no more: `onDeleteProduct` / `onDeleteSale` belong to F-037, and
         offering a button this feature does not implement would be offering an action that fails.
         The reprint button appears on its own — the dialog calls `usePrinter` internally.
       */}

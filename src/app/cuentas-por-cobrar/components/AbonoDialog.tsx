@@ -168,7 +168,7 @@ export function AbonoDialog({
 
       if (status === 400 && typeof saldoReal === "number") {
         // The figure comes from the NUMERIC field of the body and is formatted here. The API
-        // body and the screen are two different levels of the stack (E-065).
+        // body and the screen are two different levels of the stack (E-069).
         setErrorSaldo(saldoReal);
         onSaldoDesactualizado();
       } else if (status === 409) {

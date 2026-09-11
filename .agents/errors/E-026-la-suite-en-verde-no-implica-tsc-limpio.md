@@ -1,7 +1,7 @@
 # E-026: `npm test` en verde no implica `npx tsc --noEmit` limpio
 
 **Área:** tests
-**Apariciones:** 3 — F-006, F-008 · F-037 (la forma más pura: verde en Vitest, rojo en `tsc`; ver la adenda del final)
+**Apariciones:** 3 — F-006, F-008 · F-039 (la forma más pura: verde en Vitest, rojo en `tsc`; ver la adenda del final)
 
 ## Síntoma
 
@@ -90,9 +90,9 @@ npx vitest run src/__tests__/routeGuardInventory.test.ts
 
 ---
 
-## Adenda F-037 — la forma más pura de la ficha, y la más barata de arreglar
+## Adenda F-039 — la forma más pura de la ficha, y la más barata de arreglar
 
-Las dos apariciones anteriores eran de proceso. La de F-037 es el enunciado literal de la ficha, en
+Las dos apariciones anteriores eran de proceso. La de F-039 es el enunciado literal de la ficha, en
 su forma mínima.
 
 El `dev-tester` escribió `aggregator.finalize()` sin argumento. Los siete agregadores del repo

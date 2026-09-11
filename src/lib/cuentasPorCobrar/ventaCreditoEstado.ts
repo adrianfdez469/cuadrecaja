@@ -32,7 +32,7 @@ export interface IVentaCreditoEstadoInput {
   credito?: {
     saldoPendiente: number;
     /**
-     * Compared against null ONLY: over the wire it is a string (E-070).
+     * Compared against null ONLY: over the wire it is a string (E-074).
      *
      * OPTIONAL rather than required, which is the one widening this interface takes over the
      * contract's § 4.1: with `strict: false`, `z.coerce.date().nullable()` infers the key as
@@ -72,7 +72,7 @@ export function resolveVentaCreditoEstado(
 
   // Compared with `!= null`, which covers the null, the undefined and the absent key at once
   // (§ 0.6 (d)): with `strict: false` a `.nullable()` of zod is inferred as an OPTIONAL key. No
-  // `Date` method is ever called on it — over the wire this field is a string (E-070).
+  // `Date` method is ever called on it — over the wire this field is a string (E-074).
   if (credito.settledAt != null) {
     return "SALDADA";
   }

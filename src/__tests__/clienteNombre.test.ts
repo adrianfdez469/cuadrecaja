@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 
 /**
- * F-031, contract § 4.1, § 11.1 — `src/lib/clientes/clienteNombre.ts`.
+ * F-033, contract § 4.1, § 11.1 — `src/lib/clientes/clienteNombre.ts`.
  * `toStoredClienteText` entered the testability list in the "Segunda enmienda"
  * (dictamen A, § 11.1 "Ampliación tras la implementación"), found while implementing.
  *

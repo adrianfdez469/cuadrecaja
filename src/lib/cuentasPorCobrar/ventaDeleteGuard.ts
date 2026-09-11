@@ -20,7 +20,7 @@ export type IVentaDeleteBlockReason =
  * The HTTP status each reason gets, declared once so the two DELETE routes do not restate it.
  *
  * The two credit reasons are 409 and MULTIPLES_PAGOS stays 400, and that difference is deliberate
- * (ADR 0126): 400 means "not with these data", 409 means "not with this sale". 403 is ruled out
+ * (ADR 0133): 400 means "not with these data", 409 means "not with this sale". 403 is ruled out
  * for all three, because axiosClient replaces the body of ANY 403 with a generic permission error
  * (E-009) and criterion 5 asks for the reason to reach the screen.
  */
@@ -41,7 +41,7 @@ export const VENTA_DELETE_BLOCK_HTTP_STATUS: Record<
  * route's and the components' strings differ by one word; unifying them would rewrite copy that
  * was verified before this feature (E-018). Each caller keeps its own literal for that reason.
  *
- * The words are the ones `.agents/designs/F-035.md` § 0.2 fixed, and this module is the only
+ * The words are the ones `.agents/designs/F-037.md` § 0.2 fixed, and this module is the only
  * place they live. The collection message NAMES the count and the amount, because criterion 6
  * measures those two values and not a category (E-016), and its singular is a real path: one
  * collection is already enough to block.
@@ -106,7 +106,7 @@ export interface IVentaDeleteGate {
  * the drawer of a period that may be closed, and shrinking or deleting the sale afterwards leaves
  * the collected money without a sale to belong to. A live debt with nothing collected blocks
  * NOTHING — that is criterion 8, which deletes a product from exactly such a sale. The full
- * argument, and the tension it resolves between criteria 5 and 8, is in ADR 0126.
+ * argument, and the tension it resolves between criteria 5 and 8, is in ADR 0133.
  *
  * `pagadaConUnSoloPago` (src/lib/currency.ts) is IMPORTED, never reimplemented, and its semantics
  * are untouched: "zero or one payment" is correct for what it was written for.

@@ -1,11 +1,11 @@
 import { describe, it, expect } from "vitest";
 
 /**
- * F-032, contract § 3.2, § 3.3 — criterion 12 and the H1 character-bound amendment.
+ * F-034, contract § 3.2, § 3.3 — criterion 12 and the H1 character-bound amendment.
  *
  * `pagosDetalleConCreditoAppSchema`, `creditoExtrasSchema` and
  * `EMPTY_PAGOS_WITHOUT_CREDIT_MESSAGE` are NEW exports of `src/schemas/pago.ts` (an
- * edit to a closed F-029 file, ADR 0111). `multimonedaExtrasSchema.clienteNombre` is a
+ * edit to a closed F-031 file, ADR 0118). `multimonedaExtrasSchema.clienteNombre` is a
  * field ADDED to an existing schema. Dynamic top-level `await import` throughout this
  * file: none of these names exist until the `implementer` adds them (E-019) — a static
  * import of a name that is not yet exported would behave unpredictably depending on the
@@ -142,7 +142,7 @@ describe("creditoExtrasSchema — picked from multimonedaExtrasSchema, not resta
   });
 });
 
-describe("multimonedaExtrasSchema.clienteNombre — H1, the character-set bound (ADR 0113)", () => {
+describe("multimonedaExtrasSchema.clienteNombre — H1, the character-set bound (ADR 0120)", () => {
   const validExtras = () => ({
     monedaCobro: "CUP",
     pagosDetalle: [],

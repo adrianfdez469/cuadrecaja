@@ -8,7 +8,7 @@ export const clienteConSaldoSchema = clienteSchema.extend({
 
 /**
  * What the selector paints and what the cache persists — the SAME four fields, on purpose
- * (ADR 0108). A fifth field here is a fifth field on disk.
+ * (ADR 0115). A fifth field here is a fifth field on disk.
  */
 export const clienteOptionSchema = z.object({
   id: z.string().uuid(),

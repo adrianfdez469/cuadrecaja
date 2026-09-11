@@ -10,7 +10,7 @@ import { CLIENTES_COPY, CLIENTES_DOM } from "@/constants/clientes";
  * The band both surfaces show when the results came from the cache instead of the server.
  *
  * The copy names "the last time it could be consulted" on purpose: without a connection the
- * balance is a photograph, not the live figure (ADR 0108). The icon is an element child, so
+ * balance is a photograph, not the live figure (ADR 0115). The icon is an element child, so
  * the notice's OWN text stays exactly `CLIENTES_COPY.selectorDesdeCache`.
  */
 export function ClienteCacheNotice({ sx }: Readonly<{ sx?: SxProps<Theme> }>) {

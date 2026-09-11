@@ -72,7 +72,7 @@ const NONE: ICreditCustomerResolution = {
  *
  * `clienteId` comes back non-null in every case a customer exists or is about to, which
  * is what lets checkCreditInvariant keep its two-value contract: it asks whether a
- * customer is present, and after this function ran, it is (ADR 0110).
+ * customer is present, and after this function ran, it is (ADR 0117).
  *
  * It never throws.
  */
@@ -92,7 +92,7 @@ export function resolveCreditCustomer(
   if (typeof clienteId === "string" && clienteId !== "") {
     // 2. Present inside the tenant. A soft deleted row still resolves EXISTING: a late sale
     // against a customer deleted meanwhile leaves its debt visible rather than losing it
-    // (F-029 § 2.1). 3. Absent — including an id belonging to ANOTHER business, which the
+    // (F-031 § 2.1). 3. Absent — including an id belonging to ANOTHER business, which the
     // caller's withTenantScope turned into null — resolves NONE, which is what makes
     // checkCreditInvariant answer CREDIT_WITHOUT_CUSTOMER and the route answer 409.
     return byId
@@ -105,7 +105,7 @@ export function resolveCreditCustomer(
   if (nombre === "") return { ...NONE };
 
   // 4, 5 and 6 are decided by decideClienteUpsert, the ONE definition of what an existing
-  // row with that name implies (E-014, E-039). Its "DUPLICATE" — which for F-031 means "do
+  // row with that name implies (E-014, E-039). Its "DUPLICATE" — which for F-033 means "do
   // not create, it is already there" — reads here as EXISTING, which means "use it". Two
   // callers read the same decision and act differently; that is not a contradiction.
   const action = decideClienteUpsert(byNombre);

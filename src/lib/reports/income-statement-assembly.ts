@@ -35,7 +35,7 @@ export type IncomeStatement = {
   /**
    * Informative. Sum of `CierrePeriodo.totalCobrosCredito`: debt collected during the
    * range, whatever period it was born in. OUTSIDE every subtotal. It CAN be negative
-   * (ADR 0121).
+   * (ADR 0128).
    */
   creditoCobrado: number;
   /** Non-zero only if the category breakdown fails to reconcile with the closings. */

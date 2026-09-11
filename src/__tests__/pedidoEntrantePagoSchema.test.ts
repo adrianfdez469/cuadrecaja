@@ -6,7 +6,7 @@ const UUID = "8f14e45f-ceea-467e-adc3-b1a4c0ea0a3e";
 const UUID_CLIENTE = "3c9a6f1e-8b2d-4e77-9c3a-1f6d2b5a7e90";
 
 /**
- * F-014/F-036 (contract § 3.2, ADR 0073, ADR 0130) — how an online order's
+ * F-014/F-038 (contract § 3.2, ADR 0073, ADR 0137) — how an online order's
  * payment is declared. THREE methods now (EFECTIVO, TRANSFERENCIA, CREDITO),
  * each with its own REQUIRED/FORBIDDEN extra field per
  * TIENDA_ONLINE_PAYMENT_METHOD_FIELDS (contract § 2.2). The branches are

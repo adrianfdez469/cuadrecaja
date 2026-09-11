@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import type { ITipoMovimientoCuentaPorCobrar } from "@/schemas/cuentaPorCobrar";
 
 /**
- * F-029, criterion 5 — `src/lib/cuentasPorCobrar/saldo.ts` (contract § 5.1).
+ * F-031, criterion 5 — `src/lib/cuentasPorCobrar/saldo.ts` (contract § 5.1).
  *
  * Imported via a dynamic top-level `await import`, same idiom as `tenantScope.test.ts`:
  * this module does not exist until the `implementer` creates it, and destructuring a

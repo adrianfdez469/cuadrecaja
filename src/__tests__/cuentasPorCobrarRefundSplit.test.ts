@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 
 /**
- * F-029, criterion 10 — `src/lib/cuentasPorCobrar/refundSplit.ts` (contract § 5.3).
+ * F-031, criterion 10 — `src/lib/cuentasPorCobrar/refundSplit.ts` (contract § 5.3).
  * Dynamic import, same E-019 reasoning as the sibling `cuentasPorCobrar*` test files.
  */
 const { splitRefundBetweenDebtAndCash } = await import(

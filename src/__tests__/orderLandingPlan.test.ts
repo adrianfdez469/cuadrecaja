@@ -405,7 +405,7 @@ describe("buildOnlineSaleAmounts", () => {
   });
 
   /**
-   * F-036 (contract § 4, § 8.2 point 2) — the THIRD branch, CREDITO. It moves
+   * F-038 (contract § 4, § 8.2 point 2) — the THIRD branch, CREDITO. It moves
    * nothing into either cash column and contributes NO `pagosDetalle` line:
    * that absence is what keeps the period's cash reconciliation untouched by
    * construction (criterion 2), because `buildResumenMonedas` only ever walks
@@ -491,13 +491,13 @@ describe("buildOnlineSaleAmounts", () => {
 });
 
 /**
- * F-036 (contract § 5.2, § 8.2 point 3) — `checkCreditInvariant` is NOT called
+ * F-038 (contract § 5.2, § 8.2 point 3) — `checkCreditInvariant` is NOT called
  * at runtime by `sellOrder` (contract § 5.2 explains why: it would be a
  * function checking its own output, an unreachable and therefore untested
  * rejection branch, E-032). The guarantee is obtained here instead: the
  * output of the third branch of `buildOnlineSaleAmounts` must satisfy the
  * invariant `checkCreditInvariant` already enforces for the POS's own credit
- * sales (F-029), with no tip and no change.
+ * sales (F-031), with no tip and no change.
  */
 describe("checkCreditInvariant over the third branch of buildOnlineSaleAmounts", () => {
   it("is ok: true, violation: null for a CREDITO order with no tip and no change", () => {

@@ -56,7 +56,7 @@ function isUniqueViolation(error: unknown): boolean {
 /**
  * Reads by `withTenantScope("cliente", { nombre }, negocioId)` WITHOUT filtering by
  * `deletedAt`, decides with `decideClienteUpsert`, and performs ONE write. It opens no
- * `$transaction` (ADR 0107).
+ * `$transaction` (ADR 0114).
  *
  * A `P2002` from that write means another request won the race between the read and the
  * write. It is retried `CLIENTES_UPSERT_RETRIES` times; on the retry the read finds the row.
@@ -102,7 +102,7 @@ export async function createOrReactivateCliente(params: {
               data: {
                 nombre,
                 deletedAt: null,
-                // A field the body does not carry is left as it was (ADR 0107).
+                // A field the body does not carry is left as it was (ADR 0114).
                 ...(input.descripcion !== undefined && {
                   descripcion: toStoredClienteText(input.descripcion),
                 }),

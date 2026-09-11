@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 
 /**
- * F-031, contract § 4.7 (enmienda D3) — `src/lib/clientes/clienteCopy.ts`.
- * Signatures and expected literal outputs come from `.agents/designs/F-031.md`, § 5
+ * F-033, contract § 4.7 (enmienda D3) — `src/lib/clientes/clienteCopy.ts`.
+ * Signatures and expected literal outputs come from `.agents/designs/F-033.md`, § 5
  * ("Y el copy que interpola" table) and § 6 ("Qué debe fijar su test"); this contract
  * does not re-specify them (E-039) — cited by section, not paraphrased.
  *

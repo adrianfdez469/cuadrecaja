@@ -68,8 +68,8 @@ function serverErrorMessage(error: unknown): string | null {
 
 /**
  * `/configuracion/clientes` — the CRUD, and the screen where BOTH selection surfaces are
- * mounted and verified (ADR 0106). The recovery panel of who owes what is `/cuentas-por-cobrar`
- * and belongs to F-033: this screen never says «por cobrar».
+ * mounted and verified (ADR 0113). The recovery panel of who owes what is `/cuentas-por-cobrar`
+ * and belongs to F-035: this screen never says «por cobrar».
  *
  * It consumes `clienteService` directly for its table, because it needs `descripcion` and
  * `direccion` to edit and the selector never needs them. It does not use `useClienteSearch`
@@ -124,7 +124,7 @@ export default function ClientesConfiguracionPage() {
   // A cliente picked in either surface may be outside the first page of the list — the
   // selector searches the server and can find the 700th of a business with more than
   // CLIENTES_LIST_LIMIT. Without this, picking them would leave the list empty with no
-  // explanation. It is the only place F-031 exercises GET /api/clientes/[id].
+  // explanation. It is the only place F-033 exercises GET /api/clientes/[id].
   useEffect(() => {
     if (!selected) {
       setSelectedDetail(null);

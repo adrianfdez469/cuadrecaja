@@ -41,7 +41,7 @@ interface Props {
   /**
    * The two informative credit lines of THIS row, or absent when it shows
    * none. The caller resolves it with `resolveCurrencyCreditLines`, which is
-   * what keeps the lines on the base-currency row (ADR 0124).
+   * what keeps the lines on the base-currency row (ADR 0131).
    */
   creditLines?: ICurrencyCreditLines;
   tiendaId: string;

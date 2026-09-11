@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 
 /**
- * F-035 — `src/constants/ventaCredito.ts` (design § 0.3, § 0.4; contract § 11.1 amended
+ * F-037 — `src/constants/ventaCredito.ts` (design § 0.3, § 0.4; contract § 11.1 amended
  * by the design's § 6, E-035). Four symbols, all `.ts`, all exported: `VENTA_CREDITO_COPY`,
  * `CREDITO_ESTADO_LABEL`, `CREDITO_ESTADO_HUE`, `VENTA_CREDITO_DOM`.
  *

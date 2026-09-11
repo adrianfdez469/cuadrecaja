@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
 
 /**
  * POST /api/clientes — creates a cliente, or REACTIVATES the soft-deleted row that already
- * holds that name (criterion 4, ADR 0107). Both successes answer 201 and the difference
+ * holds that name (criterion 4, ADR 0114). Both successes answer 201 and the difference
  * travels in `action`: a state signal that has to be inferred is E-013.
  */
 export async function POST(request: NextRequest) {

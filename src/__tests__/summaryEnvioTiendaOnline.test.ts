@@ -54,7 +54,7 @@ function makeSale(overrides: Partial<NormalizedSale> = {}): NormalizedSale {
     netAmount: 100,
     netProfit: 40,
     deliveryFeeBase: 0,
-    // F-037, ADR 0131: REQUIRED on NormalizedSale, read from Venta.creditoBase.
+    // F-039, ADR 0138: REQUIRED on NormalizedSale, read from Venta.creditoBase.
     // 0 for every counter sale — not this file's concern (see
     // paymentMixCredito.test.ts), but every NormalizedSale needs a value or
     // the object stops compiling (contract § 1, the cheapest no-regression

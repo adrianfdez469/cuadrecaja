@@ -23,21 +23,21 @@ espera. Es el mismo camino que `BUSINESS` recorrió entre la v11 y la v12.2, y e
 
 | # | Qué faltaba | Resuelta en | Cuándo |
 |---|-------------|-------------|--------|
-| S-001 | Releer un pedido concreto sin depender del cursor | contrato v8 (F-033 de QAB) | 2026-09-03 |
+| S-001 | Releer un pedido concreto sin depender del cursor | contrato v8 (F-035 de QAB) | 2026-09-03 |
 | S-002 | Qué hace el SQL espejo con un producto borrado en blando | contrato v11 (§ ⑤, quinta decisión) | 2026-09-06 |
 | S-003 | El claim `email` del SSO exige forma de correo y el contrato no lo dice | **en cuadrecaja: F-023**. No se pidió nada a QAB | 2026-09-06 |
 | S-004 | `EXCHANGE_RATE` no invalida la caché del catálogo público | contrato v11 ① | 2026-09-06 |
 | S-005 | `EXCHANGE_RATE` no tiene guarda anti-rancio | contrato v11 ② | 2026-09-06 |
 | S-006 | Un fallo por evento no arrastra a sus dependientes del mismo lote | contrato v11 ③ | 2026-09-06 |
 | S-008 | El escaparate no sabe qué monedas mostrar (`displayCurrencies`) | contrato v12, afinada en la v12.1, **en pie desde la v12.2** | 2026-09-06 |
-| S-007 | Envío por zonas: `ZONE_BASED`, tarifario por zona y `contact.zoneCode` | contrato **v13** (F-041 a F-045 de QAB) — borrador, la emisión aún no | 2026-09-10 |
+| S-007 | Envío por zonas: `ZONE_BASED`, tarifario por zona y `contact.zoneCode` | contrato **v13** (F-043 a F-045 de QAB) — borrador, la emisión aún no | 2026-09-10 |
 
 Las cuatro de la v11 se concedieron **enteras y en una sola versión**, y la v11 se publicó
 **antes de estar construida** del lado de queandabuscando: está acordada, no en pie. QAB avisa
 feature a feature. Ver `estado_del_lado_receptor` en `features.json`.
 
 **S-008 se concedió igual: publicada antes de estar construida — y desde el 2026-09-10 ya está en
-pie.** La v12.2 dice que `entity` **acepta** `BUSINESS` (su F-038 construido) y retira de los tres
+pie.** La v12.2 dice que `entity` **acepta** `BUSINESS` (su F-040 construido) y retira de los tres
 sitios el aviso de no emitirlo. Ese aviso era lo único que esperaba el interruptor de F-027:
 **vaciar `QAB_OUTBOX_WITHHELD_ENTITIES` en `src/constants/qab.ts` es todo lo que queda**, y el
 atraso de eventos encolados drena solo. Ver la solicitud.
@@ -46,7 +46,7 @@ atraso de eventos encolados drena solo. Ver la solicitud.
 
 ### S-001 · No hay forma de releer un pedido concreto — RESUELTA en la v8
 
-> **Cerrada el 2026-09-03.** La v8 del contrato (F-033 de QAB) concede **las dos** formas que se
+> **Cerrada el 2026-09-03.** La v8 del contrato (F-035 de QAB) concede **las dos** formas que se
 > pidieron abajo, no una. Ver § ③④ Pedidos, «Las lecturas laterales». F-013 y F-017 pasan de
 > `blocked` a `pending`; F-015 sigue bloqueado, pero por su otro motivo —el lado receptor de la
 > v6— y no por esto. El apaño de `?since=<id-1>&limit=1` se descarta: nunca se construyó.
@@ -445,18 +445,18 @@ que es lo que sí depende de nosotros.
 
 > **CONCEDIDA. El contrato está en v13.4 y las zonas ya son contrato**, con una condición de estado
 > que no es un matiz: **el documento es un BORRADOR sin publicar y la emisión sigue prohibida**
-> hasta que retiren el aviso. Lo que falta de su lado es su **F-041** —aceptar `ZONE_TARIFF` en
+> hasta que retiren el aviso. Lo que falta de su lado es su **F-043** —aceptar `ZONE_TARIFF` en
 > `entity`, `ZONE_BASED`, `STORE.zoneCode` y la precedencia—, que se está terminando de implementar
-> y verificar; su **F-042** (selector, mapa y el pedido llevando `zoneCode`/`zoneName`) ya está
-> construido, y **F-043**, **F-044** y **F-045** están aplicados en el documento.
+> y verificar; su **F-044** (selector, mapa y el pedido llevando `zoneCode`/`zoneName`) ya está
+> construido, y **F-045**, **F-046** y **F-045** están aplicados en el documento.
 >
 > **De los nueve puntos de la revisión del 2026-09-09 se conceden ocho, y los dos graves enteros:**
 >
-> 1. **Concedido en la v13.2 (su F-043).** Una zona desconocida —ausente del catálogo **o sin la
+> 1. **Concedido en la v13.2 (su F-045).** Una zona desconocida —ausente del catálogo **o sin la
 >    forma del DPA**— ya no es `400 INVALID_BATCH`: falla **solo ese evento**, en `207 failed[]` con
 >    `ZONE_TARIFF_ZONE_UNKNOWN`/`STORE_ZONE_UNKNOWN`. Y lo argumentan midiendo **este** código:
 >    `planOutboxAck` suma `intentos++` a todas las filas del lote, no a la culpable.
-> 2. **Concedido en la v13.4 (su F-044).** El tarifario entra en la reconciliación: la respuesta de
+> 2. **Concedido en la v13.4 (su F-046).** El tarifario entra en la reconciliación: la respuesta de
 >    ⑤ pasa a `{products, hash, tariffs, tariffHash}`, con pseudocódigo, SQL espejo y vector propios.
 >    Eligieron la primera de las dos vías que se ofrecían. **Con un límite escrito: la divergencia
 >    del tarifario SOLO ALERTA** — no hay query convergente ni acción de recuperación, `DELETE` está
@@ -485,7 +485,7 @@ que es lo que sí depende de nosotros.
 > 8. **CONCEDIDO A MEDIAS.** El **índice** tiene versión (`1.0.0`), `sha256` y ruta dentro de su
 >    repositorio (`src/features/zones/zone-index.json`, **fuera** de su `docs/` y por tanto fuera de
 >    `QAB_DOCS_PATH`; los bytes viajan adjuntos al borrador). La **geometría** no tiene ni versión
->    ni hash publicados — y para este lado eso ya no importa: el mapa lo pinta su F-042, y 184
+>    ni hash publicados — y para este lado eso ya no importa: el mapa lo pinta su F-044, y 184
 >    códigos se eligen de una lista.
 > 9. **Concedido.** Los tres códigos van a § Vocabulario de errores con su clase escrita.
 >    `ZONE_TARIFF_DELETE_NOT_SUPPORTED` es **permanente**; los dos `*_ZONE_UNKNOWN` son
@@ -510,13 +510,13 @@ que es lo que sí depende de nosotros.
 > nivel por debajo del municipio no es aditivo) y **S-010** (coordenadas del comprador en el pedido,
 > sin las cuales la distancia geodésica no tiene dato de entrada).
 >
-> **La rama de zonas ya está en el backlog** (2026-09-10, con el visto bueno del humano): **F-039**
-> catálogo y precedencia — lo único empezable sin esperar el aviso —, **F-040** `ZONE_BASED` y
-> `Tienda.zoneCode`, **F-041** el tarifario y su emisión retenida, **F-042** el espejo del
-> `tariffHash`, **F-043** la zona del comprador en el pull, y **F-044** el punta a punta, que es el
-> único `blocked` porque necesita el aviso. **F-026 queda `deprecated`** y F-044 lo reemplaza: la
+> **La rama de zonas ya está en el backlog** (2026-09-10, con el visto bueno del humano): **F-041**
+> catálogo y precedencia — lo único empezable sin esperar el aviso —, **F-042** `ZONE_BASED` y
+> `Tienda.zoneCode`, **F-043** el tarifario y su emisión retenida, **F-044** el espejo del
+> `tariffHash`, **F-045** la zona del comprador en el pull, y **F-046** el punta a punta, que es el
+> único `blocked` porque necesita el aviso. **F-026 queda `deprecated`** y F-046 lo reemplaza: la
 > mitad de su descripción —el comprador eligiendo sobre un mapa, y su criterio 8 midiendo teselas—
-> es hoy el F-042 de QAB y está construido de su lado. Sus criterios no se editaron: se repartieron.
+> es hoy el F-044 de QAB y está construido de su lado. Sus criterios no se editaron: se repartieron.
 
 ### S-007 · El registro de la revisión anterior — borrador de la v13 revisado el 2026-09-09
 
@@ -524,7 +524,7 @@ que es lo que sí depende de nosotros.
 > hay v13 todavía: `docs/sync-contract.md` sigue en **v12.2** y solo reserva el número. Lo revisado
 > es el borrador tal como existe hoy —su propuesta `.agent/specs/propuestas/zonas-de-envio.md` en
 > estado `aceptada`, con SP1, SP2, SP3 y SP5 cerradas, más los criterios de aceptación de sus
-> **F-041** y **F-042**—.
+> **F-043** y **F-044**—.
 >
 > **La forma se firma casi entera y no se reabre nada de lo cerrado el 2026-09-06:** el
 > discriminante `rule` en vez de dos banderas, matar el `DELETE`, `INHERIT` como único mecanismo de
@@ -537,7 +537,7 @@ que es lo que sí depende de nosotros.
 >
 > **1. `ZONE_TARIFF` de zona desconocida como `400` es una píldora envenenada para nuestro outbox.**
 > El borrador se contradice: para `STORE.zoneCode` dice «en `failed[]` y nunca como `400` de lote»,
-> y para `ZONE_TARIFF` dice «`400` con nombre propio» (criterio 6 de su F-041). Medido de este lado:
+> y para `ZONE_TARIFF` dice «`400` con nombre propio» (criterio 6 de su F-043). Medido de este lado:
 > un `400` llega como `outcome.kind === "error"` y `planOutboxAck` (`src/lib/qab/outboxAck.ts`) le
 > pone `intentos++` a **todas** las filas del lote, no a la culpable; con
 > `QAB_OUTBOX_MAX_ATTEMPTS = 6`, una sola divergencia de un municipio quema seis intentos de cada
@@ -572,7 +572,7 @@ que es lo que sí depende de nosotros.
 > aditivo; con dos escalones cableados, invalida el vector y las dos implementaciones.
 >
 > **5. El vector: dicen siete y son diez, y las tres guardas no están dentro.** Su § «Datos y
-> contrato» y el criterio 1 de F-041 dicen **siete casos**; su § «El vector, cruzado» dice **diez,
+> contrato» y el criterio 1 de F-043 dicen **siete casos**; su § «El vector, cruzado» dice **diez,
 > con el camino completo por caso**, y sus propias notas admiten que eso «todavía no está en los
 > criterios de arriba». Publicar siete sin el camino tira justo lo que descubrió el cruce a ciegas
 > —`0303` y `0304` los decide la misma fila por caminos distintos—. Y las tres guardas
@@ -629,7 +629,7 @@ que es lo que sí depende de nosotros.
 > - El contrato subió a **12.2** (menor, aditiva: `entity: "BUSINESS"` ya se acepta y **retiran el
 >   aviso de no emitirlo**). Ese aviso era lo único que esperaba el interruptor de F-027.
 > - **F-026 está redactado contra el mundo de antes:** su descripción pone al comprador eligiendo
->   sobre un mapa y su criterio 8 mide teselas, y esa mitad es hoy su F-042. No se toca —la regla del
+>   sobre un mapa y su criterio 8 mide teselas, y esa mitad es hoy su F-044. No se toca —la regla del
 >   backlog lo prohíbe—, pero cuando la v13 salga habrá que abrir el feature de migración.
 
 > **Revisada el 2026-09-06 contra la v12: NO entra, y por primera vez eso no significa que siga en
@@ -641,13 +641,13 @@ que es lo que sí depende de nosotros.
 > `ZONE_BASED`, no existe `ZONE_TARIFF` y `contact` sigue teniendo cuatro claves.
 >
 > **Estado del lado de QAB al 2026-09-06:** su humano aceptó la propuesta y entró en su backlog como
-> **dos features** — **F-041**, el contrato y lo que no ve nadie (`ZONE_BASED`, `ZONE_TARIFF`, el
-> catálogo, `STORE.zoneCode` y la función de precedencia con su vector), y **F-042**, el checkout que
+> **dos features** — **F-043**, el contrato y lo que no ve nadie (`ZONE_BASED`, `ZONE_TARIFF`, el
+> catálogo, `STORE.zoneCode` y la función de precedencia con su vector), y **F-044**, el checkout que
 > ve el comprador (selector, mapa por cobertura declarada, y el pedido llevando `zoneCode` y
 > `zoneName` hasta nuestro pull). **Aceptar no es publicar:** la v13 sigue sin salir y lo que la
 > bloquea son las tres decisiones de diseño, anotadas de su lado como SP1 (formato del catálogo),
 > SP2 (cómo sabe cada lado que comparte versión, y qué pasa con las filas que apuntan a una zona que
-> desapareció) y SP3 (calcular el vector ejecutando). Y van **después** de sus F-035 a F-038, así
+> desapareció) y SP3 (calcular el vector ejecutando). Y van **después** de sus F-037 a F-040, así
 > que no es pronto. **SP3 no depende de nosotros**: QAB entrega el vector ya resuelto en el JSON del
 > contrato. Ofrecen dos cosas que son decisión del humano de este lado: diseñar SP1 y SP2 juntos en
 > vez de dos veces, y que calculemos el vector por separado para cruzarlo con el suyo antes de
@@ -912,8 +912,8 @@ libre**. Cerrar cualquiera de los dos antes de esta conversación obliga a reabr
 > **PELIGRO OPERATIVO, y es lo único de la v12 que puede hacer daño antes de estar construida: no
 > emitir `BUSINESS` todavía.** `entity` no admite ese valor aún, así que hoy no falla solo — cae en
 > el `400 INVALID_BATCH` del schema del sobre y **se lleva el lote entero por delante, incluidos los
-> `PRODUCT` que viajaran con él**. QAB avisará cuando el aplicador esté en pie; su orden es F-035,
-> F-036 y F-037 primero, que son deuda de la v11.
+> `PRODUCT` que viajaran con él**. QAB avisará cuando el aplicador esté en pie; su orden es F-037,
+> F-038 y F-039 primero, que son deuda de la v11.
 >
 > **Qué significa para F-027, y es una buena noticia:** sus seis criterios se verifican **leyendo la
 > fila de `OutboxEvento`**, no llegando a QAB. Así que se implementa y se cierra entero ahora, con

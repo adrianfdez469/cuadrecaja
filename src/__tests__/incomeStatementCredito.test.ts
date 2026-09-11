@@ -9,7 +9,7 @@ import type { ClosingCreditFlow } from "@/lib/reports/closing-totals";
 import type { SalesSummary } from "@/lib/reports/aggregators/summary";
 
 /**
- * F-037 (spec criteria 5, 6; contract § 3.2, § 3.4, § 8.3.B; ADR 0121, 0133).
+ * F-039 (spec criteria 5, 6; contract § 3.2, § 3.4, § 8.3.B; ADR 0128, 0140).
  *
  * `assembleIncomeStatement` is pure — no database, no clock, no rates (§ 3.2) —
  * which is exactly what makes P1/P2/P3 verifiable without a seeded scenario.
@@ -80,7 +80,7 @@ function withoutCreditFields(
   return rest;
 }
 
-describe("assembleIncomeStatement — credit is informative, never arithmetic (F-037)", () => {
+describe("assembleIncomeStatement — credit is informative, never arithmetic (F-039)", () => {
   it("P1: two inputs that differ ONLY in deductions.credito produce an IDENTICAL statement in every field except creditoOtorgado/creditoCobrado (criterion 5 — profit is accrued)", () => {
     const withoutCredit = assembleIncomeStatement(
       makeInput({ deductions: { totalGastos: 0, totalMerma: 0, totalDevoluciones: 0, credito: makeCredito({ otorgado: 0, cobrado: 0 }) } }),
@@ -115,7 +115,7 @@ describe("assembleIncomeStatement — credit is informative, never arithmetic (F
     expect(statement.creditoCobrado).toBe(300);
   });
 
-  it("P2, the negative case (ADR 0121): a reversed credit collection is a negative creditoCobrado, propagated with its sign — never Math.abs'd away", () => {
+  it("P2, the negative case (ADR 0128): a reversed credit collection is a negative creditoCobrado, propagated with its sign — never Math.abs'd away", () => {
     const statement = assembleIncomeStatement(
       makeInput({
         deductions: {

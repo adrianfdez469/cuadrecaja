@@ -141,7 +141,7 @@ describe("withTenantScope", () => {
   });
 
   /**
-   * F-029, contract § 6.1 and criterion 11 — the three new entries verbatim from the
+   * F-031, contract § 6.1 and criterion 11 — the three new entries verbatim from the
    * contract's own worked examples. `Cliente` carries `negocioId` directly (mirrors
    * `tienda`); `CuentaPorCobrar` reaches it through its own direct `Tienda` edge, ONE
    * hop; `MovimientoCuentaPorCobrar` reaches it through `cuentaPorCobrar -> tienda`,
@@ -149,21 +149,21 @@ describe("withTenantScope", () => {
    * itself refuses to compile this call (contract § 6.1) — that is the safety net
    * criterion 11 exists to keep in place.
    */
-  it("adds negocioId directly on the model for Cliente, which carries the column directly (F-029)", () => {
+  it("adds negocioId directly on the model for Cliente, which carries the column directly (F-031)", () => {
     expect(withTenantScope("cliente", { id: "cl1" }, NEGOCIO_A)).toEqual({
       id: "cl1",
       negocioId: NEGOCIO_A,
     });
   });
 
-  it("nests ONE hop for CuentaPorCobrar, through its own direct Tienda edge (F-029)", () => {
+  it("nests ONE hop for CuentaPorCobrar, through its own direct Tienda edge (F-031)", () => {
     expect(withTenantScope("cuentaPorCobrar", { id: "cxc1" }, NEGOCIO_A)).toEqual({
       id: "cxc1",
       tienda: { negocioId: NEGOCIO_A },
     });
   });
 
-  it("nests TWO hops for MovimientoCuentaPorCobrar, through cuentaPorCobrar -> tienda (F-029)", () => {
+  it("nests TWO hops for MovimientoCuentaPorCobrar, through cuentaPorCobrar -> tienda (F-031)", () => {
     expect(
       withTenantScope("movimientoCuentaPorCobrar", { id: "m1" }, NEGOCIO_A),
     ).toEqual({
@@ -173,7 +173,7 @@ describe("withTenantScope", () => {
   });
 });
 
-describe("TENANT_RELATION_PATH — the three F-029 entries (contract § 6.1)", () => {
+describe("TENANT_RELATION_PATH — the three F-031 entries (contract § 6.1)", () => {
   it("declares cliente with an empty path (negocioId directly on the model)", () => {
     expect(TENANT_RELATION_PATH.cliente).toEqual([]);
   });

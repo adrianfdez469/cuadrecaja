@@ -39,7 +39,7 @@ const MOVIMIENTOS_DE_CAJA = ["COMPRA", "MERMA", "DEVOLUCION_VENTA"] as const;
  * every already-collected debt vanish from the recomputation of every earlier period, and
  * the historical totalPorCobrarAlCierre of all of them collapses to zero as debts get paid.
  * It passes the obvious case and looks cleaner, which is exactly why it needs this comment.
- * Criterion 9 of F-030 exists to catch it.
+ * Criterion 9 of F-032 exists to catch it.
  */
 export function openReceivablesWhere(
   tiendaId: string,
@@ -56,8 +56,8 @@ export function openReceivablesWhere(
  * The `where` that selects the collections that entered the drawer during a period.
  *
  * ABONO and REVERSION_ABONO, and only those two: CONDONACION and AJUSTE_DEVOLUCION move no
- * physical money. F-033 is the feature that STARTED writing REVERSION_ABONO, so the reversal of
- * a collection now has to leave the drawer the same way the collection entered it (ADR 0121).
+ * physical money. F-035 is the feature that STARTED writing REVERSION_ABONO, so the reversal of
+ * a collection now has to leave the drawer the same way the collection entered it (ADR 0128).
  * Widening this filter is only half the fix: `buildResumenMonedas` and `valueAbonos` only ADD,
  * so a reversal fed to them as it stands would count the money twice instead of cancelling it.
  * The other half is `netCollectionRows`, which turns each reversal into a MIRROR of the entry it
@@ -219,7 +219,7 @@ export async function loadCierreComputationInput(
         tasaSnapshot: true,
         pagosDetalle: true,
         // The reversed entry travels along so `netCollectionRows` can build its mirror with the
-        // ORIGIN's payment lines and the ORIGIN's rates (ADR 0121).
+        // ORIGIN's payment lines and the ORIGIN's rates (ADR 0128).
         revierte: { select: { pagosDetalle: true, tasaSnapshot: true } },
       },
       orderBy: { fecha: "asc" },
@@ -233,7 +233,7 @@ export async function loadCierreComputationInput(
         montoOriginal: true,
         cliente: { select: { nombre: true } },
         // Cut off here, not in computeSaldoAlCierre: that function reads the set it is
-        // given and does no date filtering of its own (F-029 contract § 5.1).
+        // given and does no date filtering of its own (F-031 contract § 5.1).
         movimientos: {
           where: { fecha: { lte: corte } },
           select: { tipo: true, monto: true },
@@ -300,7 +300,7 @@ export async function loadCierreComputationInput(
       // Same cast pattern the sale above already uses: these are Json columns and Prisma
       // types them as JsonValue. A REVERSION_ABONO comes out of `netCollectionRows` as the
       // mirror of the collection it undoes, so `valueAbonos` SUBTRACTS it without changing a
-      // line of its own (ADR 0121).
+      // line of its own (ADR 0128).
       abonos: netCollectionRows(
         abonos.map((a) => ({
           id: a.id,

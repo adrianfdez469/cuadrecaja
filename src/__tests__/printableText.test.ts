@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 
 /**
- * F-032, contract § 3.5, ADR 0113 — `src/utils/printableText.ts`, NEW.
+ * F-034, contract § 3.5, ADR 0120 — `src/utils/printableText.ts`, NEW.
  *
  * The one place the control-character bound is declared. Three schemas (§ 3.2, § 3.4)
  * and the ticket line builder (§ 7.3) all read this module; it must be a LEAF with no

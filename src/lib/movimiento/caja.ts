@@ -364,8 +364,8 @@ async function construirResumenCajaAbierta(
       // belongs to exactly one Negocio, so the hop through cuentaPorCobrar is the tenant edge.
       //
       // ABONO and REVERSION_ABONO, and only those two: CONDONACION and AJUSTE_DEVOLUCION move
-      // no physical money and carry a null pagosDetalle. F-033 started writing REVERSION_ABONO,
-      // so undoing a collection has to take the money back OUT of the drawer (ADR 0121) —
+      // no physical money and carry a null pagosDetalle. F-035 started writing REVERSION_ABONO,
+      // so undoing a collection has to take the money back OUT of the drawer (ADR 0128) —
       // `netCollectionRows` below turns each reversal into a mirror with the amounts negated,
       // which is what makes `buildResumenMonedas` subtract without changing a line.
       where: {
@@ -412,7 +412,7 @@ async function construirResumenCajaAbierta(
   // one from the other: (a + b) - b does not give back `a` in floating point, and
   // ventasEfectivo has to keep giving exactly today's number when there are no abonos.
   // A reversal arrives here as the MIRROR of the collection it undoes: the origin's lines with
-  // the amounts negated, so the only-adding engine below subtracts them (ADR 0121).
+  // the amounts negated, so the only-adding engine below subtracts them (ADR 0128).
   const abonosNetos = netCollectionRows(
     abonos.map((a) => ({
       id: a.id,

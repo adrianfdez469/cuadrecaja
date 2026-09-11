@@ -1,7 +1,7 @@
 # E-016: Un criterio verificable que exige una subcadena que el copy dictado no contiene
 
 **Área:** ui
-**Apariciones:** 7 — F-005 (dos veces en el mismo documento: criterios 43 y 20) · F-020 (criterio 23) · F-011 (dos variantes nuevas) · F-012 (dos más, y una invierte el modo de fallo) · F-023 (la subcadena prohibida **dentro de una palabra del propio copy**; cazada por el `ui-designer` antes de escribirse) · F-034 (la variante **inversa**: el copy correcto en el sitio equivocado, y **nueve criterios** del mismo documento con el mismo defecto). · F-035 (la variante del **conteo**: la subcadena SÍ estaba en el copy, y la pantalla la pinta dos veces; ver la adenda de F-035). Ver las adendas.
+**Apariciones:** 7 — F-005 (dos veces en el mismo documento: criterios 43 y 20) · F-020 (criterio 23) · F-011 (dos variantes nuevas) · F-012 (dos más, y una invierte el modo de fallo) · F-023 (la subcadena prohibida **dentro de una palabra del propio copy**; cazada por el `ui-designer` antes de escribirse) · F-036 (la variante **inversa**: el copy correcto en el sitio equivocado, y **nueve criterios** del mismo documento con el mismo defecto). · F-037 (la variante del **conteo**: la subcadena SÍ estaba en el copy, y la pantalla la pinta dos veces; ver la adenda de F-037). Ver las adendas.
 
 ## Síntoma
 
@@ -197,7 +197,7 @@ palabra del copy. El `qa` lo ejecutó así y confirmó las dos mitades: la tarje
 > búscalo como **subcadena** en el copy, no como palabra. Y prefiere como sujeto del criterio un
 > valor que no sea subcadena de nada: la lista de cuentas del seed da donde elegir.
 
-## Adenda F-034 — al revés del todo: el copy es correcto y el ANCLA está mal
+## Adenda F-036 — al revés del todo: el copy es correcto y el ANCLA está mal
 
 Las cinco apariciones anteriores fallan por la **cadena**: no existe, existe dentro de un valor
 formateado, la puso otro feature, o está escondida dentro de una palabra. La sexta falla por el
@@ -250,7 +250,7 @@ demás.** Ocho de los nueve no los reportó nadie; salieron de repasar el mecani
 
 ---
 
-## Adenda F-035 — un barrido de subcadenas no valida un **conteo**
+## Adenda F-037 — un barrido de subcadenas no valida un **conteo**
 
 Esta es la aparición más instructiva, porque el `ui-designer` **hizo el barrido que esta ficha
 prescribe** —buscó a máquina cada subcadena exigida dentro del copy que él mismo dictaba— y el
@@ -266,7 +266,7 @@ moneda al lado: la pantalla monta **dos** nodos con esa cadena. El `implementer`
 Que el texto exista no dice **cuántas veces** lo monta la pantalla con los datos de la siembra. Por
 cada criterio de la forma «un elemento con texto X», recorre la siembra y cuenta **cuántos sitios
 del propio contrato mandan pintar X**. Si son dos, el criterio es `=== 2`, o se acota con un filtro
-—en F-035 quedó `.filter(el => !el.closest(".cc-venta-credito-pago"))`— y se dice contra qué.
+—en F-037 quedó `.filter(el => !el.closest(".cc-venta-credito-pago"))`— y se dice contra qué.
 
 Dicho corto: **el barrido valida la cadena; la siembra valida el número.** Sin el segundo, un
 criterio con la cadena correcta sigue siendo inalcanzable.

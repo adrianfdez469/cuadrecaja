@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 
 /**
- * F-035 — `src/lib/ventaMapper.ts` (contract § 5; criteria 1, 3, 5). The file itself is
- * pre-existing (F-029/F-032), but `buildVentaCreditoResumen` and the four new fields it
+ * F-037 — `src/lib/ventaMapper.ts` (contract § 5; criteria 1, 3, 5). The file itself is
+ * pre-existing (F-031/F-034), but `buildVentaCreditoResumen` and the four new fields it
  * feeds into `mapVentaToIVenta` are new to this feature.
  *
  * Dynamic import (E-019): `mapVentaToIVenta` already exists today, but

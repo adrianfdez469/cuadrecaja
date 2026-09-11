@@ -1,7 +1,7 @@
 import type { ICreditInvariantViolation } from "@/lib/cuentasPorCobrar/creditInvariant";
 
 /**
- * Every literal, bound and message of the credit sale (F-032).
+ * Every literal, bound and message of the credit sale (F-034).
  *
  * Its ONLY import is a type. Nothing from `src/schemas/**` imports this module, which is
  * why `EMPTY_PAGOS_WITHOUT_CREDIT_MESSAGE` lives in `src/schemas/pago.ts` and not here:
@@ -38,7 +38,7 @@ export const CREDIT_EXTRAS_INVALID_MESSAGE =
 
 /**
  * One retry, and only one: the sole failure it can resolve is a lost race between two
- * sales naming the same brand-new customer at the same time (E-038, ADR 0110). Same number
+ * sales naming the same brand-new customer at the same time (E-038, ADR 0117). Same number
  * and same reason as CLIENTES_UPSERT_RETRIES.
  */
 export const CREDIT_CUSTOMER_UPSERT_RETRIES = 1;
@@ -68,7 +68,7 @@ export const CREDIT_TICKET_COPY = {
 } as const;
 
 /**
- * The checkout copy, CLOSED at eleven keys by .agents/designs/F-032.md § 8. The values are the
+ * The checkout copy, CLOSED at eleven keys by .agents/designs/F-034.md § 8. The values are the
  * designer's; what the contract fixes is that they live here, in a .ts, in one place, so a test
  * can import them and no .tsx can grow a literal of its own (E-015, E-016).
  *
@@ -98,7 +98,7 @@ export const CREDIT_CHECKOUT_COPY = {
 } as const;
 
 /**
- * Localisation classes for the qa, CLOSED at twelve by .agents/designs/F-032.md § 9. Matched with
+ * Localisation classes for the qa, CLOSED at twelve by .agents/designs/F-034.md § 9. Matched with
  * `classList.contains`, NEVER by prefix: `cc-credit-block` is a prefix of five of them, on
  * purpose (E-011, E-016).
  */

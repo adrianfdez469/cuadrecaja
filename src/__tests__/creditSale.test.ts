@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 
 /**
- * F-032, contract § 6.1 — `src/app/pos/utils/creditSale.ts`, NEW.
+ * F-034, contract § 6.1 — `src/app/pos/utils/creditSale.ts`, NEW.
  *
  * The four pure functions of the checkout side of the feature, and the fix for bugs 1
  * and 2 of the dossier (`.agents/cuentas-por-cobrar.md` § 4): `handleMakePay` lives in a

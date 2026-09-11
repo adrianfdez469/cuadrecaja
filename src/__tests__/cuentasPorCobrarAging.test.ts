@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 
 /**
- * F-029, criteria 6, 7 and 8 — `src/lib/cuentasPorCobrar/aging.ts` (contract § 5.2).
+ * F-031, criteria 6, 7 and 8 — `src/lib/cuentasPorCobrar/aging.ts` (contract § 5.2).
  *
  * Imported as a namespace (`import * as aging`), not destructured, and used as
  * `aging.<symbol>` throughout. Two independent reasons, both from E-019:

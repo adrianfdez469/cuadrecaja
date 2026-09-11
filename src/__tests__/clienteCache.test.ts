@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import type { IClienteConSaldo, IClienteOption } from "@/schemas/clienteSaldo";
 
 /**
- * F-031, contract § 4.5, § 11.1 — `src/lib/clientes/clienteCache.ts`.
+ * F-033, contract § 4.5, § 11.1 — `src/lib/clientes/clienteCache.ts`.
  *
  * Namespace import: the module may exist with only some of its three symbols
  * implemented while `implementer` is still working; referencing `mod.symbol` inside

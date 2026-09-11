@@ -189,7 +189,7 @@ export function IncomeStatementTable({
   /**
    * One informative credit line. The figure is printed EXACTLY as it arrives: no
    * `Math.abs` and no "− " prefix, unlike the cascade above. `creditoCobrado` can be
-   * negative — a reversed collection is a negative mirror (ADR 0121) — and a period
+   * negative — a reversed collection is a negative mirror (ADR 0128) — and a period
    * whose drawer went down is precisely the one that needs explaining.
    */
   const renderCreditLine = (label: string, value: number, testId: string) => (

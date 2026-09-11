@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 /**
- * F-030, criterion 11 — `refundCashRatio` and `applyComprasYDevolucionesToResumenMap`
+ * F-032, criterion 11 — `refundCashRatio` and `applyComprasYDevolucionesToResumenMap`
  * (`@/lib/movimiento/caja.ts`, contract § 2.1/2.2).
  *
  * `@/lib/movimiento/caja` imports `@/lib/prisma` at module top level; mocked
@@ -15,7 +15,7 @@ const {
   calcularTotalesMovimientosPeriodo,
 } = await import("@/lib/movimiento/caja");
 
-describe("refundCashRatio (F-030, criterion 11)", () => {
+describe("refundCashRatio (F-032, criterion 11)", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
   });

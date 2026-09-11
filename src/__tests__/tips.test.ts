@@ -191,7 +191,7 @@ describe("buildResumenPropinas", () => {
   });
 
   /**
-   * F-029, criterion 4 — `buildResumenPropinas` (`@/lib/tips.ts:127`), the sibling of
+   * F-031, criterion 4 — `buildResumenPropinas` (`@/lib/tips.ts:127`), the sibling of
    * `buildResumenMonedas` in `@/lib/movimiento/caja.ts` (contract § 7.2). Same bug,
    * same fix: today the `equivalenteBase` sum sits OUTSIDE the if/cash/else/transfer
    * branch, so a line with a `tipo` that is neither adds to `equivalenteBase` while

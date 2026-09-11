@@ -1,7 +1,7 @@
 # E-035: La lista de testabilidad del contrato se cierra antes de que el diseño añada sus símbolos
 
 **Área:** build
-**Apariciones:** 4 — F-011 · F-012 · F-021 · F-034
+**Apariciones:** 4 — F-011 · F-012 · F-021 · F-036
 
 ## Síntoma
 
@@ -77,7 +77,7 @@ sabe qué valores existen de verdad.
 Es la misma forma que esta ficha describe —un vocabulario que se cierra antes de que exista lo que
 tiene que nombrar— aplicada al contenido de un censo en vez de a una lista de símbolos.
 
-## Adenda F-034 — la lista dio por testable un símbolo que no estaba exportado
+## Adenda F-036 — la lista dio por testable un símbolo que no estaba exportado
 
 El contrato listó `cierreStoredTotalsSchema` en su lista de testabilidad, y el `dev-tester` escribió
 tests que lo importaban. Era `const` **sin `export`**.

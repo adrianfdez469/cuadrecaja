@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 
 /**
- * F-032, contract § 5.1, ADR 0110 — `src/lib/cuentasPorCobrar/creditCustomer.ts`, NEW.
+ * F-034, contract § 5.1, ADR 0117 — `src/lib/cuentasPorCobrar/creditCustomer.ts`, NEW.
  *
  * `resolveCreditCustomer` is the pure half of the first hard rule of the epic
  * (`creditoBase > 0 ⟹ clienteId presente y del negocio`) — the half that decides what
@@ -53,7 +53,7 @@ describe("resolveCreditCustomer — the seven branches, in order", () => {
     expect(result.action).toBe("NONE");
   });
 
-  it("branch 2: clienteId present and byId found resolves EXISTING with byId.id, regardless of deletedAt (F-029 § 2.1: a soft-deleted debtor is still shown, not hidden)", () => {
+  it("branch 2: clienteId present and byId found resolves EXISTING with byId.id, regardless of deletedAt (F-031 § 2.1: a soft-deleted debtor is still shown, not hidden)", () => {
     const result = resolveCreditCustomer({
       creditoBase: 400,
       clienteId: "cliente-1",

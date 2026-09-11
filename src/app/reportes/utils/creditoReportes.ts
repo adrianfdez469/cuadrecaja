@@ -55,7 +55,7 @@ export function hasCreditKpi(creditoBase: number): boolean {
 /**
  * Whether the income statement shows its two informative lines: when either figure is
  * further from zero than CREDIT_FIGURE_EPSILON. `cobrado` is compared in absolute value
- * because a reversal makes it negative (ADR 0121), and a period whose drawer went DOWN
+ * because a reversal makes it negative (ADR 0128), and a period whose drawer went DOWN
  * is precisely one that needs explaining.
  */
 export function hasIncomeStatementCredit(

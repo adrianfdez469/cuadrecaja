@@ -120,7 +120,7 @@ export async function POST(
       tasaSnapshot,
       tipTotal,
       tipDetail,
-      // Credit sale (F-032). Validated by creditoExtrasSchema below, before anything reads
+      // Credit sale (F-034). Validated by creditoExtrasSchema below, before anything reads
       // the numbers.
       creditoBase,
       clienteId,
@@ -440,7 +440,7 @@ export async function POST(
     // The debtor of this sale, and what has to be written for it to exist. It stays null for
     // a cash sale because it is INITIALISED null and the only block that can change it sits
     // entirely behind `creditoBasePersistido > 0` — that is what sustains the
-    // `Venta.clienteId NULL <=> creditoBase = 0` invariant F-029 wrote on the column.
+    // `Venta.clienteId NULL <=> creditoBase = 0` invariant F-031 wrote on the column.
     let clienteIdEfectivo: string | null = null;
     let resolution: ICreditCustomerResolution = {
       action: "NONE",
@@ -457,7 +457,7 @@ export async function POST(
         //
         // `createOrReactivateCliente` is deliberately NOT reused here: it talks to the
         // global `prisma`, not to `tx`, and opens its own read/write cycle outside any
-        // transaction (ADR 0107). Calling it from inside this $transaction would ask the
+        // transaction (ADR 0114). Calling it from inside this $transaction would ask the
         // pooler for a second connection and answer "Transaction already closed". What IS
         // reused is its pure half, `decideClienteUpsert`, through resolveCreditCustomer.
         if (
@@ -553,7 +553,7 @@ export async function POST(
         //
         // ZERO rows in MovimientoCuentaPorCobrar: creating a debt is not a movement of the
         // ledger, there is no TipoMovimientoCuentaPorCobrar for "opened". The first writer
-        // of that ledger is F-033.
+        // of that ledger is F-035.
         if (creditoBasePersistido > 0) {
           await tx.cuentaPorCobrar.create({
             data: {
@@ -577,7 +577,7 @@ export async function POST(
               settledAt: null,
               // monedaDeudaCode and montoDeudaMonedaOriginal are left null: the checkout
               // denominates the whole sale in base, so there is no second currency to note
-              // (contract § 5.5, decision 8). The first feature with one is F-036.
+              // (contract § 5.5, decision 8). The first feature with one is F-038.
             },
           });
         }

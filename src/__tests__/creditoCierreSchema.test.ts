@@ -1,14 +1,14 @@
 import { describe, it, expect } from "vitest";
 
 /**
- * F-034 — `src/schemas/cierre.ts` (contract § 2, testability § 9): the four new schemas
+ * F-036 — `src/schemas/cierre.ts` (contract § 2, testability § 9): the four new schemas
  * (`creditFlowSourceSchema`, `creditFlowSchema`, `creditColumnSumsSchema`,
  * `currencyCreditLinesSchema`) and the additive extensions of `cierrePeriodoSchema`,
  * `cierreDataSchema`, `cierreStoredTotalsSchema` and `summaryCierreSchema`.
  *
  * Written against the contract, without reading the implementation.
  *
- * `src/schemas/cierre.ts` already exists (pre-F-034) and many other test files import
+ * `src/schemas/cierre.ts` already exists (pre-F-036) and many other test files import
  * from it. A single namespace import at module scope — never a static
  * `import { X } from "@/schemas/cierre"` for a symbol the contract adds — means a symbol
  * this feature hasn't landed yet reads as `undefined` inside the one test that needs it,
@@ -17,7 +17,7 @@ import { describe, it, expect } from "vitest";
  */
 const cierreSchemas = await import("@/schemas/cierre");
 
-// zod 4 validates .uuid() against RFC 4122 (E-068): version and variant nibbles matter.
+// zod 4 validates .uuid() against RFC 4122 (E-072): version and variant nibbles matter.
 const UUID = "11111111-1111-4111-8111-111111111111";
 const baseTienda = { id: UUID, nombre: "Tienda Test", negocioId: UUID, tipo: "TIENDA" };
 
@@ -107,7 +107,7 @@ describe("creditFlowSchema — the normalized { granted, collected }, BOTH REQUI
     expect(result?.data).toEqual({ granted: 1000, collected: 300 });
   });
 
-  it("accepts a negative 'collected' (ADR 0121 reversal)", () => {
+  it("accepts a negative 'collected' (ADR 0128 reversal)", () => {
     expect(
       cierreSchemas.creditFlowSchema?.safeParse({ granted: 0, collected: -300 }).success,
     ).toBe(true);
@@ -175,7 +175,7 @@ describe("currencyCreditLinesSchema — { granted, collected } nullable but REQU
 });
 
 describe("cierrePeriodoSchema — extended with the three credit figures, all optional", () => {
-  it("accepts a period WITHOUT any of the three figures (older payload, F-030 § 0.2)", () => {
+  it("accepts a period WITHOUT any of the three figures (older payload, F-032 § 0.2)", () => {
     expect(cierreSchemas.cierrePeriodoSchema.safeParse(baseCierrePeriodo).success).toBe(true);
   });
 
@@ -248,7 +248,7 @@ describe("cierreStoredTotalsSchema — now exported (contract § 2.3), the three
   });
 });
 
-describe("summaryCierreSchema — extended with the two FLOW sums; the STOCK gains no sum (§ 2.4, ADR 0123)", () => {
+describe("summaryCierreSchema — extended with the two FLOW sums; the STOCK gains no sum (§ 2.4, ADR 0130)", () => {
   it("accepts a summary WITHOUT the two sums (optional, older payload)", () => {
     expect(cierreSchemas.summaryCierreSchema.safeParse(baseSummary).success).toBe(true);
   });

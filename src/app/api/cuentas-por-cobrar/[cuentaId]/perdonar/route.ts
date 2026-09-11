@@ -42,7 +42,7 @@ import { MIN_OPEN_BALANCE_BASE } from "@/lib/cuentasPorCobrar/aging";
  * and no way to forgive more than what is owed.
  *
  * `CONDONACION` is what the database says; the permission, the route and every visible word say
- * "perdonar". Neither is corrected into the other (ADR 0115).
+ * "perdonar". Neither is corrected into the other (ADR 0122).
  */
 export async function POST(
   req: Request,

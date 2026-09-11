@@ -3,7 +3,7 @@ import type { ITipoMovimientoCuentaPorCobrar } from "@/schemas/cuentaPorCobrar";
 import { pagoLineaSchema } from "@/schemas/pago";
 
 /**
- * F-033 — `src/lib/cuentasPorCobrar/applyMovimiento.ts` (contract § 3, § 3.1, § 4bis's
+ * F-035 — `src/lib/cuentasPorCobrar/applyMovimiento.ts` (contract § 3, § 3.1, § 4bis's
  * sibling worked table in § 5.2). Covers testability symbols 1-5.
  *
  * Written against the CONTRACT, without seeing the implementation (the `implementer`
@@ -482,7 +482,7 @@ describe("valueAbonoPagos — criterion 5, the multicurrency conversion of a col
     expect(result.pagosDetalle[0].equivalenteBase).toBe(300);
   });
 
-  it("every returned line satisfies pagoLineaSchema (F-029) — equivalenteBase is nonnegative and monto positive", () => {
+  it("every returned line satisfies pagoLineaSchema (F-031) — equivalenteBase is nonnegative and monto positive", () => {
     const result = valueAbonoPagos({
       pagos: [{ tipo: "cash", moneda: "USD", monto: 100 }],
       tasas: { USD: 120 },

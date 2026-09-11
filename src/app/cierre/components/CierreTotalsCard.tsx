@@ -211,7 +211,7 @@ export default function CierreTotalsCard({
 }: Props) {
   const hasDescuento = (totalDescuentos || 0) > 0;
 
-  // Absolute value, like every other credit gate (ADR 0122): for this figure
+  // Absolute value, like every other credit gate (ADR 0129): for this figure
   // both forms coincide, because `Venta.creditoBase` is non-negative, and
   // writing it the same way everywhere keeps anyone from "simplifying" the
   // one gate whose sign does matter.

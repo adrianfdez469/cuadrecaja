@@ -3,7 +3,7 @@ import { SALE_TOTAL_TOLERANCE_BASE } from "@/constants/venta";
 import type { IPagoLinea, IVueltoLinea } from "@/schemas/pago";
 
 /**
- * F-029, criterion 9 — `src/lib/cuentasPorCobrar/creditInvariant.ts` (contract § 5.4).
+ * F-031, criterion 9 — `src/lib/cuentasPorCobrar/creditInvariant.ts` (contract § 5.4).
  * Dynamic import, same E-019 reasoning as the sibling `cuentasPorCobrar*` test files.
  */
 const {

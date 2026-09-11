@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 
 /**
- * F-031, "Segunda enmienda" (dictamen A), § 11.1 "Ampliación tras la implementación" —
+ * F-033, "Segunda enmienda" (dictamen A), § 11.1 "Ampliación tras la implementación" —
  * `src/lib/clientes/clienteApiResponses.ts`. Found while implementing, not part of the
  * original contract.
  *

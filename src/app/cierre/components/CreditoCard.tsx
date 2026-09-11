@@ -17,7 +17,7 @@ interface Props {
 /**
  * The period's credit, on the same row as the profit and the tips cards.
  *
- * It EXPLAINS the drawer, it does not correct it (ADR 0122): neither figure is
+ * It EXPLAINS the drawer, it does not correct it (ADR 0129): neither figure is
  * a deduction, neither is subtracted from anything on this screen, and the
  * cash discrepancy of `MonedaBreakdownRow` is computed exactly as it was
  * before this card existed.
@@ -43,7 +43,7 @@ export default function CreditoCard({
       <CardContent sx={{ p: isMobile ? 2 : 3 }}>
         <Stack direction="row" alignItems="center" spacing={isMobile ? 1 : 2}>
           {/* Debt is `caution`, never `negative`: owing money is the business
-              model, not a failure. Same pair the checkout of F-032 uses for
+              model, not a failure. Same pair the checkout of F-034 uses for
               its "A crédito" block, so both screens read as the same thing. */}
           <Box
             sx={{
@@ -91,8 +91,8 @@ export default function CreditoCard({
                 {figure.label}
               </Typography>
               {/* Plain ink, no verdict: this screen explains credit, it does
-                  not judge it (ADR 0122), and `collected` can be negative
-                  after a reversal (ADR 0121) — a green minus is worse than
+                  not judge it (ADR 0129), and `collected` can be negative
+                  after a reversal (ADR 0128) — a green minus is worse than
                   neutral ink. */}
               <Typography
                 sx={{

@@ -5,7 +5,7 @@ import {
 } from "@/constants/reportesCredito";
 
 /**
- * F-037 (design contract § 0.1; spec contract § 5.2, § 8.3.F; E-035 4th
+ * F-039 (design contract § 0.1; spec contract § 5.2, § 8.3.F; E-035 4th
  * appearance — this file is the amendment the `ui-designer` asked for on
  * 2026-09-10, before step 5).
  *

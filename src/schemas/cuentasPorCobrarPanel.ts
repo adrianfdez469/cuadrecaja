@@ -84,7 +84,7 @@ export const cuentasPorCobrarListResponseSchema = z.object({
  * A ledger entry as the DETAIL projects it: the persisted row plus the name of whoever registered
  * it, resolved by the route with `usuario: { select: { nombre: true } }`.
  *
- * It EXTENDS the read schema of F-029 instead of replacing it, and it exists ONLY on the read
+ * It EXTENDS the read schema of F-031 instead of replacing it, and it exists ONLY on the read
  * side: neither the table nor the write path gains a column. A ledger of destructive, permanent
  * operations that cannot say WHO forgave a debt is not an audit trail — and `usuarioId` alone
  * forces every reader into a second query.
@@ -132,11 +132,11 @@ export const deudorDetalleResponseSchema = z.object({
  * `z.coerce.date()` is declared once, here, and not re-derived at each call site.
  *
  * `venta` is handed through UNVALIDATED, and that is a DECLARED exception, not an oversight:
- * `mapVentaToIVenta` (`src/lib/ventaMapper.ts`, F-035) fills `usuario.usuario` with `""`, while
+ * `mapVentaToIVenta` (`src/lib/ventaMapper.ts`, F-037) fills `usuario.usuario` with `""`, while
  * `usuarioSchema` demands `.min(1)`. VERIFIED BY RUNNING IT: `ventaSchema.safeParse` of what the
  * mapper produces fails with `too_small` at `["usuario","usuario"]`. Parsing it would throw on
  * every debtor that has a sale — a worse fault than the one being fixed. The mapper and
- * `src/schemas/usuario.ts` both belong to other features (contract § 11), so F-033 narrows what
+ * `src/schemas/usuario.ts` both belong to other features (contract § 11), so F-035 narrows what
  * IT parses instead of touching either; the deuda is recorded in the implementation report.
  *
  * DERIVED with `.extend()` from the response schema, never restated (E-014): the two shapes
@@ -157,7 +157,7 @@ type IVentaDelDeudor = z.infer<typeof ventaSchema> | null;
 
 /**
  * A collection line WITHOUT `equivalenteBase`: the server resolves the rate and computes it
- * (ADR 0118). Derived from pagoLineaSchema with `.omit()` so the two shapes cannot drift; Zod
+ * (ADR 0125). Derived from pagoLineaSchema with `.omit()` so the two shapes cannot drift; Zod
  * strips the field if a client sends it anyway.
  */
 export const abonoPagoLineaSchema = pagoLineaSchema.omit({
@@ -174,8 +174,8 @@ export const CUENTAS_POR_COBRAR_MOTIVO_MAX = 300;
  *
  * It is NOT `CONTROL_CHARACTERS_MESSAGE`, and this is a DECLARED exception to E-039. That constant
  * reads "El nombre contiene caracteres no permitidos" and this field is a `motivo`, not a name; the
- * message would be wrong here. Editing the shared one is worse: F-032 verified criteria against its
- * current text (ADR 0113). The PREDICATE is shared — `hasControlCharacters` is the only definition
+ * message would be wrong here. Editing the shared one is worse: F-034 verified criteria against its
+ * current text (ADR 0120). The PREDICATE is shared — `hasControlCharacters` is the only definition
  * of the range and is imported, not restated. Only the sentence is field-specific.
  *
  * It lives here and not in `src/constants/cuentasPorCobrar.ts` for the same reason
@@ -194,13 +194,13 @@ export const MOTIVO_CONTROL_CHARACTERS_MESSAGE =
  * which is exactly what criterion 11 exists to verify never happens. `Cliente.nombre` could be
  * fixed with an UPDATE; this cannot. Rejected at the door, never cleaned in silence — a `motivo`
  * corrected behind the back of whoever wrote it, in a ledger that exists to audit who did what and
- * why, is worse than a rejection (ADR 0113).
+ * why, is worse than a rejection (ADR 0120).
  *
  * CONSEQUENCE THAT BELONGS TO THE SCREEN, AND HAS TO BE READ FROM BOTH SIDES: the range
  * `hasControlCharacters` rejects is the C0 range plus DEL and C1, and the line feed is inside it.
  * So the `Motivo` field is SINGLE-LINE in both dialogs: what cannot be typed does not have to
  * be rejected afterwards. The range is not narrowed to let line breaks through — consistency with
- * ADR 0113 is worth more than multi-line notes in a 300-character field, and an exception carved
+ * ADR 0120 is worth more than multi-line notes in a 300-character field, and an exception carved
  * into a shared predicate is a branch nobody tests (E-032).
  */
 export const motivoField = z

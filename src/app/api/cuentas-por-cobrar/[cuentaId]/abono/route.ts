@@ -37,7 +37,7 @@ class SinPeriodoAbiertoError extends Error {}
 /**
  * POST /api/cuentas-por-cobrar/[cuentaId]/abono — a collection against ONE account.
  *
- * The order of the steps is the contract (§ 5.2, ADR 0117) and it is not interchangeable:
+ * The order of the steps is the contract (§ 5.2, ADR 0124) and it is not interchangeable:
  * the idempotency key is claimed as the FIRST operation of the transaction and the row lock
  * comes after it, inside the write door. `findIdempotentResponse` runs OUTSIDE the transaction —
  * a P2002 cannot be recovered from inside one (E-038).
@@ -120,7 +120,7 @@ export async function POST(
 
     const at = new Date();
 
-    // The rate is the SERVER's, never the client's (ADR 0118): the request schema omits
+    // The rate is the SERVER's, never the client's (ADR 0125): the request schema omits
     // `equivalenteBase` altogether.
     const { snapshot, missing } = await resolveSaleTasaSnapshot({
       negocioId,

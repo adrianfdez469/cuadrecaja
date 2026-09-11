@@ -169,7 +169,7 @@ export async function DELETE(
 
       // Re-read the ledger UNDER THE LOCK: a collection landing between the pre-check above and
       // the delete would otherwise leave money in a drawer with no sale to belong to. What
-      // blocks are the collections already received, NOT the live debt (ADR 0126).
+      // blocks are the collections already received, NOT the live debt (ADR 0133).
       if (cuentaId) {
         const cuenta = await tx.cuentaPorCobrar.findUnique({
           where: { id: cuentaId },

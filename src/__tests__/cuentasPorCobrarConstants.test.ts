@@ -4,7 +4,7 @@ import { CUENTAS_POR_COBRAR_PERMISO as CUENTAS_POR_COBRAR_PERMISO_DE_CLIENTES } 
 import { permisosTemplates } from "@/constants/permisos/permisos.templates";
 
 /**
- * F-033 — `src/constants/cuentasPorCobrar.ts` (contract § 1, and design § 7 "En
+ * F-035 — `src/constants/cuentasPorCobrar.ts` (contract § 1, and design § 7 "En
  * constants.ts — tres"). Covers testability symbols 9, 10, 21, 22, 23, plus the
  * re-exports § 1 requires (never a second declaration, E-039).
  *
@@ -48,14 +48,14 @@ describe("TIPOS_MOVIMIENTO_CUENTA_POR_COBRAR — re-exported from src/schemas/cu
   });
 });
 
-describe("TIPO_MOVIMIENTO_LABEL — ADR 0115: the enum says CONDONACION, the label says 'perdonar'", () => {
+describe("TIPO_MOVIMIENTO_LABEL — ADR 0122: the enum says CONDONACION, the label says 'perdonar'", () => {
   it("has exactly the four documented keys", () => {
     expect(Object.keys(TIPO_MOVIMIENTO_LABEL).sort()).toEqual(
       [...TIPOS_MOVIMIENTO_CUENTA_POR_COBRAR].sort(),
     );
   });
 
-  it("CONDONACION's label is 'Perdon de deuda' — the base's own vocabulary is untouched (ADR 0115)", () => {
+  it("CONDONACION's label is 'Perdon de deuda' — the base's own vocabulary is untouched (ADR 0122)", () => {
     expect(TIPO_MOVIMIENTO_LABEL.CONDONACION).toBe("Perdon de deuda");
   });
 

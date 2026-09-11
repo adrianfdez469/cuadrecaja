@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import type { IClienteOption } from "@/schemas/clienteSaldo";
 
 /**
- * F-031, contract § 4.4, § 11.1 — `src/lib/clientes/clienteSearch.ts`.
+ * F-033, contract § 4.4, § 11.1 — `src/lib/clientes/clienteSearch.ts`.
  *
  * Namespace import (not destructured at module scope): several symbols live here and
  * the module may exist with only some of them implemented while `implementer` is still

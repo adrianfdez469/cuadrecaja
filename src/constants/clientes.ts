@@ -1,5 +1,5 @@
 /**
- * Every bound and every literal of the Cliente domain (F-031).
+ * Every bound and every literal of the Cliente domain (F-033).
  *
  * `AGENTS.md` forbids magic numbers and magic strings, and the contract (§ 3) puts them here
  * rather than inside the store or the hook so they are importable from a test and from the
@@ -15,7 +15,7 @@ export const CLIENTES_CACHE_STORAGE_KEY = "clientes-cache";
  */
 export const CLIENTES_CACHE_OWNER_KEY = "clientes-cache-owner";
 
-/** Bump to discard every persisted cache on its next load (criterion 9, ADR 0108). */
+/** Bump to discard every persisted cache on its next load (criterion 9, ADR 0115). */
 export const CLIENTES_CACHE_VERSION = 1;
 
 /** Upper bound of persisted options. */
@@ -30,13 +30,13 @@ export const CLIENTES_LIST_LIMIT = 500;
 
 export const CLIENTES_SEARCH_DEBOUNCE_MS = 300;
 
-/** One retry, and only one: the sole failure it can resolve is a lost race (ADR 0107). */
+/** One retry, and only one: the sole failure it can resolve is a lost race (ADR 0114). */
 export const CLIENTES_UPSERT_RETRIES = 1;
 
 /** The permission that gates every write of `api/clientes/**` and the screen's actions. */
 export const CLIENTES_PERMISO_CONFIGURACION = "configuracion.clientes.acceder";
 
-/** The permission that gates the menu entry pointing at the panel F-033 will build. */
+/** The permission that gates the menu entry pointing at the panel F-035 will build. */
 export const CUENTAS_POR_COBRAR_PERMISO = "recuperaciones.cuentasporcobrar.acceder";
 
 export const CLIENTES_API_ERRORS = {
@@ -48,7 +48,7 @@ export const CLIENTES_API_ERRORS = {
 } as const;
 
 /**
- * The literal copy of the three surfaces, fixed by `.agents/designs/F-031.md`, § 5.
+ * The literal copy of the three surfaces, fixed by `.agents/designs/F-033.md`, § 5.
  * `crearSinConexion` and `crearSinPermiso` are THE only source of the two texts of
  * criterion 10; no component writes a literal of its own.
  */

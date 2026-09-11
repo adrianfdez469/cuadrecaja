@@ -4,9 +4,9 @@ import type { IPagoLinea } from "@/schemas/pago";
 import type { ITipoMovimientoCuentaPorCobrar } from "@/schemas/cuentaPorCobrar";
 
 /**
- * F-033 — `src/lib/cuentasPorCobrar/panel.ts` (contract § 4, and design § 7 "En panel.ts —
+ * F-035 — `src/lib/cuentasPorCobrar/panel.ts` (contract § 4, and design § 7 "En panel.ts —
  * cinco"). Covers testability symbols 6, 7, 8 of the contract's own list, plus the design's
- * panel.ts additions (numbered 16-20 in `.agents/designs/F-033.md` § 7) and `buildFiltroOpciones`
+ * panel.ts additions (numbered 16-20 in `.agents/designs/F-035.md` § 7) and `buildFiltroOpciones`
  * (added to contract § 4 and to the contract's own testability list as its item 16, alongside
  * `describeFiltros` as item 17 — the two numbering schemes collide by coincidence, not by
  * relation; every symbol from both lists that lives in this file is covered here regardless of

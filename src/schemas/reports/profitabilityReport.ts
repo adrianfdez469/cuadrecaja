@@ -23,7 +23,7 @@ export const incomeStatementSchema = z.object({
   devoluciones: z.number(),
   gananciaFinal: z.number(),
   creditoOtorgado: z.number(),
-  /** Not `.nonnegative()`: a reversed collection is a negative mirror (ADR 0121). */
+  /** Not `.nonnegative()`: a reversed collection is a negative mirror (ADR 0128). */
   creditoCobrado: z.number(),
   ajusteConciliacion: z.number(),
 });

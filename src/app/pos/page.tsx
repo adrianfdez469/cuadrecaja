@@ -1466,8 +1466,8 @@ export default function POSInterface() {
   }, [isOnline, pendingSalesCount, periodo]);
 
   // The customer cache is what makes selling on credit possible with no connection
-  // (criterion 10). F-031 leaves it to be filled by whatever the cashier searches; this is
-  // the background refresh its contract reserved for F-032 (ADR 0106).
+  // (criterion 10). F-033 leaves it to be filled by whatever the cashier searches; this is
+  // the background refresh its contract reserved for F-034 (ADR 0113).
   //
   // Its own effect, NEXT to the sweep above and not inside it: that one only runs with
   // `pendingSalesCount > 0`, and the cache has to be refreshed even with no pending sales.

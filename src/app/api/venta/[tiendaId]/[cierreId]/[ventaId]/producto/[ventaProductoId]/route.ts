@@ -256,7 +256,7 @@ export async function DELETE(
           total: true,
           totalcash: true,
           totaltransfer: true,
-          // The credit of the sale: the adjustment comes off it FIRST (ADR 0128).
+          // The credit of the sale: the adjustment comes off it FIRST (ADR 0135).
           creditoBase: true,
           pagosDetalle: true,
           discountTotal: true,
@@ -333,7 +333,7 @@ export async function DELETE(
       const discountTotalAnterior = Number(v!.discountTotal ?? 0);
       const discountDelta = discountTotalAnterior - nuevoDiscountTotal;
 
-      // 4.2 El reparto del ajuste, DEUDA PRIMERO (ADR 0128). El saldo se lee BAJO EL LOCK DE
+      // 4.2 El reparto del ajuste, DEUDA PRIMERO (ADR 0135). El saldo se lee BAJO EL LOCK DE
       // FILA, nunca uno leído antes de la transacción: es el tercer tope de la parte que puede
       // absorber el crédito, y lo que evita que la puerta de escritura rechace con
       // SALDO_INSUFICIENTE. Los ratios ya no se calculan sobre `total` sino sobre lo realmente

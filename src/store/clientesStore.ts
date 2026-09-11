@@ -28,7 +28,7 @@ export interface IClientesCacheState {
   ownerChecked: boolean;
   /** Prepends, de-duplicates by id and truncates to CLIENTES_CACHE_SIZE. */
   remember: (clientes: IClienteConSaldo[]) => void;
-  /** Replaces the whole list. What a full refresh uses (ADR 0108). */
+  /** Replaces the whole list. What a full refresh uses (ADR 0115). */
   replaceAll: (clientes: IClienteConSaldo[]) => void;
   forget: (clienteId: string) => void;
   clear: () => void;
@@ -113,7 +113,7 @@ export const useClientesStore = create<IClientesCacheState>()(
       // start false on every load. What criterion 8 inspects is exactly this.
       partialize: (state) => ({ options: state.options }),
       // Any other version is discarded whole, in both directions. Nothing is converted field
-      // by field: a cache is a rebuildable mirror of the server (criterion 9, ADR 0108).
+      // by field: a cache is a rebuildable mirror of the server (criterion 9, ADR 0115).
       migrate: () => ({ options: [] }),
       onRehydrateStorage: () => (state) => {
         if (!state) return;
@@ -131,8 +131,8 @@ export const useClientesStore = create<IClientesCacheState>()(
 /**
  * Fetches the list and REPLACES the cache with it. Returns how many options were stored.
  *
- * F-031 calls it from the selector's `refresh`. It is deliberately NOT wired into
- * `src/app/pos/**` here: that file belongs to F-032 (ADR 0106), which hooks it where
+ * F-033 calls it from the selector's `refresh`. It is deliberately NOT wired into
+ * `src/app/pos/**` here: that file belongs to F-034 (ADR 0113), which hooks it where
  * `syncPendingSales` is already scheduled, honouring `shouldDeferPosBackgroundOperations`.
  */
 export async function refreshClientesCache(): Promise<number> {

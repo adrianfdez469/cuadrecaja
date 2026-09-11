@@ -1,7 +1,7 @@
 # E-010: Un comentario de ejemplo en español dentro de un contrato acaba en el código real
 
 **Área:** build
-**Apariciones:** 4 — F-004 (dos veces dentro del mismo feature), F-010, F-011 · F-037 (una **tabla en prosa**, no un bloque de código; ver la adenda del final)
+**Apariciones:** 4 — F-004 (dos veces dentro del mismo feature), F-010, F-011 · F-039 (una **tabla en prosa**, no un bloque de código; ver la adenda del final)
 
 ## Síntoma
 
@@ -83,10 +83,10 @@ comprueban sobre el texto del archivo, comentarios incluidos.
 
 ---
 
-## Adenda F-037 — no hace falta un bloque de código: una tabla basta
+## Adenda F-039 — no hace falta un bloque de código: una tabla basta
 
 Las tres primeras apariciones fueron comentarios dentro de bloques de código de un contrato. En
-F-037 el vehículo fue otro: la **tabla** del contrato de diseño que describe qué cifra va en cada
+F-039 el vehículo fue otro: la **tabla** del contrato de diseño que describe qué cifra va en cada
 pieza, escrita —correctamente, porque es prosa en español— como `hasCreditKpi(credito)` y
 `mixSharePercent(credito, totalVendido)`.
 

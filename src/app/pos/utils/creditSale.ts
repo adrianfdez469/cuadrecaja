@@ -92,7 +92,7 @@ export function coversSaleTotal(
  *
  * The ONLY reason it cannot is that the sale has nothing to lend: a total of zero, which the
  * checkout already treats as its own case. Being offline is not a reason (criterion 8), the
- * permission is not a reason (ADR 0112), and the payment already covering the total is not a
+ * permission is not a reason (ADR 0119), and the payment already covering the total is not a
  * reason either — criterion 7 needs credit ON before the overpayment. A guard wider than the
  * one case is E-032.
  *

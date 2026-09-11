@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 
 /**
- * F-031, contract § 4.2, § 11.1 — `src/lib/clientes/clienteUpsert.ts`.
+ * F-033, contract § 4.2, § 11.1 — `src/lib/clientes/clienteUpsert.ts`.
  *
  * `decideClienteUpsert` is THE ONLY definition of the criterion-4 rule (reactivate a
  * soft-deleted cliente instead of failing on the `@@unique([nombre, negocioId])`).

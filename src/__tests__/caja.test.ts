@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { IPagoLinea } from "@/schemas/pago";
 
 /**
- * F-029, criterion 4 — `buildResumenMonedas` (`@/lib/movimiento/caja.ts:144`).
+ * F-031, criterion 4 — `buildResumenMonedas` (`@/lib/movimiento/caja.ts:144`).
  *
  * `@/lib/movimiento/caja` imports `@/lib/prisma` at module top level; mocked
  * defensively here, same pattern as `tenantScope.test.ts` and `tenantIsolation.test.ts`.

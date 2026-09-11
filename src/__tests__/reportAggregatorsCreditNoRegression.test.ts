@@ -15,7 +15,7 @@ import type {
 import type { DiscountRuleTotals } from "@/lib/reports/discount-proration";
 
 /**
- * F-037 spec criterion 7, behavioral half (contract § 8.3.D, § 9.2).
+ * F-039 spec criterion 7, behavioral half (contract § 8.3.D, § 9.2).
  *
  * "The seven aggregators that work over lines and margins — summary,
  * seller-performance, time-series, category-margin, product-sales,
@@ -28,7 +28,7 @@ import type { DiscountRuleTotals } from "@/lib/reports/discount-proration";
  * (`payments: []`) must produce output `toEqual` the SAME batch with
  * `creditAmount: 0` on every sale. The batch has at least two distinct
  * sellers/categories/products/rules/buckets/hours so every internal `sort`
- * actually invokes its comparator (E-008 adenda F-033: `sort` never calls the
+ * actually invokes its comparator (E-008 adenda F-035: `sort` never calls the
  * comparator with 0 or 1 elements).
  */
 
@@ -208,7 +208,7 @@ function runAggregator<T>(
   return aggregator.finalize(FAKE_CONTEXT);
 }
 
-describe("The seven line/margin aggregators are unaffected by credit (F-037 criterion 7, behavioral half)", () => {
+describe("The seven line/margin aggregators are unaffected by credit (F-039 criterion 7, behavioral half)", () => {
   it("createSummaryAggregator: identical output with real credit values and with creditAmount forced to 0", () => {
     const batch = buildBatch();
     const withCredit = runAggregator(createSummaryAggregator, batch);

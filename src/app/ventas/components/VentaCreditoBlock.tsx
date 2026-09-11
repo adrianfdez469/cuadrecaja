@@ -68,7 +68,7 @@ const TABULAR = { fontVariantNumeric: "tabular-nums" } as const;
  *
  * It carries no logic of its own — nothing of a `.tsx` is importable from a test (E-015): the
  * state comes from `resolveVentaCreditoEstado`, the copy from `VENTA_CREDITO_COPY` and from
- * `CUENTAS_POR_COBRAR_COPY` (F-033, imported and never restated), and the classes from
+ * `CUENTAS_POR_COBRAR_COPY` (F-035, imported and never restated), and the classes from
  * `VENTA_CREDITO_DOM`.
  *
  * The two figures are painted from the summary that ALREADY travelled inside the sale, so the
@@ -236,7 +236,7 @@ export const VentaCreditoBlock: React.FC<Readonly<VentaCreditoBlockProps>> = ({
   /**
    * Under 600 px there is no table: one `Box` per movement. It is not the wide table with its
    * columns hidden — they are two branches, exactly as the product list of this same dialog and
-   * the ledger of the F-033 panel already do.
+   * the ledger of the F-035 panel already do.
    */
   const libroCompacto = (
     <Stack>
@@ -366,7 +366,7 @@ export const VentaCreditoBlock: React.FC<Readonly<VentaCreditoBlockProps>> = ({
 
   /**
    * Only THIS region waits. Never `if (loading) return <LoadingState/>` at the root of the
-   * block: that unmounts the subtree and everything in it (E-071).
+   * block: that unmounts the subtree and everything in it (E-075).
    */
   const libro = cargando ? (
     <LoadingState variant="list" count={2} />

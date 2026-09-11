@@ -2,493 +2,377 @@
 
 > Escrito por el agente `security-guardian`, paso 4 del pipeline, en paralelo con `arch-guardian`.
 > No toca `.agents/specs/F-031.md`, `docs/adr/` ni código. **El código de F-031 todavía no existe:**
-> esta auditoría es sobre el contrato de interfaces (`.agents/specs/F-031.md`, spec líneas 1-311 y
-> contrato §0-13, líneas 313-1256) y los ADR 0106-0109, no sobre una implementación. F-031 es
-> obligatorio para este agente porque crea permisos nuevos, cinco rutas de API nuevas y convierte
-> `Cliente` (entregado por F-029 como modelo puro) en la primera entidad de este epic con CRUD
-> propio, caché de cliente y superficie de menú.
+> esta auditoría es sobre el contrato de interfaces (`.agents/specs/F-031.md`, líneas 268-1486) y el
+> ADR 0111, no sobre una implementación.
 
 ## Alcance auditado
 
-- `.agents/specs/F-031.md` completo — spec (líneas 1-311) y contrato de interfaces (líneas
-  313-1256, §0-13).
-- `docs/adr/0106-los-selectores-de-cliente-nacen-en-la-pantalla-de-configuracion-no-en-el-pos.md`,
-  `0107-reactivar-un-cliente-borrado-se-hace-sin-transaccion-con-lectura-previa-y-un-reintento.md`,
-  `0108-el-cache-de-clientes-es-una-proyeccion-de-cuatro-campos-que-se-descarta-entera-al-cambiar-de-version.md`
-  y `0109-el-permiso-de-clientes-va-a-vendedor-y-no-a-almacenero.md` — completos.
-- `docs/adr/0077-fuera-de-tenant-es-404-sin-permiso-es-403-y-el-401-sigue-siendo-solo-del-middleware.md`
-  — completo, incluida la tabla normativa de `tenantScopeDenial`.
-- `.agents/cuentas-por-cobrar.md` §9 (mapa de propiedad) y §11 (errores conocidos aplicables).
-- `.agents/F-029-seguridad.md` y `.agents/F-030-seguridad.md` completos — para la forma del informe
-  y para verificar que sus hallazgos (B1, B2 sobre `CuentaPorCobrar.tiendaId` y
-  `MovimientoCuentaPorCobrar.revierteId`) siguen escritos en `prisma/schema.prisma` tal como F-030
-  los confirmó.
-- Código real: `src/lib/tenantScope.ts` completo (`sessionNegocioId`, `withTenantScope`,
-  `decideTenantScope`, `resolveTenantAxis`, `tenantForbiddenResponse`, `tenantNotFoundResponse`,
-  `tenantScopeDenial`), `src/constants/tenantScope.ts` (entradas `cliente: []` y
-  `cuentaPorCobrar: ["tienda"]`), `src/utils/permisos_back.ts`, `src/utils/getPermisosUsuario.ts`
-  (`tienePermiso`, comparación exacta sobre el array separado por `|`), `src/schemas/cliente.ts`,
-  `prisma/schema.prisma` líneas 1382-1500 (`Cliente`, `CuentaPorCobrar`,
-  `MovimientoCuentaPorCobrar`), `src/app/api/proveedores/route.ts` y
-  `src/app/api/proveedores/[id]/route.ts` (el precedente literal que el spec pide espejar),
-  `src/constants/routeGuards/routeGuards.json` (formato real de las filas de `proveedores/**`),
-  `src/components/Layout.tsx` (el `signOut()` de la línea 903 y el efecto de expiración de sesión),
-  `src/context/AppContext.tsx`, `src/store/cartStore.ts` (para confirmar si existe algún
-  precedente de limpieza de store al cerrar sesión — no lo hay, ver hallazgo B).
-- `.agents/COMMON_ERRORS.md` → E-042, E-043, E-009, E-057, E-031 (fichas completas), más E-007,
-  E-013, E-038, E-047, E-008 por referencia cruzada del propio contrato.
+- `.agents/specs/F-031.md` completo — spec (líneas 1-266) y contrato de interfaces (líneas 268-1486,
+  §0-12).
+- `.agents/cuentas-por-cobrar.md` — dosier del epic completo (§1-11).
+- `docs/adr/0111-el-credito-es-una-columna-no-una-linea-de-pago.md` — completo.
+- `src/constants/tenantScope.ts` (35 líneas) y `src/lib/tenantScope.ts` (`withTenantScope`,
+  `mergeTenantClause`, `buildTenantClause`, `decideTenantScope`) — el aislamiento real, hoy.
+- `src/__tests__/fixtures/threeTenants.ts` y `src/__tests__/tenantIsolation.test.ts` — el aparato de
+  test que va a heredar `criterio 11`.
+- `prisma/schema.prisma`: `Proveedor` (802-829), `ProductoProveedorLiquidacion` (848-869), `Tienda`
+  (212-265), `Venta` (469-521), `IdempotencyKey` (726-744) — los precedentes que el contrato dice
+  espejar.
+- `src/schemas/pago.ts` completo — la forma `IPagoLinea` que `MovimientoCuentaPorCobrar.pagosDetalle`
+  reutiliza.
+- `src/schemas/proveedor.ts` y otros schemas recientes (`movimiento.ts`, `devolucionVenta.ts`,
+  `ticketPlantilla.ts`, `plan.ts`, `referral.ts`) — para contrastar la convención de `.max()`.
+- `.agents/COMMON_ERRORS.md` → E-042, E-043, E-049 (fichas completas), más E-008, E-023, E-031,
+  E-032, E-036, E-038 por referencia cruzada del propio contrato.
 
-Todo lo citado abajo se leyó, no se dedujo.
+Todo lo citado abajo se leyó, no se dedujo. F-031 no ejecuta ninguna consulta a la base de datos —
+lo confirma el propio contrato en § 6.3 — así que esta auditoría es sobre **si el diseño del schema
+y de las funciones puras deja abierta una puerta que un feature futuro (F-032 a F-039) heredaría sin
+saberlo**, no sobre una fuga alcanzable hoy.
 
 ---
 
-## Recorrido ruta por ruta
+## 🔴 Hallazgos que bloquean el paso 5
 
-El encargo pide las cinco rutas una a una, sin agrupar y sin eximir ninguna «porque otra la cubre»
-(E-042). Las cinco resuelven el eje de tenant con `resolveTenantAxis({ session, permisoRequerido })`
-— Gate B de `src/lib/tenantScope.ts:320-337`, la puerta correcta porque `Cliente` no llega con
-`tiendaId` en la ruta (`TENANT_RELATION_PATH.cliente = []`, columna `negocioId` directa) — y las
-consultas con `withTenantScope("cliente"/"cuentaPorCobrar", …, negocioId)`. Ninguna escribe
-`negocioId` a mano en un `where`.
+Ninguno impide que el `implementer` empiece a escribir código de F-031 tal como está descrito — no
+hay ningún modelo mal formado, ninguna entrada de `TENANT_RELATION_PATH` incorrecta ni ninguna
+decisión de producto que reabrir. Pero dos puntos concretos del contrato necesitan una frase escrita
+**antes** de fijarse, porque F-031 es la única vez que alguien va a estar mirando estos dos campos
+con lupa de tenant — el siguiente feature que los toque (F-034) va a heredar el comentario tal cual
+está, no a re-derivar la garantía.
 
-### R1 — `GET /api/clientes` (§5.1, `.agents/specs/F-031.md:705-721`)
+### B1 — `CuentaPorCobrar.tiendaId` no lleva escrito el invariante que lo mantiene atado a `Venta.tiendaId`
 
-- **Aislamiento de tenant:** `withTenantScope("cliente", { deletedAt: null, nombre: {...} }, negocioId)`
-  produce `{ deletedAt: null, nombre: {...}, negocioId }` — filtro real sobre una columna propia
-  de `Cliente` (`prisma/schema.prisma:1394-1395`), no un salto de relación ni una mención. El
-  segundo query (`loadSaldoPorCliente`, §4.3, `.agents/specs/F-031.md:578-615`) se acota con
-  `withTenantScope("cuentaPorCobrar", …, negocioId)`, que resuelve a `{ clienteId: {in}, tienda:
-  { negocioId } }` — un JOIN real contra la FK `CuentaPorCobrar.tiendaId → Tienda.id`
-  (`prisma/schema.prisma:1417-1424`), verificado en el schema, no una columna homónima (E-042). Los
-  `clienteId` que entran a esa segunda consulta ya salieron del primer `findMany`, que ya está
-  acotado por tenant — no hay forma de que un id ajeno llegue al `groupBy`.
-- **Autenticación y autorización:** sin permiso, `permisoAusenteMotivo: "justificado"` — cualquier
-  sesión válida del negocio, sin exigir ningún permiso de los dos nuevos ni de ningún otro. Ver
-  hallazgo 🔴-1 más abajo: esto es más amplio que «lo que un vendedor puede ver» — es lo que
-  **cualquier** usuario autenticado del negocio puede ver, tenga o no tenga permisos asignados.
-- **Fuga por código de respuesta:** no aplica — no hay 404 en una lista. El 500 usa «una constante
-  fija, nunca el mensaje de la excepción» (contrato, línea 719), correcto contra E-031.
-- **Validación de entrada:** `nombre?: string` y `limit?: number` son parámetros de *query*, no de
-  *body* — no hay Zod explícito citado para ellos en el contrato. Ver hallazgo 🟡-3.
-- **Qué expone exactamente (el punto central del encargo):** `IClienteConSaldo[]`, es decir, la fila
-  completa de `Cliente` (`nombre`, `descripcion`, `direccion`, `telefono`, `negocioId`, `createdAt`,
-  `updatedAt`, `deletedAt`) más `saldo` (la deuda viva agregada, en moneda base). **Sí, el GET
-  devuelve saldos de deuda — con todas las letras**: `clienteConSaldoSchema` (§2.2,
-  `.agents/specs/F-031.md:407-410`) extiende `clienteSchema` con `saldo: z.number()`, y §0 decisión 8
-  (`.agents/specs/F-031.md:325`) fija que ese `saldo` es la suma de `CuentaPorCobrar.saldoPendiente`
-  de las cuentas vivas. Ninguna proyección more estrecha se aplica en el servidor: la que sí existe
-  (`IClienteOption`, cuatro campos) es un recorte que hace el **cliente** (`toClienteOption`, §4.5),
-  no el servidor. Ver hallazgo 🔴-1.
+**Dónde:** contrato § 2.2 (`.agents/specs/F-031.md:396-400`).
 
-### R2 — `POST /api/clientes` (§5.2, `.agents/specs/F-031.md:722-739`)
+El comentario actual del campo es:
 
-- **Aislamiento de tenant:** el `negocioId` que entra a `createOrReactivateCliente` (§4.2,
-  `.agents/specs/F-031.md:527-577`) sale de `resolveTenantAxis`, nunca del cuerpo — confirmado:
-  `createClienteSchema` (`src/schemas/cliente.ts:15-20`) no tiene campo `negocioId`. La lectura
-  previa (ADR 0107) usa `withTenantScope("cliente", { nombre }, negocioId)` — filtro real, columna
-  propia. La escritura (`create` o `update`) recibe el mismo `negocioId` de la misma variable
-  resuelta por `resolveTenantAxis` — una sola lectura, una sola variable, igual que el B1 de
-  F-029-seguridad pidió para `CuentaPorCobrar.tiendaId`.
-- **Autenticación y autorización:** `configuracion.clientes.acceder`, verificado en backend vía
-  `resolveTenantAxis`/`decideTenantScope`, que llama a `verificarPermisoUsuario` — no es una
-  comprobación solo de UI.
-- **Fuga por código de respuesta:** el 409 (`action` interna `DUPLICATE`) responde
-  `{ error: CLIENTES_API_ERRORS.nombreDuplicado }` — un string fijo, sin citar el `id` ni ningún
-  otro campo de la fila colisionada. No hay oráculo: no se puede distinguir desde este 409 si la
-  fila que colisionó está activa o borrada en blando (ninguna de las dos cosas es observable desde
-  la respuesta), lo cual es consistente con que la decisión de reactivar vs duplicar ya se resolvió
-  puertas adentro.
-- **Validación de entrada:** `createClienteSchema` (F-029), cotas ya fijadas (200/300/300/40). El
-  400 de validación **no incluye el detalle de Zod** (contrato, línea 736) — correcto contra E-031,
-  aunque el motivo aquí no es una credencial sino evitar ecoar el valor que falló.
-- **Mass assignment:** `createClienteSchema` no acepta `id`, `negocioId`, `createdAt`, `deletedAt`
-  ni ningún campo que el cliente no deba poder fijar. Correcto.
+```prisma
+/// Direct edge to Tienda. It exists so the tenant clause is ONE hop
+/// (TENANT_RELATION_PATH.cuentaPorCobrar = ["tienda"]), not two through Venta.
+tienda   Tienda @relation(fields: [tiendaId], references: [id])
+tiendaId String
+```
 
-### R3 — `GET /api/clientes/[id]` (§5.3, `.agents/specs/F-031.md:740-754`)
+Esto explica **por qué** existe el salto directo, pero no dice **qué lo mantiene correcto**. Nada en
+el schema obliga a que `CuentaPorCobrar.tiendaId === Venta.tiendaId` de la venta que la originó — no
+hay clave foránea compuesta que lo ate (Prisma/Postgres no lo expresan de forma nativa contra una FK
+simple), así que la garantía completa depende de que quien cree la fila (F-034, en la misma
+`$transaction` que la venta, dosier § 6 "Rutas de venta") derive `tiendaId` **de la misma variable ya
+persistida en `Venta.tiendaId`**, nunca de un valor releído por separado ni tomado de otra parte del
+payload.
 
-- **Aislamiento de tenant:** `withTenantScope("cliente", { id, deletedAt: null }, negocioId)` —
-  **esto es exactamente la forma que el encargo pide distinguir**: un `where` compuesto de tres
-  claves (`id`, `deletedAt: null`, `negocioId`), no un `findUnique({ where: { id } })` seguido de una
-  comprobación en memoria. Las tres causas de 404 —no existe, es de otro negocio, está borrado en
-  blando— colapsan en la misma consulta vacía, no en tres ramas de código con tres mensajes
-  potencialmente distintos.
-- **Autenticación y autorización:** sin permiso, mismo argumento que R1. Mismo hallazgo 🔴-1 aplica
-  aquí: la ficha completa de un cliente, con su saldo, es legible por cualquier sesión del negocio
-  sabiendo (o adivinando, aunque el 404 lo impide como oráculo) su `id`.
-- **Fuga por código de respuesta:** el 404 es idéntico para las tres causas (contrato, línea 752:
-  «Las tres causas del 404 responden idéntico, que es el punto del ADR 0077»). Correcto y explícito
-  en el propio contrato — no hace falta pedir nada aquí.
-- **Validación de entrada:** `params` es `Promise<{ id: string }>`, resuelto con `await` (Next 15
-  asíncrono) — correcto. No se valida que `id` tenga forma de UUID antes de la consulta, pero un
-  `id` mal formado simplemente no matchea ninguna fila y cae en el mismo 404 uniforme — no es una
-  vía de inyección (Prisma parametriza) ni de oráculo.
+Esto es exactamente la disciplina de "una sola variable, leída una vez" que el propio repo ya exige
+en otro sitio (`.agents/F-027-seguridad.md`, Hallazgo 2: "el `negocioId` que entra al emisor y el que
+entra al payload deben salir de la MISMA variable"). Hoy esa disciplina no está escrita en ningún
+sitio para `CuentaPorCobrar.tiendaId` — ni en el contrato de F-031, ni en el dosier § 6, que solo dice
+"crear la `CuentaPorCobrar` en la misma `$transaction` que la venta" sin decir de dónde sale
+`tiendaId`.
 
-### R4 — `PUT /api/clientes/[id]` (§5.4, `.agents/specs/F-031.md:755-771`)
+**Por qué importa de verdad:** si F-034 tomara `tiendaId` de, por ejemplo, un parámetro de ruta
+distinto al que ya validó la pertenencia al negocio, o de un valor del body, una `CuentaPorCobrar`
+podría nacer con un `tiendaId` que no es el de su propia venta. Como `TENANT_RELATION_PATH` confía
+en `CuentaPorCobrar.tienda` como el único salto hacia `negocioId`, esa fila pasaría cualquier chequeo
+de `withTenantScope("cuentaPorCobrar", …)` **con el negocio equivocado** — el patrón exacto de
+E-042: el camino existe y es correcto en el schema, pero nada impide que la fila lo satisfaga desde
+el negocio incorrecto si el escritor no respeta la disciplina.
 
-- **Aislamiento de tenant:** el contrato no escribe la forma literal del `where` para esta ruta
-  (a diferencia de R3, que sí la escribe: `withTenantScope("cliente", { id, deletedAt: null },
-  negocioId)`). Lo que sí fija es el comportamiento observable — 404 para «no existe, es de otro
-  negocio, o está borrado en blando» — que solo es alcanzable con un `where` compuesto igual al de
-  R3, no con un `findFirst({ where: { id, negocioId } })` seguido de un `if (existing.deletedAt)`
-  en memoria. Las dos formas producen el mismo 404 en el camino feliz, pero difieren en un punto que
-  sí importa para la integridad de datos, no para el aislamiento de tenant: ver hallazgo 🟠-4.
-- **Autenticación y autorización:** `configuracion.clientes.acceder`, backend, vía
-  `resolveTenantAxis`.
-- **Fuga por código de respuesta:** el 409 de nombre duplicado (`{ error:
-  CLIENTES_API_ERRORS.nombreDuplicado }`, string fijo) no cita el `id` ni el estado
-  (activo/borrado) de la fila colisionada — mismo argumento que R2. El chequeo de duplicado está
-  además acotado a `negocioId` (contrato: «el `nombre` nuevo ya lo lleva **otra** fila del
-  negocio»), así que no puede usarse para sondear nombres de otro negocio.
-- **Validación de entrada:** `updateClienteSchema` = `createClienteSchema.partial()` — mismas cotas,
-  ninguna nueva ampliación de campos. Correcto.
-- **Orden de evaluación:** el contrato no dice explícitamente si el 404 (pertenencia) se evalúa
-  antes que el 409 (duplicado de nombre) o al revés. Como el chequeo de duplicado ya está acotado al
-  propio `negocioId` del que hace la petición, invertir el orden no abre una fuga entre tenants —
-  pero si se evaluara el duplicado antes que la pertenencia, se gastaría una consulta extra en una
-  petición que de todos modos va a ser rechazada. Ver hallazgo 🟠-4 para la instrucción concreta.
+**No es explotable hoy** — no hay escritor todavía — pero es la clase de garantía que hay que fijar
+por escrito **en el contrato de F-031**, no dejarla implícita para que F-034 la invente sola.
 
-### R5 — `DELETE /api/clientes/[id]` (§5.5, `.agents/specs/F-031.md:772-793`)
+**Cambio concreto pedido al `arch-guardian`, en § 2.2:** añadir, justo debajo del comentario actual
+del campo `tiendaId`:
 
-- **Aislamiento de tenant:** mismo razonamiento que R4 — el 404 cubre «no existe, es de otro
-  negocio, o ya estaba borrado», lo que exige un `where` compuesto con `deletedAt` incluido, no una
-  comprobación en memoria después de un `findFirst` más amplio. El chequeo de deuda viva
-  (`loadSaldoPorCliente`) solo se alcanza **después** de confirmar pertenencia — no hay manera de
-  que un `clienteId` ajeno dispare el cálculo de saldo antes del 404.
-- **Autenticación y autorización:** `configuracion.clientes.acceder`, backend.
-- **Fuga por código de respuesta — el punto que el encargo pide dictaminar explícitamente:** el 409
-  nombra el monto exacto (`CLIENTES_API_ERRORS.saldoPendiente(saldo)` interpola el número con
-  `toFixed(2)`, más el campo `saldoPendiente` en `IClienteDeleteConflict`). **Dictamen: esto no es
-  una fuga incremental hacia un usuario con permiso de escritura pero sin el de recuperaciones.**
-  La cifra que el 409 revela es la **misma lectura** que R1/R3 ya devuelven sin exigir ningún
-  permiso en absoluto (contrato, línea 786: «de modo que la cifra del mensaje y la del campo son la
-  misma lectura, no dos» — y esa misma lectura es la que ya sale en `IClienteConSaldo.saldo`). Un
-  usuario con `configuracion.clientes.acceder` (que además ya tenía acceso de sobra al GET, que no
-  exige ningún permiso) no aprende nada por este 409 que no pudiera leer ya llamando a
-  `GET /api/clientes/[id]`. El hallazgo real no es este 409 — es R1/R3 (hallazgo 🔴-1): mientras esa
-  exposición exista, este 409 es un canal redundante, no uno nuevo.
-- **Validación de entrada:** no hay body en un DELETE; nada que validar más allá del `id` de la
-  ruta.
-- **Efecto:** `UPDATE` de `deletedAt`, nunca `DELETE` de fila, y no toca `CuentaPorCobrar` — tal
-  como F-029 lo dejó decidido (`.agents/specs/F-029.md`, § 2.1) y F-031 solo implementa.
+```
+/// INVARIANT: must equal the tiendaId of the Venta that created this row. Nothing in the
+/// schema enforces this — there is no composite FK for it — so the writer (F-034, which
+/// creates this row inside the same $transaction as the Venta) MUST derive tiendaId from
+/// the same variable already persisted as Venta.tiendaId, never re-read it from the
+/// request or take it from a different part of the payload. Same discipline as
+/// "single source, read once" already required for negocioId in outbox emitters.
+```
+
+### B2 — `MovimientoCuentaPorCobrar.revierteId` no lleva escrito que debe apuntar a un movimiento de la MISMA cuenta
+
+**Dónde:** contrato § 2.3 (`.agents/specs/F-031.md:479-483`) y § 9 (firma reservada,
+`.agents/specs/F-031.md:1330-1387`).
+
+```prisma
+/// A REVERSION_ABONO points at the ABONO it reverses. NULL for every other tipo.
+/// F-031 creates this column and writes nothing into it; F-035 is its first writer.
+revierte    MovimientoCuentaPorCobrar?  @relation("ReversionAbono", fields: [revierteId], references: [id])
+revierteId  String?
+```
+
+`revierteId` es una FK autorreferenciada sin restricción de que el movimiento apuntado pertenezca a
+la **misma** `cuentaPorCobrarId` — y por tanto a la misma `CuentaPorCobrar`, que es lo que ata la
+fila a un negocio. Nada en el schema impide que una `REVERSION_ABONO` de la cuenta X apunte a un
+`ABONO` de la cuenta Y de **otro negocio**: la FK solo exige que la fila de destino exista en
+`MovimientoCuentaPorCobrar`, no que comparta `cuentaPorCobrarId`.
+
+F-031 no implementa el escritor (§ 9 lo reserva explícitamente para F-034 o F-035), así que hoy esto
+es una firma sin código, no una vulnerabilidad. Pero la firma reservada de
+`applyMovimientoCuentaPorCobrar` (§ 9) es exactamente el sitio donde esta guarda tiene que vivir, y
+el contrato actual no la menciona — solo dice qué hace la función con `saldoPendiente` y `settledAt`,
+no qué valida de `revierteId`.
+
+**Cambio concreto pedido al `arch-guardian`, en § 9**, añadir a la docstring de
+`applyMovimientoCuentaPorCobrar`:
+
+```
+/// When movimiento.revierteId is present, the implementation MUST verify the referenced
+/// row's cuentaPorCobrarId equals `cuentaId` (the same account, and therefore the same
+/// tenant) before inserting. A REVERSION_ABONO pointing at another account's movement
+/// would misattribute a balance change across accounts — across tenants, if the two
+/// accounts belong to different negocios.
+```
 
 ---
 
-## 🔴 Hallazgos que obligan a enmendar el contrato antes del paso 5
+## 🟠 Alta severidad — no bloquean el paso 5 de F-031, pero hay que fijarlos por escrito antes de que F-033/F-035 empiecen
 
-Los dos siguientes no son errores de diseño ni fugas entre tenants — el aislamiento de negocio es
-correcto en las cinco rutas (ver recorrido arriba). Son **decisiones sin decidir por escrito**: el
-contrato deja un comportamiento observable sin que nadie haya puesto la frase que dice si es
-aceptado a propósito o si hay que cerrarlo. Es la misma clase de hueco que
-`.agents/F-029-seguridad.md` (B1, B2) y `.agents/F-030-seguridad.md` (H1) ya señalaron para este
-mismo epic: barato de escribir ahora, sobre un contrato que nadie implementó todavía; caro después,
-porque F-032/F-033/F-035 van a leer lo que estos archivos digan, no van a releer esta auditoría.
+### A1 — Soft delete de `Cliente` con una `CuentaPorCobrar` viva: el contrato no dice qué pasa
 
-### 🔴-1 — El GET sin permiso expone el saldo de deuda de todo el negocio a cualquier sesión, sin acotar el campo, y eso contradice en silencio la premisa de ADR 0109
+**Pregunta del encargo, respondida:** no, el contrato no lo dice en ninguna parte. Revisé el spec
+completo, el contrato completo (§0-12) y el dosier completo (§1-11) buscando "soft delete" + "deuda"
+/ "CuentaPorCobrar" en la misma frase, y la única mención de soft delete de `Cliente` es sobre el
+choque de `@@unique([nombre, negocioId])` al reactivar un nombre (§ 2.1, `.agents/specs/F-031.md:373-380`),
+que es un problema distinto (una colisión de alta, no qué pasa con la deuda de un cliente ya
+existente que se borra).
 
-**Dónde:** contrato §5.1 y §5.3 (`.agents/specs/F-031.md:705-754`), §2.2 (`clienteConSaldoSchema`,
-líneas 407-410) y §0 decisión 8 (línea 325).
+**El riesgo real, con nombre:** `Cliente.deletedAt` no nulo no borra ni toca ninguna
+`CuentaPorCobrar` — no hay `onDelete` que se dispare (es un `UPDATE`, no un `DELETE`) y no hay
+ninguna regla en el contrato que impida marcar `deletedAt` en un cliente con `settledAt IS NULL` en
+alguna de sus cuentas. Si el panel de F-035 o el buscador de F-033 filtran clientes por
+`deletedAt: null` — el patrón estándar de este mismo repo para `Producto`/`ProductoTienda`, citado
+como precedente en el propio spec (`.agents/specs/F-031.md:148-151`) — un cliente con una deuda viva
+se volvería invisible en cualquier listado que dependa de esa cláusula, mientras su
+`CuentaPorCobrar.saldoPendiente` sigue existiendo en la base de datos. Es exactamente la frase del
+encargo: **una deuda que desaparece de la vista al borrar al deudor es un agujero contable, no solo
+de seguridad** — y aquí además tiene un componente de seguridad real: es dinero que un negocio cree
+haber cobrado (porque ya no lo ve) y no ha cobrado.
 
-**La decisión de no exigir permiso en el GET está cerrada y este hallazgo no la reabre** — el
-encargo lo fija así explícitamente, y el argumento («el selector del POS necesita leer la lista»,
-espejo de `proveedores/route.ts`) es sólido y no es nuevo: `Proveedor` ya funciona así. Lo que
-**no** está escrito en ningún sitio es qué pasa con el campo `saldo`, que `Proveedor` **no tiene**.
+**Por qué no bloquea F-031 específicamente:** ninguno de los doce criterios de aceptación de F-031
+lo ejercita, F-031 no escribe `api/clientes/**` (es de F-033, dosier § 9) y no hay código de F-031
+que dependa de la respuesta. El modelo `Cliente` tal como está definido en § 2.1 no necesita cambiar
+para que F-031 pase sus doce criterios.
 
-**Qué permite exactamente:** cualquier usuario con una sesión válida en el negocio —no solo un
-`vendedor` con `configuracion.clientes.acceder`; **literalmente cualquiera**, incluido un usuario al
-que se le hayan retirado todos los permisos desde la pantalla de roles, porque el GET no comprueba
-ninguno— puede llamar `GET /api/clientes` (o `GET /api/clientes/[id]` con un `id` que ya conozca) y
-leer, para cada cliente del negocio, cuánto dinero debe en este momento. Esto es precisamente la
-cifra que `ADR 0109` describe como «una vista de dueño de negocio» al justificar por qué
-`recuperaciones.cuentasporcobrar.acceder` —el permiso que protege el panel agregado de F-033— se
-reserva **solo** a `administrador`:
+**Por qué sí hay que fijarlo ahora, no después:** es la única vez que alguien va a estar diseñando
+el modelo `Cliente` con este contexto completo delante. Si se deja para que F-033 lo descubra al
+escribir el DELETE, hay dos desenlaces malos: (a) F-033 decide una regla sin que el resto del epic
+la conozca, o (b) F-033 no lo piensa y simplemente permite el soft delete sin guarda, y el agujero
+contable queda abierto hasta que alguien lo note en producción.
 
-> «Quién debe dinero es una vista de dueño de negocio.» (`docs/adr/0109-...md`, sección Decisión)
+**Recomendación concreta** (dos opciones, sin reabrir la decisión de producto — solo señalando el
+vacío para que el humano o el `arch-guardian` la cierren):
 
-El GET de F-031 ya entrega esa misma vista —por cliente, no agregada, pero es el mismo dato— sin
-ningún permiso. El gate de `recuperaciones.cuentasporcobrar.acceder` sobre el panel de F-033 protege
-la **presentación agregada** del dato, pero no el dato en sí, que ya está abierto desde F-031. No es
-una vulnerabilidad de aislamiento de tenant —el dato es del propio negocio del usuario, no de otro—,
-pero sí es una decisión de sensibilidad de datos que el contrato no ha escrito, y que va en la
-dirección contraria de lo que `ADR 0109` acaba de argumentar dos párrafos antes en el mismo epic.
+- **Opción estricta:** el DELETE de `api/clientes/**` (F-033) devuelve 409 si el cliente tiene
+  alguna `CuentaPorCobrar` con `settledAt IS NULL`. Mismo molde que el 409 que F-037 ya va a usar
+  para "no se puede borrar una venta con abonos" (dosier § 6, tabla "Rutas de venta").
+- **Opción pragmática:** permitir el soft delete igual, pero el panel de cuentas por cobrar (F-035)
+  y cualquier reporte que muestre saldo pendiente **no filtran por `Cliente.deletedAt`** — muestran
+  la deuda con una anotación ("cliente eliminado") en vez de ocultarla.
 
-**Por qué puede ser correcto igual, y por qué de todas formas hay que escribirlo:** hay un argumento
-de producto real para que sea así: `ADR 0108` dice que el selector muestra el `saldo` «para elegir a
-quién se le fía» — un `vendedor` que va a vender a crédito **necesita** saber cuánto debe ya el
-cliente antes de decidir si le vende más fiado. Si esa es la razón, es una razón válida — pero hoy
-solo vive en la cabeza de quien lo diseñó, no en un documento que F-033 o F-035 vayan a leer antes
-de asumir lo contrario.
-
-**Cambio concreto pedido al `arch-guardian`, en el contrato §5.1** (o en una nota nueva de ADR 0109),
-una frase con esta forma:
-
-```
-El campo `saldo` de IClienteConSaldo viaja SIN permiso, a cualquier sesión del negocio, por
-diseño: el vendedor necesita ver cuánto debe ya un cliente para decidir si extenderle más
-crédito (ADR 0108, "para elegir a quién se le fía"). La clasificación de ADR 0109 ("quién debe
-dinero es una vista de dueño de negocio") se aplica al PANEL agregado de F-033
-(recuperaciones.cuentasporcobrar.acceder), no al saldo por cliente que este GET ya expone sin
-permiso desde F-031. Ningún feature posterior debe asumir que el saldo de un cliente es un dato
-protegido detrás de ese permiso: no lo está, y no lo estuvo desde que F-031 se entregó.
-```
-
-Si el humano decide lo contrario —que el `saldo` sí debería acotarse a un permiso—, la corrección
-no es reabrir la decisión de «GET sin permiso» (que sigue siendo correcta para el resto de los
-campos): es que `clienteConSaldoSchema` no lleve `saldo` cuando la sesión no tiene
-`recuperaciones.cuentasporcobrar.acceder`, y que el selector lo reciba como `null`/ausente en ese
-caso — un cambio de forma en el schema, no de permiso en la ruta. Cualquiera de las dos cierra el
-hueco; dejarlo implícito es lo que este hallazgo no permite.
-
-### 🔴-2 — El caché de `localStorage` no se limpia al cerrar sesión ni al cambiar de negocio, y en un dispositivo compartido de tienda eso deja nombre, teléfono y deuda del negocio anterior legibles por el siguiente usuario
-
-**Dónde:** ADR 0108 completo, contrato §3 (`CLIENTES_CACHE_STORAGE_KEY`,
-`.agents/specs/F-031.md:451-506`) y §8.1 (`.agents/specs/F-031.md:930-978`).
-
-**Verificado en el código real, no supuesto:** `CLIENTES_CACHE_STORAGE_KEY = "clientes-cache"` es
-una clave **global de `localStorage`**, no namespaced por `negocioId` ni por `usuarioId`. Busqué en
-todo el repo un precedente de limpiar un store de Zustand persistido al cerrar sesión —
-`src/context/AppContext.tsx`, `src/components/Layout.tsx:903` (el único `signOut()` manual del
-código de producción) y `src/store/cartStore.ts` completo— y **no existe ninguno**: ni siquiera
-`cartStore`, que también persiste con Zustand, se limpia en `signOut()`. F-031 no tiene un patrón
-que copiar; sería el primero en necesitarlo.
-
-**El riesgo real, en el escenario que el encargo señala (dispositivo compartido de tienda):**
-`ADR 0108` sí razona sobre un escenario parecido —«cambiar de negocio con el mismo usuario»— y lo
-cierra diciendo que la ventana la resuelve el servidor del lado de la **escritura** (F-032 rechaza
-con 409 una venta a crédito cuyo `clienteId` no sea del negocio del vendedor). Pero eso solo cierra
-el camino de **escribir** una venta con un cliente ajeno; no cierra el camino de **leer**: nada
-impide que el selector, en modo sin conexión, muestre nombre, teléfono y saldo de los clientes del
-negocio o del usuario **anterior** en ese mismo navegador, hasta que ocurra un `refresh` con éxito.
-Y el escenario que el encargo pide analizar —una tableta o terminal de POS que varios empleados
-comparten, entrando y saliendo con sus propias cuentas, posiblemente de negocios distintos si el
-dispositivo se reutiliza entre locales— no es «el mismo usuario cambiando de negocio»: es un
-**usuario distinto**, para el que `ADR 0108` no escribió ninguna regla, y que puede no tener
-absolutamente ningún permiso sobre los clientes del negocio anterior.
-
-Es exactamente el patrón que el criterio 10 protege en la dirección contraria (mostrar caché sin
-conexión es una funcionalidad deseada) sin que nada acote **de quién** es ese caché. El dato en
-juego —nombre, teléfono y deuda de un tercero, hasta `CLIENTES_CACHE_SIZE` (200) filas— es
-justamente el que `ADR 0108` ya identificó como sensible al decidir **qué** persistir (cuatro campos,
-no la fila completa); la misma sensibilidad se aplica a **cuánto tiempo** y **para quién** queda
-accesible.
-
-**No es un hallazgo bloqueante en el sentido de «hay una fuga hoy alcanzable»** — F-031 no tiene
-código todavía, y `CuentaPorCobrar` no tiene filas hasta F-032 — pero es exactamente la clase de
-garantía que hay que fijar por escrito antes de que `clientesStore.ts` se escriba, porque una vez
-escrito sin este hook, nadie vuelve a mirarlo: es un componente sin cobertura de tests (§11.2,
-`.agents/specs/F-031.md:1187-1195` — «no hay `@testing-library/react`»), así que la única red que
-lo detectaría es una revisión de seguridad como esta, hecha después de que ya esté en producción.
-
-**Cambio concreto pedido al `arch-guardian`, en el contrato §8.1**, fijando una de estas dos formas
-(cualquiera de las dos es aceptable; lo que no lo es es el silencio actual):
-
-```
-clientesStore expone `clear()` (ya está en la interfaz, §8.1) y el `implementer` lo conecta al
-único signOut() de producción (src/components/Layout.tsx:903) y al efecto de expiración de
-sesión de ese mismo archivo, para que el caché no sobreviva a un cambio de usuario en el mismo
-navegador. Es el primer store de este repo que lo hace; cartStore.ts queda fuera del alcance de
-F-031 y su propia limpieza al cerrar sesión es deuda anotada, no de este feature.
-```
-
-o, si el humano prefiere no tocar el flujo de `signOut()` en este feature:
-
-```
-Se acepta el riesgo residual de un caché de cliente que sobrevive a un cambio de usuario en un
-dispositivo compartido, con el mismo argumento que ADR 0108 ya usó para el cambio de negocio: la
-escritura (venta a crédito) está protegida en servidor por F-032; lo que queda expuesto es
-SOLO lectura (nombre, teléfono, saldo), nunca la capacidad de operar sobre ese cliente. Queda
-escrito aquí para que nadie lo redescubra como si fuera nuevo.
-```
-
-La primera opción es la que este auditor recomienda — el costo (conectar `clear()` a un `signOut()`
-que ya existe) es bajo comparado con dejar PII y deuda de terceros en el disco de una tableta de
-tienda entre turnos de empleados distintos.
+**Dónde escribirlo:** no es una sección de F-031 propiamente (F-031 no implementa ningún gate), pero
+como el modelo `Cliente` es suyo, recomiendo añadir una nota en el contrato § 2.1, justo debajo del
+párrafo de "Consecuencia asumida y escrita a propósito" que ya existe para el choque de nombre, con
+la misma forma: qué pasa, y a quién le toca (F-033 o F-035, según cuál de las dos opciones elija el
+humano). Alternativamente, en el dosier § 5 (Vocabulario), en la fila de `CuentaPorCobrar`.
 
 ---
 
-## 🟠 Alta severidad — instrucciones para el `implementer`, no bloquean el paso 5
+## 🟡 Media severidad — el implementer de F-031 debe conocerlas; recomiendo fijarlas en el contrato porque es barato hacerlo ahora
 
-### 🟠-3 — El `where` de PUT y DELETE debe incluir `deletedAt: null` en la MISMA consulta que resuelve la fila, no en una comprobación posterior en memoria
+### M1 — Los campos de texto libre de `Cliente` y `MovimientoCuentaPorCobrar.motivo` no llevan cota de longitud
 
-**Dónde:** contrato §5.4 y §5.5 (`.agents/specs/F-031.md:755-793`).
+**Pregunta del encargo (punto 7), respondida.** Comparé `src/schemas/cliente.ts` (§ 3.2 del
+contrato) contra los schemas Zod más recientes del repo:
 
-A diferencia de R3 (GET `/[id]`, que sí escribe literalmente
-`withTenantScope("cliente", { id, deletedAt: null }, negocioId)`), el contrato para PUT y DELETE
-solo describe el 404 observable («no existe, es de otro negocio, o está borrado en blando») sin
-fijar la forma del `where`. Esto es ambiguo entre dos implementaciones que producen el mismo 200/404
-en el camino feliz pero difieren en una ventana de carrera:
+| Schema | Campo | Cota |
+|---|---|---|
+| `src/schemas/movimiento.ts:129` | `motivo` | `.max(300)` |
+| `src/schemas/devolucionVenta.ts:36` | `motivo` | `.max(300, "Máximo 300 caracteres")` |
+| `src/schemas/ticketPlantilla.ts:6-18` | `encabezado`/`pie`/`logoUrl` | `.max(500)` |
+| `src/schemas/plan.ts:5` | `nombre` | `.max(50, "Máximo 50 caracteres")` |
+| `src/schemas/referral.ts:87-88` | `paymentMethod`/`note` | `.max(120)` / `.max(2000)` |
+| **Contrato F-031 § 3.2** `clienteSchema`/`createClienteSchema` | `nombre`, `descripcion`, `direccion`, `telefono` | **ninguna** |
+| **Contrato F-031 § 3.3** `movimientoCuentaPorCobrarSchema` | `motivo` | **ninguna** |
 
-- **Correcta:** `prisma.cliente.findFirst({ where: withTenantScope("cliente", { id, deletedAt:
-  null }, negocioId) })`, seguido de un `update`/`delete` sobre ese mismo `id` ya verificado.
-- **Riesgosa:** `findFirst({ where: withTenantScope("cliente", { id }, negocioId) })` sin
-  `deletedAt`, con un `if (existing.deletedAt) return tenantNotFoundResponse()` después en memoria.
-  El aislamiento de tenant no se rompe (el `id`+`negocioId` sigue siendo un filtro real), pero se
-  abre una ventana de carrera entre esa lectura y la escritura posterior: si otra petición
-  soft-elimina la misma fila entre el `findFirst` y el `update`, la segunda petición escribe sobre
-  una fila que ya no debería ser editable, porque su propio `where` de escritura no repite el
-  `deletedAt: null`.
+El contrato justifica la ausencia de cota diciendo que `Cliente` es "molde exacto de `Proveedor`"
+(`src/schemas/proveedor.ts:6-9`), que tampoco tiene `.max()` — y es cierto, pero `Proveedor` es deuda
+heredada de antes de que esa convención existiera en el repo, no un precedente a copiar a propósito.
+`motivo` en `movimientoCuentaPorCobrarSchema` en particular **no tiene ningún precedente que lo
+justifique**: es un campo nuevo, del mismo dominio semántico exacto que `MovimientoStock.motivo`
+(`src/schemas/movimiento.ts:129`, ya acotado a 300) y `DevolucionVenta.motivo` (ya acotado a 300), y
+el contrato no da ninguna razón para que este `motivo` sea el único sin cota.
 
-**Instrucción concreta para el `implementer`:** repetir el mismo `where` compuesto
-(`withTenantScope("cliente", { id, deletedAt: null }, negocioId)`) tanto en la lectura de
-verificación como, cuando Prisma lo permita sin un segundo roundtrip, en la propia operación de
-escritura — o, como mínimo, no tratar `deletedAt` como una comprobación en memoria separada del
-`where` que ya resuelve tenant e id.
+**Riesgo:** no es una fuga entre tenants ni una inyección — Prisma parametriza y React escapa por
+defecto —, es disponibilidad/almacenamiento: un string sin cota en una columna `String` de Postgres
+(sin `@db.VarChar`) admite un payload arbitrariamente grande por fila, y `MovimientoCuentaPorCobrar`
+es un log **append-only sin purga** (dosier § 5, "el log crece sin cota por cuenta") — la combinación
+de "sin cota de tamaño" + "sin cota de crecimiento" es exactamente el tipo de gap que una revisión de
+seguridad existe para atrapar antes de que exista una sola fila.
 
-### 🟠-4 — El orden de evaluación de PUT (404 de pertenencia antes que 409 de nombre duplicado) no está escrito, y debería estarlo aunque no abra una fuga entre tenants
+**Cambio concreto pedido al `arch-guardian`:**
 
-**Dónde:** contrato §5.4 (`.agents/specs/F-031.md:755-771`).
+- § 3.2, `clienteSchema` y `createClienteSchema`: `nombre: z.string().min(1, "...").max(200, "Máximo 200 caracteres")` (o la cota que el `arch-guardian` prefiera — 200 es coherente con `plan.ts` escalado); mismo tratamiento para `descripcion`, `direccion`, `telefono`.
+- § 3.3, `movimientoCuentaPorCobrarSchema.motivo`: `z.string().max(300).nullable().optional()` — igualando el precedente literal de `movimiento.ts` y `devolucionVenta.ts`.
 
-El chequeo de nombre duplicado está acotado al propio `negocioId` del solicitante (contrato: «el
-`nombre` nuevo ya lo lleva **otra** fila del **negocio**»), así que invertir el orden respecto al
-404 de pertenencia no permite sondear nombres de otro negocio — no es un hallazgo de aislamiento.
-Pero si el 409 se evaluara antes que el 404, una petición sobre un `id` ajeno gastaría una consulta
-extra (`findFirst` de duplicado) antes de ser rechazada, contra el espíritu explícito de ADR 0077
-(«comprobar primero lo barato evita ir a la base por una petición que ya está denegada»). Instrucción
-para el `implementer`: pertenencia (404) antes que duplicado (409), en ese orden, igual que
-`resolveTenantAxis` ya obliga a permiso antes que pertenencia.
+No pido cota en `monedaDeudaCode` (ya es un código corto de tres letras por convención del dominio,
+no texto libre) ni en ningún campo que no reciba texto libre de un formulario.
 
-### 🟠-5 — El precedente de `Proveedor` que el spec pide espejar es de antes de `withTenantScope`/`resolveTenantAxis`, y solo su matriz de permisos debe copiarse, no su estilo de código
+### M2 — `checkCreditInvariant` es más permisivo que la frontera Zod que lo va a alimentar, y hay que dejarlo escrito para que F-034 no se confíe
 
-**Dónde:** spec, «El precedente exacto a espejar: `Proveedor`» (`.agents/specs/F-031.md:132-163`);
-código real en `src/app/api/proveedores/route.ts` y `src/app/api/proveedores/[id]/route.ts`.
+**Verificado leyendo el código real hoy:** `ventaSchema`/`multimonedaExtrasSchema` (§ 3.4, § 3.5)
+declaran `creditoBase: z.number().nonnegative().optional()` — Zod **rechaza** un `creditoBase`
+negativo en el borde de la red, antes de que llegue a ninguna función pura.
 
-Leí las cinco rutas reales de `Proveedor` que el spec cita como espejo. Las cinco construyen el
-`where` de tenant escribiendo `negocioId: user.negocio.id` **a mano**, no con `withTenantScope`, y
-el `GET /api/proveedores/[id]` usa `!user` → 401 en vez del 403 que exige ADR 0077 (ese ADR es de
-F-021, posterior a este código de `Proveedor`, y las filas de `routeGuards.json` para
-`proveedores/[id]/route.ts` no llevan `corregidaPor` — no fueron alcanzadas por esa corrección).
-El contrato de F-031 ya especifica correctamente `resolveTenantAxis`/`withTenantScope` para las
-cinco rutas nuevas (§5, línea 696-698: «Ninguno escribe un `NextResponse.json({ error }, { status
-})` a mano para un caso que `tenantForbiddenResponse()` o `tenantNotFoundResponse()` ya
-construyen»), así que esto **no es un defecto del contrato** — es una advertencia para el
-`implementer`, que puede tener el archivo de `Proveedor` abierto como referencia de qué campos
-enriquecer y en qué orden hacer las validaciones (usuario asociado, nombre duplicado): copiar esa
-lógica de negocio está bien; copiar el `where` escrito a mano o el `401` de esa ruta no.
+Pero el propio contrato (§ 5.4, `.agents/specs/F-031.md:1117-1118`) fija que
+`checkCreditInvariant` lee sus números con `Number(x) || 0` — y esa coerción **no** normaliza
+negativos a 0: `Number(-50) || 0` evalúa a `-50` (es *truthy*), a diferencia de `Number(NaN) || 0` o
+`Number(undefined) || 0`, que sí dan `0`. Con `creditoBase = -50` ninguna de las cinco violaciones
+del § 5.4 se dispara por esa vía sola (la condición 1 exige `creditoBase > 0`, la condición 4 exige
+`creditoBase > total + tolerance`): un `creditoBase` negativo que además viniera acompañado de un
+`pagosDetalle` fabricado para que la suma cuadre pasaría como `ok: true`.
 
-### 🟠-6 — El enlace «Cuentas por Cobrar» en el menú es cosmético hasta que F-033 exista, y la protección real de ese panel no es responsabilidad de F-031
+**No es un hallazgo bloqueante porque el borde real de la red (Zod) ya lo cierra** — esta función
+nunca recibe hoy, ni recibirá en F-031, un `creditoBase` que no haya pasado ya por
+`multimonedaExtrasSchema.parse()`. Pero **es exactamente el tipo de suposición implícita que una
+revisión futura no va a volver a comprobar**, porque "la función ya lo hace bien" se lee en el código
+de `checkCreditInvariant` y no en el llamador. Si algún día `checkCreditInvariant` se llama desde un
+sitio que no pasó por Zod primero —un script de recálculo, por ejemplo, el mismo
+`scripts/recalculate-cuentas-por-cobrar.ts` que el § 9 reserva— el chequeo dejaría pasar un crédito
+negativo silenciosamente.
 
-**Dónde:** contrato §10.3, Entrada A (`.agents/specs/F-031.md:1128-1150`).
+**Recomendación, no bloqueante:** una frase en § 5.4, junto a la nota de "Number(x) || 0", diciendo
+explícitamente que la función **no** normaliza valores negativos y que todo llamador debe garantizar
+que sus entradas ya pasaron por la validación Zod correspondiente (`multimonedaExtrasSchema` /
+`ventaSchema`) antes de invocarla. Es una línea de documentación, no un cambio de comportamiento —
+cambiar `checkCreditInvariant` para clamear negativos sería además incorrecto: enmascararía un dato
+corrupto en vez de dejarlo producir `TOTAL_MISMATCH`, que es la señal útil.
 
-Ya está anotado como orden del backlog en el propio spec y contrato (§13, riesgo 2), y el criterio 7
-solo exige que el ítem exista, esté gateado por `recuperaciones.cuentasporcobrar.acceder` y esté
-situado correctamente — no que la navegación aterrice en una pantalla. Esto es correcto y no exige
-cambio en F-031. La única razón para anotarlo aquí es la instrucción explícita del encargo: ocultar
-un enlace de menú **no protege una ruta**; cuando F-033 construya `/cuentas-por-cobrar` y
-`api/cuentas-por-cobrar/**`, la protección real tiene que estar en el backend de esas rutas nuevas
-(sesión + `recuperaciones.cuentasporcobrar.acceder` + `withTenantScope`), con la misma disciplina
-que este informe verificó para `api/clientes/**` — no en que el ítem de menú esté oculto para quien
-no tiene el permiso. Es una nota para la auditoría de seguridad de F-033, no una corrección de
-F-031.
+### M3 — `IdempotencyKey` es global por `key`, y el dosier no advierte del patrón exacto de E-043 para cuando F-035 la use
 
----
+**Contexto:** el contrato (§ 2.3, `.agents/specs/F-031.md:500-502`) dirige correctamente a F-035
+hacia la tabla genérica `IdempotencyKey` (`prisma/schema.prisma:726-744`) en vez de abrir una columna
+`@unique` nueva — comportamiento correcto y alineado con E-043. Pero `IdempotencyKey.key` es
+`@id` **global**, no compuesto con `scopeId`: la fila se localiza por `key` sola, y `scopeId` es una
+columna adicional para filtrar, no parte de la clave primaria.
 
-## 🟡 Media / informativo
+Esto es estructuralmente el mismo patrón que **E-043 ya documenta sobre `Venta.syncId`**: una
+columna de idempotencia `@unique`/`@id` global es un eje de tenant más. Si el escritor futuro (F-035)
+hiciera `prisma.idempotencyKey.findUnique({ where: { key } })` sin comparar también `scopeId` contra
+el `negocioId` de la sesión, un cliente de un negocio podría, adivinando o reutilizando la `key` de
+otro negocio, leer la `response` cacheada de una operación ajena — el mismo vector que E-043 cerró
+para `Venta.syncId` (`findFirst` con `scopeId` en el `where`, nunca `findUnique` por `key` sola).
 
-### 🟡-7 — `nombre`/`limit` de la query string de R1 no tienen un schema Zod citado en el contrato
+**No es un hallazgo de F-031**: la tabla `IdempotencyKey` ya existe, F-031 no la toca ni la crea, y
+E-043 ya está en la lista de errores conocidos que el dosier cita para este epic (§ 11 del dosier).
+Pero la ficha E-043 en sí solo narra el caso de `Venta.syncId`; no menciona `IdempotencyKey` como una
+segunda instancia del mismo patrón. Como el propio contrato de F-031 (§ 2.3) es quien introduce a
+F-035 a esta tabla por primera vez en el epic, es el sitio natural para dejar la advertencia escrita,
+en vez de confiar en que F-035 relea E-043 y haga la conexión sola.
 
-El contrato (§5.1) describe `nombre?: string` y `limit?: number (por defecto y máximo
-CLIENTES_LIST_LIMIT)` como parámetros de query, sin nombrar un schema Zod que los valide, a
-diferencia de `createClienteSchema`/`updateClienteSchema` para los cuerpos de POST/PUT. No es un
-riesgo de inyección (Prisma parametriza el `contains`) ni de aislamiento, pero `AGENTS.md` pide
-validar con Zod «antes de persistir» — aquí no se persiste nada, se lee, pero un `limit` no acotado
-en el borde (por ejemplo, un string no numérico, o un número negativo) debería fallar de forma
-predecible, no depender de que `Number(...)` seguido de un `Math.min` en el código de la ruta lo
-haga bien por casualidad. Instrucción para el `implementer`: acotar `limit` explícitamente (`Number`
-+ `Math.min(…, CLIENTES_LIST_LIMIT)` + `Math.max(…, 1)` o un `z.coerce.number().int().positive()`
-inline) antes de pasarlo a Prisma.
+**Cambio concreto pedido al `arch-guardian`, en § 2.3 o § 9:** añadir, junto a la mención de
+`IdempotencyKey`:
 
-### 🟡-8 — E-057 no aplica hoy, pero queda anotado para cuando F-032 conecte el alta rápida de cliente al flujo de venta a crédito de la APK
-
-`api/clientes/**` no tiene espejo en `api/app/**` en este contrato, y F-031 no toca la APK Flutter.
-Si un futuro feature necesita que la app móvil cree o busque clientes directamente (no solo a través
-del payload de una venta), quien lo diseñe debe recordar que el Bearer solo vale en `/api/app`
-(E-057): un espejo de `api/clientes` bajo `api/app/clientes` necesitaría su propia fila de
-`routeGuards.json` con el helper que valida Bearer, no `resolveTenantAxis` tal cual. No es un
-hallazgo de F-031.
-
-### 🟡-9 — El `saldo` en la respuesta de POST/PUT (`IClienteUpsertResponse.cliente`, `clienteConSaldoSchema`) siempre vale 0 en los casos que F-031 puede producir, y eso es correcto, no un hueco
-
-Un cliente recién creado no tiene `CuentaPorCobrar` (no existen hasta F-032). Un cliente reactivado
-tampoco puede tener deuda viva, porque el único camino para llegar a `deletedAt` no nulo es el
-DELETE de R5, que responde 409 y no completa el borrado si hay `CuentaPorCobrar` con `settledAt
-IS NULL` — así que todo cliente borrado en blando, por construcción, tiene saldo cero en el momento
-de borrarse. No hace falta ningún cambio; lo dejo escrito porque el encargo pide distinguir
-confirmación de hallazgo con la misma claridad.
+```
+Igual que E-043 documenta para Venta.syncId: IdempotencyKey.key es @id global, no compuesto con
+scopeId. Toda lectura debe ser `findFirst({ where: { key, scopeId: negocioId } })`, nunca
+`findUnique({ where: { key } })` a secas — ni siquiera en el camino de recuperación de un P2002.
+```
 
 ---
 
-## 🟢 Confirmaciones — lo que el contrato ya hace bien y no requiere cambios
+## 🟢 Baja severidad / informativo
 
-1. **Las cinco rutas resuelven tenant con la puerta correcta.** `Cliente` no llega con `tiendaId`
-   en el path, así que Gate B (`resolveTenantAxis`) es la puerta que corresponde, no Gate A
-   (`assertTiendaTenant`) — y el contrato la usa en las cinco, nunca escribe `negocioId` a mano.
-2. **El 404 de ADR 0077 es uniforme y no se convierte en oráculo por otra vía.** Verificado
-   ruta por ruta (arriba): ningún 409 cita el `id`, el nombre o el estado de la fila ajena o
-   colisionada; los cuerpos de error son strings fijos o plantillas con un número, nunca el mensaje
-   de una excepción (E-031); no hay una vía de tiempo de respuesta diferencial entre «no existe» y
-   «es de otro negocio», porque ambas causas hacen la misma única consulta antes de responder.
-3. **Ningún `where` es una mención (E-042).** Verificado contra el schema real: `Cliente.negocioId`
-   es columna propia (`TENANT_RELATION_PATH.cliente = []`); `CuentaPorCobrar.tiendaId` es una FK
-   real a `Tienda` (`TENANT_RELATION_PATH.cuentaPorCobrar = ["tienda"]`), no una columna homónima
-   sin relación. Las anotaciones de invariante que F-029-seguridad pidió (B1, B2) siguen escritas en
-   `prisma/schema.prisma:1417-1424` y `1492-1497`, tal como F-030-seguridad ya confirmó.
-4. **No hay un segundo eje de idempotencia (E-043).** ADR 0107 reutiliza
-   `@@unique([nombre, negocioId])` — compuesto con tenant — para la reactivación, exactamente lo
-   que E-043 exige y lo que el dosier §11 anota como lección aprendida de este mismo epic.
-5. **`createClienteSchema`/`updateClienteSchema` no admiten mass assignment.** Ningún campo de
-   control (`id`, `negocioId`, `deletedAt`, `createdAt`) es aceptable desde el cuerpo; las cotas de
-   longitud (200/300/300/40) ya están fijadas por F-029 y F-031 no las redefine.
-6. **El cableado de permisos (ADR 0109) no arrastra nada por accidente.** Verificado en
-   `src/utils/getPermisosUsuario.ts:54-68`: `tienePermiso` compara con `.includes()` sobre un array
-   separado por `|` — coincidencia exacta de string, no de prefijo — así que
-   `configuracion.clientes.acceder` en la plantilla `vendedor` no habilita ningún otro permiso de
-   `configuracion.*` por sustring. `recuperaciones.cuentasporcobrar.acceder` queda solo en
-   `administrador`, sin excepción.
-7. **La entrada de menú gateada por `recuperaciones.cuentasporcobrar.acceder` es efectivamente solo
-   cosmética hoy** (no hay pantalla ni API detrás todavía), y el contrato lo anota como orden del
-   backlog, no como defecto — correcto, ver 🟠-6 para la nota de cara a F-033.
-8. **`routeGuards.json`: las cinco filas declaradas coinciden exactamente con las cinco rutas
-   reales.** `clientes/route.ts` (GET, POST) + `clientes/[id]/route.ts` (GET, PUT, DELETE) — cinco
-   pares `(ruta, verbo)`, ninguno de más ni de menos, verificado contra los cinco bloques JSON
-   literales del propio contrato (§6, `.agents/specs/F-031.md:794-892`). El censo
-   `routeGuardInventory.test.ts` (criterio 5) es la red que además lo hace no depender de que esta
-   auditoría lo vuelva a mirar cada vez.
-9. **El 500 usa una constante fija, nunca el mensaje de la excepción** (§5.1, línea 719) — correcto
-   contra E-031, y ya escrito en el contrato sin que este informe tenga que pedirlo.
-10. **`Cliente.reactivar` (ADR 0107) no reabre `CuentaPorCobrar`.** La reactivación solo toca
-    `deletedAt` y los campos del cuerpo; ninguna cuenta histórica cambia de dueño ni de estado. El
-    `id` se conserva, así que las deudas ya saldadas siguen apuntando al mismo cliente — correcto y
-    consistente con la decisión de F-029.
+### I1 — `MovimientoCuentaPorCobrar.motivo` es texto libre y puede acumular PII, igual que el resto de campos `motivo` del sistema
+
+No es una clase de riesgo nueva que F-031 introduzca: `MovimientoStock.motivo` y
+`DevolucionVenta.motivo` ya son texto libre escrito por el cajero y pueden llevar el nombre de un
+cliente, un teléfono, etc. — el mismo perfil de riesgo que `MovimientoCuentaPorCobrar.motivo` hereda.
+No pido ningún cambio de comportamiento más allá de la cota de M1; solo lo registro porque el
+encargo pregunta explícitamente por él (punto 6).
+
+### I2 — `pagosDetalle` reutilizado verbatim no añade ningún campo nuevo sensible
+
+`pagoLineaSchema` (`src/schemas/pago.ts:4-10`) es `{ tipo, moneda, monto, equivalenteBase,
+transferDestinationId? }` — ninguno de los cinco es un secreto ni un dato de cliente más allá de lo
+que ya circula en `Venta.pagosDetalle` hoy. Reutilizar la forma exacta (en vez de una redefinición)
+es correcto y es exactamente lo que E-039 pide.
+
+### I3 — E-049 (deducir una clasificación de la forma de un identificador): no se encontró ninguna instancia en F-031
+
+Revisé específicamente si algo en el contrato deduce un eje de tenant, un tipo de movimiento o
+cualquier clasificación de negocio a partir de la *forma* de un valor (longitud, prefijo) en vez de
+leerlo como dato explícito. `monedaDeudaCode` es un código de moneda de referencia, no clasificado
+por forma; `TipoMovimientoCuentaPorCobrar` es un enum explícito, no derivado. Sin hallazgo.
+
+---
+
+## Confirmaciones — lo que el contrato ya hace bien y no requiere cambios
+
+Enumeradas porque el encargo pide distinguir con claridad hallazgo real de recordatorio, y porque
+tres de las siete preguntas concretas del encargo se responden "está bien, verificado" y merecen
+quedar dichas explícitamente, no solo omitidas:
+
+1. **Los caminos de tenant de § 6.1 son los correctos y son los más cortos que existen, verificado
+   contra los modelos reales de § 2.2/2.3.** `CuentaPorCobrar.tienda` es una relación directa a
+   `Tienda` (campo `tienda`, FK `tiendaId`) — el mismo nombre de campo que usa el segmento
+   `["tienda"]` de `TENANT_RELATION_PATH.cuentaPorCobrar`. `MovimientoCuentaPorCobrar.cuentaPorCobrar`
+   (campo, no `cuenta`) es la relación que usa el segmento `["cuentaPorCobrar", "tienda"]`. Los dos
+   caminos están atados por FKs reales, no por una coincidencia de nombre o de formato (no es
+   E-042: el `negocioId` no es una mención, es alcanzable siguiendo relaciones Prisma reales), y el
+   propio contrato ya es consciente del riesgo de desalineación de nombres (§ 6.1, la nota sobre por
+   qué el campo se llama `cuentaPorCobrar` y no `cuenta`).
+2. **La validación "el `clienteId` es del negocio de la venta" está explícitamente asignada, no
+   omitida.** El dosier § 2 la fija como la mitad no pura de la primera regla dura; el contrato § 5.4
+   dice literalmente "esa mitad... la hace F-034, no esta función" y el ADR 0111 la repite en su
+   sección de "Autorización". El contrato de F-031 no cierra la puerta a que F-034 la implemente —
+   al contrario, `checkCreditInvariant` deja `CREDIT_WITHOUT_CUSTOMER` como el primer chequeo,
+   dejando sitio para que F-034 la complete con la consulta a la base.
+3. **`@@unique([nombre, negocioId])` de `Cliente` (§ 2.1) es correcto según E-043**: es un índice
+   compuesto con `negocioId`, no una columna `@unique` global. `CuentaPorCobrar.ventaId @unique` no
+   es una nueva instancia de E-043: no es una clave de idempotencia proporcionada por un cliente
+   externo, es una restricción de cardinalidad (una cuenta por venta) sobre una FK que ya apunta a
+   una fila con tenant propio — la garantía de unicidad no cruza tenants porque `Venta.id` ya es
+   único globalmente por diseño de Prisma y cada `Venta` pertenece a un solo negocio.
+4. **F-031 no añade ninguna ruta ni consulta a la base de datos** (§ 6.3, § 8) — confirmado: no hay
+   entradas nuevas en `routeGuards.json` que auditar, y todo lo que este feature aporta al
+   aislamiento multi-tenant es estructural (relación directa + entradas de `TENANT_RELATION_PATH`),
+   exactamente como el contrato lo describe.
+5. **El aparato de test que va a heredar el criterio 11** (`src/__tests__/fixtures/threeTenants.ts`,
+   `src/__tests__/tenantIsolation.test.ts`) es sólido: usa homónimo + control (E-008/E-032) en vez de
+   una comparación ingenua, y el criterio 11 tal como está escrito en § 11 del contrato ("los tres
+   `withTenantScope` del § 6.1, con `toEqual`") es la forma correcta de probar la forma del `where`
+   sin necesitar aún filas reales, ya que F-031 no tiene rutas que ejercitar contra la simulación
+   completa de homónimo/control — eso les tocará a F-033/032/033 cuando añadan sus propias rutas al
+   inventario.
+6. **El endurecimiento de `caja.ts`/`tips.ts` (criterio 4) no introduce ninguna fuga de datos**: el
+   aviso (`UNKNOWN_PAYMENT_LINE_TYPE_WARNING`, § 4) es un string fijo sin interpolación del objeto de
+   pago — exactamente lo que E-031 exige, y el propio contrato ya lo dice explícito en § 7.3.
 
 ---
 
 ## Veredicto
 
-**No hay ninguna fuga de datos entre tenants alcanzable, ningún modelo mal formado, ninguna entrada
-de `TENANT_RELATION_PATH` incorrecta y ninguna decisión de producto que reabrir.** Las cinco rutas
-filtran de verdad por `negocioId` — vía columna propia o vía FK real, nunca por mención — y los
-cinco códigos de respuesta siguen el mapeo normativo de ADR 0077 sin abrir un oráculo de existencia
-por una vía lateral.
+**Se puede abrir el paso 5.** Ningún hallazgo de esta auditoría reabre una decisión de producto ni
+encuentra un modelo mal formado, una entrada de `TENANT_RELATION_PATH` incorrecta, o una fuga
+alcanzable hoy — F-031 no ejecuta ninguna consulta, así que no hay superficie que atacar todavía.
 
-**Sí hay dos huecos que obligan a enmendar el contrato antes de lanzar el paso 5**, ninguno de los
-dos por una fuga alcanzable hoy, los dos porque son la clase de garantía que un feature posterior
-(F-032, F-033, F-035) va a asumir por lo que lea escrito, no por releer esta auditoría — el mismo
-argumento que ya sostuvo los hallazgos B1/B2 de F-029 y H1/H2/H3 de F-030 en este mismo epic:
+Lo que sí pido, antes de que `implementer`/`dev-tester` empiecen, es que el `arch-guardian` amplíe el
+contrato con **cuatro anotaciones de texto** (B1, B2, M1, M3) — ninguna cambia una firma, un tipo ni
+una decisión ya cerrada, y las cuatro caben en los huecos que el propio contrato ya dejó para notas de
+este estilo (los "Consecuencia asumida y escrita a propósito" de § 2.1, o las docstrings de § 2.2/2.3/2.3/9).
+Es barato hacerlo ahora, sobre un contrato que nadie ha implementado todavía, y caro después: B1 y B2
+son garantías de aislamiento multi-tenant que el próximo feature (F-034) va a asumir por leer el
+comentario que encuentre, no por releer esta auditoría.
 
-- **🔴-1**: el `arch-guardian` tiene que escribir, en §5.1, si el `saldo` sin permiso es una
-  decisión aceptada a propósito (y por qué) o si debe acotarse el campo — no la ruta, que ya está
-  cerrada — a un permiso.
-- **🔴-2**: el `arch-guardian` tiene que decidir, en §8.1, si `clientesStore.clear()` se conecta al
-  `signOut()` de `src/components/Layout.tsx:903` (recomendado) o si el riesgo residual en
-  dispositivo compartido se acepta por escrito con el mismo argumento que ya usó ADR 0108 para el
-  cambio de negocio.
+El hallazgo A1 (soft delete de `Cliente` con deuda viva) no bloquea a F-031 pero **sí necesita una
+decisión del humano o del `arch-guardian` antes de que F-033 escriba el DELETE de `api/clientes/**`** —
+recomiendo resolverlo en esta misma vuelta de contrato, ya que el modelo `Cliente` que lo origina es
+de F-031, aunque quien lo aplique sea otro feature.
 
-Ninguno de los dos cambia una firma, un tipo o una decisión de producto ya cerrada del contrato:
-los dos caben como texto adicional en secciones que ya existen. El resto de los hallazgos (🟠-3 a
-🟠-6, 🟡-7 a 🟡-9) son instrucciones directas para el `implementer` y no requieren que el
-`arch-guardian` vuelva a tocar el contrato, aunque plegarlas ahí también sería barato.
-
-**Resumen numérico:** 2 hallazgos que obligan a enmendar el contrato antes del paso 5 (ninguno es
-una fuga alcanzable hoy; los dos son decisiones de sensibilidad de datos sin escribir) · 4 de alta
-severidad como instrucciones directas al `implementer`, no bloqueantes · 3 informativas · 10
-confirmaciones explícitas de que el aislamiento multi-tenant, la autorización en backend y el
-manejo del 404/409 ya son correctos en los puntos que el encargo pedía verificar ruta por ruta.
+**Resumen numérico:** 2 bloqueantes (documentación, no alcance) · 1 alta no bloqueante · 3 medias no
+bloqueantes · 3 informativas · 6 confirmaciones explícitas de que el diseño ya es correcto en los
+puntos que el encargo pedía verificar.

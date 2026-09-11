@@ -11,7 +11,7 @@ import { CREDIT_FIGURE_EPSILON } from "@/app/cierre/utils/creditoCierre";
 import type { IPaymentMixRow } from "@/schemas/reports/operationsReport";
 
 /**
- * F-037 (contract § 5.3, § 8.3.C) — the pure helpers that back the two
+ * F-039 (contract § 5.3, § 8.3.C) — the pure helpers that back the two
  * screens' KPIs and conditional blocks. All five are importable and pure
  * (§ 8.1): no `.tsx`, no Prisma.
  */
@@ -93,7 +93,7 @@ describe("hasIncomeStatementCredit", () => {
     expect(hasIncomeStatementCredit(0, 300)).toBe(true);
   });
 
-  it("is true for a NEGATIVE cobrado far from zero (ADR 0121 reversal) — compared in absolute value, not filtered out as if it were harmless", () => {
+  it("is true for a NEGATIVE cobrado far from zero (ADR 0128 reversal) — compared in absolute value, not filtered out as if it were harmless", () => {
     expect(hasIncomeStatementCredit(0, -300)).toBe(true);
   });
 
