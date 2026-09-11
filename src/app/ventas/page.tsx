@@ -28,15 +28,8 @@ import {
   Tooltip,
   useTheme,
   useMediaQuery,
-  alpha,
 } from "@mui/material";
-import {
-  Delete,
-  Search,
-  Refresh,
-  Visibility,
-  ReceiptLong,
-} from "@mui/icons-material";
+import { Delete, Search, Refresh, Visibility } from "@mui/icons-material";
 import { fetchLastPeriod, openPeriod } from "@/services/cierrePeriodService";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
@@ -56,8 +49,24 @@ import VentaDetailDialog from "./components/VentaDetailDialog";
 import { formatDate, formatDateTime, isToday } from "@/utils/formatters";
 import { saleReportedAt } from "@/lib/venta/saleTime";
 import { toSaleTimestamps } from "@/lib/venta/ventaTimestamps";
+import { hasSyncTrace } from "@/lib/venta/saleSyncTrace";
+import {
+  matchesSaleSearchTerm,
+  saleHistoryEmptyReason,
+} from "@/lib/venta/saleHistoryFilter";
+import SyncTraceFilterToggle from "./components/SyncTraceFilterToggle";
+import SalesHistoryEmptyState from "./components/SalesHistoryEmptyState";
 import { usePermisos } from "@/utils/permisos_front";
 import { MultiCurrencyAmount } from "@/components/MultiCurrencyAmount";
+import { touch } from "@/theme/tokens";
+
+/**
+ * Said once, in one node, at every width: the two figures follow whatever the
+ * list is showing. Kept as a constant so its rendered text is exactly this
+ * string, with no help from JSX whitespace collapsing.
+ */
+const FILTER_FIGURES_NOTICE =
+  "Con el filtro activo, Total Vendido y Monto Hoy cuentan solo las ventas que se ven. Quita el filtro para ver las cifras del período completo.";
 
 const Ventas = () => {
   const { user, loadingContext } = useAppContext();
@@ -70,6 +79,7 @@ const Ventas = () => {
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [ventas, setVentas] = useState<IVenta[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [showOnlySyncTraced, setShowOnlySyncTraced] = useState(false);
   const [noPeriodFound, setNoPeriodFound] = useState(false);
   const [noLocalActual, setNoLocalActual] = useState(false);
   const [isProcessingPeriod, setIsProcessingPeriod] = useState(false);
@@ -215,23 +225,20 @@ const Ventas = () => {
     }
   }, [loadingContext]);
 
-  const filteredVentas = ventas.filter((venta) => {
-    const searchLower = searchTerm.toLowerCase();
-    const ventaId = venta.id?.toLowerCase() || "";
-    const reportedAt = saleReportedAt(toSaleTimestamps(venta));
-    const ventaDate = formatDate(reportedAt).toLowerCase();
-    const ventaTime = formatDateTime(reportedAt).toLowerCase();
-    const ventaProductos =
-      venta.productos?.map((p) => p.name?.toLowerCase()).join(" ") || "";
-    const ventaUsuario = (venta.usuario?.nombre || "").toLocaleLowerCase();
+  const searchedVentas = ventas.filter((venta) =>
+    matchesSaleSearchTerm(venta, searchTerm),
+  );
 
-    return (
-      ventaId.includes(searchLower) ||
-      ventaDate.includes(searchLower) ||
-      ventaTime.includes(searchLower) ||
-      ventaProductos.includes(searchLower) ||
-      ventaUsuario.includes(searchLower)
-    );
+  const filteredVentas = showOnlySyncTraced
+    ? searchedVentas.filter(hasSyncTrace)
+    : searchedVentas;
+
+  const emptyReason = saleHistoryEmptyReason({
+    totalCount: ventas.length,
+    visibleCount: filteredVentas.length,
+    searchTerm,
+    syncTraceFilterActive: showOnlySyncTraced,
+    anySaleWithSyncTrace: ventas.some(hasSyncTrace),
   });
 
   // Un negocio activo acumula ventas sin techo, y esta lista las pintaba todas
@@ -394,6 +401,12 @@ const Ventas = () => {
         />
       )}
 
+      {showOnlySyncTraced && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          {FILTER_FIGURES_NOTICE}
+        </Alert>
+      )}
+
       {/* Lista de ventas */}
       <ContentCard
         title="Historial de Ventas"
@@ -403,116 +416,56 @@ const Ventas = () => {
             : undefined
         }
         headerActions={
-          <SelectableTextField
-            size="small"
-            placeholder={isMobile ? "Buscar..." : "Buscar venta..."}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <Search />
-                </InputAdornment>
-              ),
-            }}
-            sx={{
-              width: isMobile ? "100%" : 250,
-            }}
-          />
+          // Stacked at 320px and side by side from `sm` up, with the search
+          // first: `useFlexGap` so the gap survives the wrap onto a second
+          // line, and `stretch` so the button fills the column without needing
+          // a width of its own.
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            alignItems={{ xs: "stretch", sm: "center" }}
+            spacing={1.25}
+            useFlexGap
+            flexWrap="wrap"
+          >
+            <SelectableTextField
+              size="small"
+              placeholder={isMobile ? "Buscar..." : "Buscar venta..."}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Search />
+                  </InputAdornment>
+                ),
+              }}
+              sx={{
+                width: isMobile ? "100%" : 252,
+                flexShrink: 0,
+                // The field sits next to a control that clears the touch floor
+                // by itself, so it has to clear it too. `border-box` because
+                // InputBase sets the inner input to `content-box`, where a
+                // height would add its padding on top.
+                "& .MuiOutlinedInput-input": {
+                  boxSizing: "border-box",
+                  height: touch.min,
+                },
+              }}
+            />
+            <SyncTraceFilterToggle
+              active={showOnlySyncTraced}
+              onToggle={setShowOnlySyncTraced}
+            />
+          </Stack>
         }
         noPadding
         fullHeight
       >
-        {filteredVentas.length === 0 ? (
-          <Box
-            sx={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              py: 6,
-              px: 2,
-            }}
-          >
-            {/* Icon with wash background */}
-            <Box
-              sx={{
-                bgcolor: alpha(theme.palette.info.main, 0.1),
-                borderRadius: "50%",
-                p: 2,
-                mb: 2,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: 64,
-                height: 64,
-              }}
-            >
-              <ReceiptLong
-                sx={{
-                  fontSize: 48,
-                  color: theme.palette.info.main,
-                }}
-              />
-            </Box>
-
-            {/* Main heading */}
-            <Typography
-              variant="body1"
-              sx={{
-                fontSize: "17px",
-                fontWeight: 700,
-                mb: 1,
-                textAlign: "center",
-              }}
-            >
-              {searchTerm
-                ? "No se encontraron ventas"
-                : "No hay ventas registradas en este período"}
-            </Typography>
-
-            {/* Subheading */}
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              sx={{
-                fontSize: "14px",
-                mb: searchTerm ? 0 : 2,
-                textAlign: "center",
-              }}
-            >
-              {searchTerm
-                ? "Intenta con otros términos de búsqueda"
-                : "Las ventas aparecerán aquí cuando:"}
-            </Typography>
-
-            {/* Bullet points */}
-            {!searchTerm && (
-              <Stack spacing={0.5} sx={{ mt: 1 }}>
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{ fontSize: "13px" }}
-                >
-                  • Se realicen ventas desde el POS
-                </Typography>
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{ fontSize: "13px" }}
-                >
-                  • Se procesen transacciones
-                </Typography>
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{ fontSize: "13px" }}
-                >
-                  • Se registren pagos de clientes
-                </Typography>
-              </Stack>
-            )}
-          </Box>
+        {emptyReason !== null ? (
+          <SalesHistoryEmptyState
+            reason={emptyReason}
+            onClearFilter={() => setShowOnlySyncTraced(false)}
+          />
         ) : isMobile ? (
           // Vista móvil con cards más densos
           // Con muchas ventas la lista gana su propio scroll y solo pinta las
@@ -623,7 +576,10 @@ const Ventas = () => {
                         <Typography
                           variant="caption"
                           color="text.secondary"
-                          sx={{ ml: "auto", fontVariantNumeric: "tabular-nums" }}
+                          sx={{
+                            ml: "auto",
+                            fontVariantNumeric: "tabular-nums",
+                          }}
                         >
                           {venta.productos?.length || 0} prod.
                         </Typography>
@@ -699,7 +655,10 @@ const Ventas = () => {
                       </TableCell>
                       <TableCell align="right">
                         {/* venta.total ya está en moneda base; mostramos base + equivalentes */}
-                        <MultiCurrencyAmount amount={venta.total} align="right" />
+                        <MultiCurrencyAmount
+                          amount={venta.total}
+                          align="right"
+                        />
                       </TableCell>
                       <TableCell align="right">
                         <Typography

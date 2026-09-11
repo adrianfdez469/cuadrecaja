@@ -47,3 +47,22 @@ export const SALE_SYNC_TRACE_MIN_ATTEMPTS = 2;
  */
 export const SALE_SYNC_TRACE_REASONS = ["OFFLINE", "RETRIES"] as const;
 export type ISaleSyncTraceReason = (typeof SALE_SYNC_TRACE_REASONS)[number];
+
+/**
+ * The closed vocabulary of reasons the sales history shows no rows.
+ *
+ * The ORDER of this array carries no meaning: unlike SALE_SYNC_TRACE_REASONS
+ * above, nothing prints these in sequence. Which one applies is decided by
+ * saleHistoryEmptyReason, and its precedence lives in that function alone.
+ *
+ * The screen maps every value to its own wording, so the four are four
+ * distinct messages and never a fallback of one another.
+ */
+export const SALE_HISTORY_EMPTY_REASONS = [
+  "NO_SALES_IN_PERIOD",
+  "NO_SALES_FOR_SEARCH",
+  "NO_SALES_WITH_SYNC_TRACE",
+  "NO_TRACED_SALES_FOR_SEARCH",
+] as const;
+export type ISaleHistoryEmptyReason =
+  (typeof SALE_HISTORY_EMPTY_REASONS)[number];
