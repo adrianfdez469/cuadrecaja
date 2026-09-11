@@ -1,0 +1,7 @@
+# These two files are pinned by sha256, so their bytes must survive any clone.
+# A checkout with core.autocrlf=true would rewrite every LF into CRLF and break
+# both hashes without anyone touching a character. Exact paths, not *.json /
+# *.md globs: the rule exists because of the hash, and only these two have one.
+# See ADR 0137.
+src/constants/zones/zone-index.json text eol=lf
+src/__tests__/fixtures/zoneTariffPrecedenceVector.md text eol=lf

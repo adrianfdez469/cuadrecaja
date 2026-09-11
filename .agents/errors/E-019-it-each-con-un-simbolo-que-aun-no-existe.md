@@ -1,7 +1,7 @@
 # E-019: `it.each` con un símbolo que aún no existe revienta el archivo entero
 
 **Área:** tests
-**Apariciones:** 1 — F-020 (`qabSync.test.ts` y `qabOutboxLog.test.ts`)
+**Apariciones:** 2 — F-020 (`qabSync.test.ts` y `qabOutboxLog.test.ts`), F-039 (`zoneTariffPrecedence.test.ts`)
 
 ## Síntoma
 
@@ -65,3 +65,33 @@ Lo cambió a un `it()` real. Falla igual de visible, y no arrastra a nadie.
 símbolo `undefined`. Es **cualquier cosa que se evalúe durante la fase de colección** — un `throw`
 de módulo, un import que revienta, un schema de Zod que se construye en el tope. Todo eso tumba el
 archivo entero y no solo su propio caso.
+
+
+---
+
+## Adenda F-039 — el mismo fallo sin ningún símbolo ausente, y quien lo encontró fue el propio autor
+
+La ficha de arriba nace de un símbolo que aún no existía. F-039 llegó al **mismo colapso de
+colección sin que faltara ningún símbolo**: la causa fue un `JSON.parse` de un *fixture* colocado a
+nivel de `describe`, alimentando la tabla de un `it.each`.
+
+El fixture era `src/__tests__/fixtures/zoneTariffPrecedenceVector.md`, la copia commiteada de un
+vector de pruebas fijada por `sha256`. Y el detalle que lo vuelve grave: **el propio criterio de
+aceptación mandaba romperle un byte** para comprobar que el test lo detectaba. Con el parseo fuera
+del cuerpo de un `it`, esa mutación no ponía en rojo los 17 tests que dependen del vector — tumbaba
+el archivo entero, los 34, incluidos los 11 que no lo tocan (`formatZoneDeliveryFee`, los casos
+escritos a mano, la comprobación de pureza). El informe habría dicho «el test detecta la mutación»,
+y habría sido verdad en la letra y falso en lo que importa.
+
+**La solución fue estructural, no un `try` por encima:** ningún `JSON.parse` vive fuera del cuerpo
+de un `it`, y la tabla del `it.each` se construye con una función que atrapa el error y devuelve 13
+marcadores —con los `id` conocidos estáticamente— garantizados a fallar, en vez de abortar la
+colección. Repetida la mutación, caen exactamente los 17 que dependen del vector y los otros 17
+siguen verdes. El agente `qa` lo reprodujo después con esos mismos números.
+
+**Lo que esta aparición añade a la regla:** no es «cuidado con `it.each` sobre un símbolo que no
+existe», es más ancho — **cualquier cosa que pueda lanzar durante la colección convierte un test
+preciso en un interruptor de todo o nada**, y eso incluye leer y parsear un fichero, que parece
+inofensivo porque el fichero está commiteado ahí al lado. Y lo encontró el `dev-tester` mutando su
+propio borrador antes de entregarlo: la autoevaluación de quien escribe el test es una hipótesis,
+**la mutación es lo único que la mide** (E-008).
