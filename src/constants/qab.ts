@@ -759,28 +759,26 @@ export const QAB_ORDER_WHATSAPP_HOST = "wa.me";
  * Entities the drain WITHHOLDS: they are enqueued like any other event, they are
  * never claimed, and they wait untouched. EMPTYING THIS LIST IS THE WHOLE SWITCH.
  *
- * BUSINESS is here because QAB's `entity` does not admit it yet: such an event
- * answers `400 INVALID_BATCH` and takes THE WHOLE BATCH with it, the PRODUCT
- * events travelling in it included (contract v12.1, § Cambios requeridos en
- * cuadrecaja ①).
+ * EMPTY TODAY, and that is a state, not a retirement. BUSINESS was the one
+ * member, held back while QAB's `entity` did not admit it; contract v12.2 said
+ * the applier was up and F-038 emptied the list. The mechanism stays wired for
+ * the next entity that has to wait for the other side to be ready —
+ * ZONE_TARIFF is the immediate candidate.
  *
- * TO TURN IT ON, the day QAB says the applier is up: remove QAB_BUSINESS_ENTITY
- * from this array. Nothing else — no test pins it here, on purpose.
+ * TO WITHHOLD AN ENTITY: add its QAB_*_ENTITY constant here. TO RELEASE IT:
+ * remove it. Nothing else either way — no test pins the contents of this list,
+ * on purpose, so neither edit can turn the suite red.
  *
- * The backlog then drains on its own, claimed in `id` order, which for this
- * entity is also `updatedAt` order: each event of a business is newer than the
- * one before it, so each one applies and overwrites the previous, and the list
- * that stays is the newest. The anti-stale guard is what covers the OTHER order —
- * an event delivered late by a retry answers `stale`, which the contract reports
- * in `ok` (§ Respuesta: everything that is not `failed` goes in `ok`), so
- * `planOutboxAck` marks it processed instead of retrying it forever. No
- * re-emission and no manual cleanup either way.
+ * WHILE IT IS NOT EMPTY, every drain run reports how many events are waiting
+ * and since when: `IQabOutboxDrainReport.withheld` plus one
+ * QAB_OUTBOX_WITHHELD_LOG line per entity. WHILE IT IS EMPTY,
+ * `readQabWithheldOutboxPending` returns `[]` without touching the database and
+ * no line is written.
  *
- * WHILE IT IS NOT EMPTY, every drain run reports how many events are waiting and
- * since when: `IQabOutboxDrainReport.withheld` and one QAB_OUTBOX_WITHHELD_LOG
- * line per entity. See ADR 0092 § 1.
+ * The release procedure, and why a released backlog drains on its own with no
+ * re-emission and no manual cleanup: ADR 0092 § 1, executed by F-038.
  */
-export const QAB_OUTBOX_WITHHELD_ENTITIES = [QAB_BUSINESS_ENTITY] as const;
+export const QAB_OUTBOX_WITHHELD_ENTITIES = [] as const;
 
 /**
  * What the claim of `outboxDrain.ts` may pick up. DERIVED, never written by hand:
