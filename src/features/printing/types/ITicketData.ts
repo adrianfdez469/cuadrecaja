@@ -25,6 +25,10 @@ export interface ITicketPayload {
   discountCodes?: string[];
   /** Tip left on this sale, in base currency. Never part of `total`. */
   tipTotal?: number;
+  /** Debt this sale left, in base currency. Absent when the sale was paid in full. */
+  creditoBase?: number;
+  /** The debtor. Absent when the sale was paid in full. */
+  clienteNombre?: string;
   pagosDetalle?: IPagoLinea[];
   vueltoDetalle?: IVueltoLinea[];
   monedaCobro?: string;

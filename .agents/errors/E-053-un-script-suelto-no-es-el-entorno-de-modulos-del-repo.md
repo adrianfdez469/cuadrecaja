@@ -1,7 +1,7 @@
 # E-053: un script de verificación suelto no es el entorno de módulos del repositorio
 
 **Área:** tests
-**Apariciones:** 2 — F-008 (dos veces, por dos mecanismos distintos) · F-028 parte B
+**Apariciones:** 3 — F-008 (dos veces, por dos mecanismos distintos) · F-028 parte B · F-040
 
 ## Síntoma
 
@@ -84,3 +84,23 @@ frontera del `dev-tester`. Durante el paso 5, con los dos agentes en paralelo, e
 créalo fuera de esa carpeta, o espera a que el paso cierre.
 
 **Y la regla que añade la adenda de F-028:** cuando el mensaje de un cargador ajeno **nombra justo el fallo que estabas buscando**, desconfía antes de celebrarlo: reprodúcelo contra un caso donde ese fallo sea **imposible por construcción** (un módulo sin imports, un fixture vacío). Si también falla ahí, el mensaje habla del cargador y no de tu código. Un control negativo cuesta un comando y evita rehacer un diseño correcto.
+
+## Adenda F-040: el mismo mecanismo de ubicación, tres features después
+
+El coordinador quiso tomar las líneas base del outbox con un script de Prisma en el **scratchpad de
+la sesión**:
+
+```
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@prisma/client' imported from <scratchpad>/baseline.mjs
+```
+
+Es **exactamente** el primer mecanismo de esta ficha —la resolución de `node_modules` sube desde el
+directorio del script y el scratchpad no tiene ninguno— y aun así se volvió a caer en él. Nota lo
+que lo hace fácil de repetir: el enunciado del entorno recomienda el scratchpad para los archivos
+temporales, y **esa recomendación es correcta para todo salvo para un script que importe del
+repositorio**. La solución fue la de esta ficha: copiarlo a la raíz del repositorio, ejecutarlo y
+borrarlo en el mismo comando, dejando `git status --porcelain` sin rastro.
+
+La regla operativa, ya en una línea: **si el script lleva un `import`, su sitio es el repositorio,
+no el scratchpad** — aunque sea de usar y tirar, y aunque el import sea de un paquete de
+`node_modules` y no de `src/`.

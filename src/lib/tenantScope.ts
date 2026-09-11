@@ -383,6 +383,37 @@ export function resolveTenantAxis(params: {
 }
 
 /**
+ * GATE B for a resource that belongs to the BUSINESS and to no single store — `Cliente`, and the
+ * listings that span every store of the business. There is no "store the request addresses" to
+ * resolve permissions against, so this gate uses the permissions the session already carries:
+ * those of the user's CURRENT store (`getPermisosUsuario(userId, localActual)` at login).
+ *
+ * This is NOT the fallback ADR 0107 forbids. That one is about a request that addresses store B
+ * while the session carries store A's permissions — there, the session string is the wrong store's
+ * and grants what it must not. Here there is no second store to be wrong about: permissions only
+ * ever come from a Rol in some store, so the session's own store is a legitimate source, and a user
+ * holding the permission in another store reaches the same place by switching store.
+ *
+ * Returns null when allowed, and the denial response otherwise, exactly like its sibling — so the
+ * caller writes `if (denial) return denial;`.
+ */
+export function assertPermisoEnNegocio(params: {
+  session: Session | null;
+  permisoRequerido: string;
+}): NextResponse<ITenantScopeError> | null {
+  const { session, permisoRequerido } = params;
+
+  return tenantScopeDenial(
+    decideTenantScope({
+      session,
+      permisoRequerido,
+      ownsResource: true,
+      permisosEnTienda: session?.user?.permisos ?? null,
+    }),
+  );
+}
+
+/**
  * GATE B, step two: the permission of a route whose store is only known once the row has been read.
  * Resolves the caller's permissions IN THAT store and decides with the same pure core as gate A.
  *

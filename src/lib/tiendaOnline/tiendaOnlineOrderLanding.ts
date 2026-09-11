@@ -1,12 +1,16 @@
 import type { Prisma } from "@prisma/client";
 
 import { PEDIDO_ONLINE_MOVEMENT_TYPES } from "@/constants/movimientos";
-import { TIENDA_ONLINE_ORDER_LANDING_BLOCKERS } from "@/constants/tiendaOnline";
+import {
+  TIENDA_ONLINE_CREDIT_TENANT_ERROR,
+  TIENDA_ONLINE_ORDER_LANDING_BLOCKERS,
+} from "@/constants/tiendaOnline";
 import { buildTasaSnapshot, missingRateCodes } from "@/lib/currency";
 import { lockActiveRow } from "@/lib/dbLocks";
 import { CreateMoviento, MOVIMIENTO_TX_OPTIONS } from "@/lib/movimiento";
 import { prisma } from "@/lib/prisma";
 import type { IQabOrderStatusReportable } from "@/lib/qab/qabOrderStatusClient";
+import { withTenantScope } from "@/lib/tenantScope";
 import {
   buildOnlineSaleAmounts,
   buildOnlineSaleLines,
@@ -44,6 +48,7 @@ const BLOCKER_UNKNOWN_TRANSFER_DESTINATION =
   "UNKNOWN_TRANSFER_DESTINATION" satisfies IOrderLandingBlocker;
 const BLOCKER_MISSING_EXCHANGE_RATE =
   "MISSING_EXCHANGE_RATE" satisfies IOrderLandingBlocker;
+const BLOCKER_UNKNOWN_CLIENTE = "UNKNOWN_CLIENTE" satisfies IOrderLandingBlocker;
 
 /** The one destination whose landing needs the three local conditions. */
 const SELL_EFFECT = "SELL" satisfies IOrderLandingEffect;
@@ -66,6 +71,10 @@ const UNIQUE_VIOLATION_CODE = "P2002";
  *
  * - NO_OPEN_PERIOD               no CierrePeriodo with `fechaFin: null` on this store
  * - UNKNOWN_TRANSFER_DESTINATION `pago.transferDestinationId` is not of THIS store
+ * - UNKNOWN_CLIENTE              `pago.clienteId` is not of THIS BUSINESS. The
+ *                                only one of the four scoped to the business and
+ *                                not to the store, because that is where
+ *                                `Cliente` hangs from (ADR 0137)
  * - MISSING_EXCHANGE_RATE        the order's currency cannot be converted to the
  *                                business's monedaBase without inventing a rate.
  *                                It defers to `missingRateCodes`, which is THE
@@ -115,6 +124,29 @@ export async function findOrderLandingBlocker(params: {
       select: { id: true },
     });
     if (destination === null) return BLOCKER_UNKNOWN_TRANSFER_DESTINATION;
+  }
+
+  if (pago !== undefined && pago.clienteId !== undefined) {
+    // By BUSINESS and never by store. This is the ONE place in this file where
+    // the scope is negocioId: `Cliente` hangs from Negocio
+    // (@@unique([nombre, negocioId])), while `TransferDestinations` above hangs
+    // from Tienda (@@unique([nombre, tiendaId])). Copying the neighbour's
+    // `tiendaId` filter here would refuse every legitimate customer AND stop
+    // discriminating the case this guard exists for.
+    //
+    // `negocioId` is the parameter this function received, which the PATCH took
+    // from `session.user.negocio.id`. NEVER from the body: `pago` carries no
+    // business of its own and could not be trusted with one.
+    //
+    // NO `deletedAt` filter, on purpose and matching the POS: a soft deleted
+    // customer still answers for a debt, and losing the debt is worse than
+    // showing a deleted name (see `resolveCreditCustomer` in
+    // `src/lib/cuentasPorCobrar/creditCustomer.ts`, branch 2).
+    const cliente = await prisma.cliente.findFirst({
+      where: withTenantScope("cliente", { id: pago.clienteId }, negocioId),
+      select: { id: true },
+    });
+    if (cliente === null) return BLOCKER_UNKNOWN_CLIENTE;
   }
 
   // The order is gone: there is nothing to convert and nothing to land. It is
@@ -175,6 +207,16 @@ function landedNothing(
     ventaId: null,
     alreadyLanded,
   };
+}
+
+function creditTenantError(): Error & { code: string } {
+  const error = new Error(TIENDA_ONLINE_CREDIT_TENANT_ERROR) as Error & {
+    code: string;
+  };
+  // `orderStatusWriteFailureCause` reads `code` and NEVER `message` (E-031). The
+  // literal is fixed and carries nothing of the request.
+  error.code = TIENDA_ONLINE_CREDIT_TENANT_ERROR;
+  return error;
 }
 
 /** True when the thrown value is a unique-constraint violation. Never its message. */
@@ -483,7 +525,9 @@ async function sellOrder(args: {
   // there is no declaration to record and nothing legitimate to write.
   if (pago === undefined) return landedNothing(SELL_EFFECT, false);
 
-  const [periodo, pedido, negocio, tasasCambio, lineas, movimientos] =
+  // `clienteRow` is the seventh read and the ONLY one scoped to the business:
+  // every other row here hangs off the store.
+  const [periodo, pedido, negocio, tasasCambio, lineas, movimientos, clienteRow] =
     await Promise.all([
       tx.cierrePeriodo.findFirst({
         where: { tiendaId, fechaFin: null },
@@ -513,6 +557,12 @@ async function sellOrder(args: {
         orderBy: { id: "asc" },
       }),
       readLiveReservations(tx, tiendaId, pedidoId),
+      pago?.clienteId === undefined
+        ? Promise.resolve(null)
+        : tx.cliente.findFirst({
+            where: withTenantScope("cliente", { id: pago.clienteId }, negocioId),
+            select: { id: true },
+          }),
     ]);
 
   if (pedido === null || negocio === null) return landedNothing(SELL_EFFECT, false);
@@ -525,6 +575,18 @@ async function sellOrder(args: {
     tasas,
     pago,
   });
+
+  // The debt is written against the row the TENANT-SCOPED query returned, never
+  // against the id the body sent. Unreachable through the PATCH — step 6 already
+  // refused a customer of another business before QAB was called — and it is here
+  // so a future second caller of `landTiendaOnlineOrderStatus` cannot open a debt
+  // across tenants. It throws instead of landing a sale without its debt: the
+  // caller's catch rolls the whole transaction back, writes ONE divergence line
+  // and answers `persisted: false`, which is the recoverable state ADR 0063
+  // designed for exactly this.
+  if (amounts.creditoBase > 0 && clienteRow === null) {
+    throw creditTenantError();
+  }
 
   const reservedProductoTiendaIds = new Set(
     movimientos.map((movimiento) => movimiento.productoTiendaId),
@@ -569,6 +631,9 @@ async function sellOrder(args: {
       totaltransfer: amounts.totaltransfer,
       monedaCobro: amounts.monedaCobro,
       pagosDetalle: amounts.pagosDetalle,
+      creditoBase: amounts.creditoBase,
+      ...(amounts.creditoBase > 0 &&
+        clienteRow !== null && { clienteId: clienteRow.id }),
       ...(amounts.transferDestinationId !== undefined && {
         transferDestinationId: amounts.transferDestinationId,
       }),
@@ -576,8 +641,42 @@ async function sellOrder(args: {
       ...(Object.keys(tasas).length > 0 && { tasaSnapshot: tasas }),
       productos: { create: saleLines },
     },
-    select: { id: true },
+    select: { id: true, createdAt: true },
   });
+
+  // The debt, in the SAME transaction as the sale and immediately after it —
+  // the pattern F-034 fixed for the POS sale route and this one replicates
+  // without redesigning it. If anything later in this transaction fails, the
+  // debt is undone with the sale.
+  //
+  // ZERO rows in MovimientoCuentaPorCobrar: opening a debt is not a movement of
+  // the ledger, and `applyMovimientoCuentaPorCobrar` is the writer of that
+  // ledger, not of this row.
+  if (amounts.creditoBase > 0 && clienteRow !== null) {
+    await tx.cuentaPorCobrar.create({
+      data: {
+        ventaId: venta.id,
+        clienteId: clienteRow.id,
+        // The SAME variable already persisted as Venta.tiendaId. Never re-read
+        // from the body or from a route param: TENANT_RELATION_PATH reaches
+        // negocioId through this column alone.
+        tiendaId,
+        // Venta.createdAt itself, which is what the column's own comment says
+        // it holds. There is no offline queue on this route: the sale is being
+        // created now and the two timestamps are the same instant.
+        fechaVenta: venta.createdAt,
+        // Both from the SAME figure and unrounded: rounding here and not in
+        // Venta.creditoBase would drift the two apart by a cent.
+        montoOriginal: amounts.creditoBase,
+        saldoPendiente: amounts.creditoBase,
+        settledAt: null,
+        // Informative only. This is the first feature that has a second
+        // currency to note, which is what the column's comment anticipated.
+        monedaDeudaCode: amounts.monedaDeudaCode ?? null,
+        montoDeudaMonedaOriginal: amounts.montoDeudaMonedaOriginal ?? null,
+      },
+    });
+  }
 
   // The stock is NOT touched here and no VENTA movement is written: the goods
   // left the store at CONFIRMED and this only formalises the collection

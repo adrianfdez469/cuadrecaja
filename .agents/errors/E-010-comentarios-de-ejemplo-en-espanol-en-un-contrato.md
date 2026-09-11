@@ -1,7 +1,7 @@
 # E-010: Un comentario de ejemplo en español dentro de un contrato acaba en el código real
 
 **Área:** build
-**Apariciones:** 3 — F-004 (dos veces dentro del mismo feature), F-010, F-011
+**Apariciones:** 4 — F-004 (dos veces dentro del mismo feature), F-010, F-011 · F-039 (una **tabla en prosa**, no un bloque de código; ver la adenda del final)
 
 ## Síntoma
 
@@ -80,3 +80,25 @@ Lo esquivó el `implementer`, que reescribió el comentario sin nombrar la colum
 bloque de código de un contrato es una **plantilla que se copia literalmente**, así que tiene que
 cumplir todas las reglas que el propio contrato impone al archivo resultante — incluidas las que se
 comprueban sobre el texto del archivo, comentarios incluidos.
+
+---
+
+## Adenda F-039 — no hace falta un bloque de código: una tabla basta
+
+Las tres primeras apariciones fueron comentarios dentro de bloques de código de un contrato. En
+F-039 el vehículo fue otro: la **tabla** del contrato de diseño que describe qué cifra va en cada
+pieza, escrita —correctamente, porque es prosa en español— como `hasCreditKpi(credito)` y
+`mixSharePercent(credito, totalVendido)`.
+
+El `implementer` copió esos nombres como **identificadores** y escribió `credito` y `totalVendido`
+en `page.tsx`. Los cazó releyendo, no compilando: `tsc` y `lint` pasan igual, porque un
+identificador en español es sintácticamente perfecto.
+
+Lo que esto añade a la ficha: **cualquier cosa con forma de código dentro de un contrato se lee
+como plantilla**, aunque esté en una celda de una tabla y aunque la rodee prosa. El documento
+describía *qué cifra es*, no *cómo se llama la variable*, pero esa distinción no sobrevive al
+copiar y pegar.
+
+**Para quien escribe el contrato:** si una tabla nombra símbolos, nómbralos en inglés aunque la
+columna de al lado esté en español. **Para quien implementa:** un nombre que venga de un documento
+en español merece una segunda mirada antes de entrar en `src/`.

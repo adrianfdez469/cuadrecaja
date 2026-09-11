@@ -46,7 +46,11 @@ import {
   formatQuantity,
   formatMontoEnMoneda,
 } from "@/utils/formatters";
-import { convertToBase, pagadaConUnSoloPago } from "@/lib/currency";
+import { convertToBase } from "@/lib/currency";
+import {
+  evaluateVentaDeleteGuard,
+  VENTA_DELETE_BLOCK_TEXT,
+} from "@/lib/cuentasPorCobrar/ventaDeleteGuard";
 import CajaResumenCards from "./CajaResumenCards";
 
 interface IProps {
@@ -91,21 +95,48 @@ const DeleteAccionCell: React.FC<DeleteAccionCellProps> = ({
   onDeleteProduct,
   onDeleteSale,
 }) => {
+  const { monedaBase } = useAppContext();
   const isLastProduct = prodHist.sale.productos.length <= 1;
-  const blockedByMultiplesPagos =
-    !isLastProduct && !pagadaConUnSoloPago(prodHist.sale.pagosDetalle);
   const isDeletingRow =
     deletingKey === deleteKey ||
     deletingSaleId === (prodHist.sale.dbId ?? prodHist.sale.identifier);
 
+  // The SAME function the other three call sites use (contract § 4.3): one source of truth, no
+  // three variants. The single button here deletes the product or the whole sale depending on
+  // `isLastProduct`, so it reads the verdict of the action it is about to execute — which is
+  // exactly what the gate's mirroring guarantees.
+  const gate = evaluateVentaDeleteGuard({
+    credito: prodHist.sale.credito ?? null,
+    pagosDetalle: prodHist.sale.pagosDetalle,
+    productos: prodHist.sale.productos.length,
+  });
+  const veredicto = isLastProduct ? gate.venta : gate.producto;
+  const motivo =
+    veredicto.reason === "CREDITO_CON_COBROS"
+      ? VENTA_DELETE_BLOCK_TEXT.creditoConCobros(
+          prodHist.sale.credito?.cobros ?? 0,
+          prodHist.sale.credito?.cobrosMontoBase ?? 0,
+          monedaBase,
+        )
+      : veredicto.reason === "CREDITO_CON_MOVIMIENTOS"
+        ? VENTA_DELETE_BLOCK_TEXT.creditoConMovimientos()
+        : veredicto.reason === "MULTIPLES_PAGOS"
+          ? TOOLTIP_MULTIPLES_PAGOS
+          : "";
+
   return (
     <TableCell align="center">
-      <Tooltip title={blockedByMultiplesPagos ? TOOLTIP_MULTIPLES_PAGOS : ""}>
+      {/* Only the Tooltip's text changes here, and nothing else: this drawer's table is one row
+          per product of MANY different sales, so a visible block would have to go per row —
+          exactly what the design rules out for the list of /ventas. The reason is still in the
+          DOM at all times, as the `aria-label` MUI writes on this `<span>`, which is where the
+          criterion measures it — so the span gets no `aria-label` of its own, and no class. */}
+      <Tooltip title={motivo}>
         <span>
           <IconButton
             size="small"
             color="error"
-            disabled={isDeletingRow || blockedByMultiplesPagos}
+            disabled={isDeletingRow || !veredicto.allowed}
             onClick={() =>
               isLastProduct
                 ? onDeleteSale(prodHist.sale)

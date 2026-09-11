@@ -2,6 +2,11 @@
 
 import { Alert, Box, Divider, Stack, Typography } from "@mui/material";
 import { ContentCard } from "@/components/ContentCard";
+import { hasIncomeStatementCredit } from "@/app/reportes/utils/creditoReportes";
+import {
+  REPORTS_CREDIT_COPY,
+  REPORTS_CREDIT_TEST_IDS,
+} from "@/constants/reportesCredito";
 import type { IIncomeStatement } from "@/schemas/reports/profitabilityReport";
 
 type IncomeStatementTableProps = {
@@ -181,6 +186,45 @@ export function IncomeStatementTable({
     );
   };
 
+  /**
+   * One informative credit line. The figure is printed EXACTLY as it arrives: no
+   * `Math.abs` and no "− " prefix, unlike the cascade above. `creditoCobrado` can be
+   * negative — a reversed collection is a negative mirror (ADR 0128) — and a period
+   * whose drawer went down is precisely the one that needs explaining.
+   */
+  const renderCreditLine = (label: string, value: number, testId: string) => (
+    <Box
+      sx={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        pl: 2,
+        pr: 2,
+      }}
+    >
+      <Typography variant="body2" color="text.secondary">
+        {label}
+      </Typography>
+      <Typography
+        variant="body2"
+        data-testid={testId}
+        sx={{
+          fontWeight: 600,
+          color: "semantic.money.neutral.main",
+          whiteSpace: "nowrap",
+          ml: 2,
+        }}
+      >
+        {format(value)}
+      </Typography>
+    </Box>
+  );
+
+  const showCredit = hasIncomeStatementCredit(
+    data.creditoOtorgado,
+    data.creditoCobrado,
+  );
+
   return (
     <ContentCard
       title="Estado de resultados"
@@ -224,6 +268,34 @@ export function IncomeStatementTable({
                   {expense.categoria}: {format(expense.monto)}
                 </Typography>
               ))}
+            </Stack>
+          </>
+        )}
+
+        {/* Credit flow: real figures of the period that never touch the profit */}
+        {showCredit && (
+          <>
+            <Divider />
+            <Stack
+              spacing={0.5}
+              data-testid={REPORTS_CREDIT_TEST_IDS.incomeCreditBlock}
+            >
+              <Typography variant="subtitle2" fontWeight="bold">
+                {REPORTS_CREDIT_COPY.incomeBlockTitle}
+              </Typography>
+              {renderCreditLine(
+                REPORTS_CREDIT_COPY.incomeGrantedLabel,
+                data.creditoOtorgado,
+                REPORTS_CREDIT_TEST_IDS.incomeCreditGranted,
+              )}
+              {renderCreditLine(
+                REPORTS_CREDIT_COPY.incomeCollectedLabel,
+                data.creditoCobrado,
+                REPORTS_CREDIT_TEST_IDS.incomeCreditCollected,
+              )}
+              <Typography variant="caption" color="text.secondary">
+                {REPORTS_CREDIT_COPY.incomeBlockCaption}
+              </Typography>
             </Stack>
           </>
         )}

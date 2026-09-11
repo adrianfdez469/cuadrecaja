@@ -1,7 +1,7 @@
 # E-017: Un absoluto escrito en un contrato o un ADR que el código no sostiene
 
 **Área:** build
-**Apariciones:** 3 — F-020 (la misma frase en **cinco** sitios, más una segunda del mismo género) · F-006 (**cuatro** criterios de diseño, ver la adenda del final) · F-029 (una frase **a favor** del diseño elegido, propagada a seis sitios y descubierta con el feature ya cerrado; ver la segunda adenda)
+**Apariciones:** 4 — F-020 (la misma frase en **cinco** sitios, más una segunda del mismo género) · F-006 (**cuatro** criterios de diseño, ver la primera adenda) · F-029 (una frase **a favor** del diseño elegido, propagada a seis sitios y descubierta con el feature ya cerrado) · F-038 (una afirmación de uso cierta del **valor** y falsa del **símbolo**, ver la última adenda)
 
 ## Síntoma
 
@@ -105,6 +105,7 @@ Dos matices que hicieron falta al corregirlos:
   sus propios spinners, su propio `Drawer` y su propio texto. Ver [E-011](E-011-medir-el-contenedor-equivocado-de-mui.md).
 - Un repaso que solo comprueba **subcadenas de copy** —como el de [E-016](E-016-un-criterio-que-exige-una-subcadena-que-el-copy-no-tiene.md)— **no ve esta clase de fallo**. Son dos repasos distintos.
 
+
 ---
 
 ## Adenda (F-029): el absoluto que **premia** al diseño elegido, y que nadie contrasta porque suena a ventaja
@@ -149,3 +150,37 @@ contrato y las `notes` del feature—, en todos como premisa, nunca como afirmac
 - **Un ejemplo dentro de una justificación es una afirmación, no una ilustración.** "Alcanzable
   por X" tiene que ser cierto para X, o el ejemplo se lleva por delante el nombre de un test.
 
+---
+
+## Adenda (F-038): la afirmación de uso que es cierta del valor y falsa del símbolo
+
+La variante más silenciosa de las tres, porque **no usa ningún superlativo** y por eso no la caza
+ninguna búsqueda de «NEVER», «ningún» o «siempre».
+
+El contrato de F-038 escribió, sobre una constante del módulo de schemas que el propio contrato
+mandaba conservar:
+
+```
+TRANSFER_METHOD sigue existiendo y no se toca: buildOnlineSaleAmounts y los dos componentes lo usan.
+```
+
+Suena a hecho comprobable y **lo es** — pero comprueba lo que no es. Los tres consumidores usan la
+**cadena** `"TRANSFERENCIA"`; ninguno importa **ese símbolo**. `orderLandingPlan.ts` tiene su propio
+`PAYMENT_TRANSFER`, y `PedidoEntregaDialog.tsx` y `PedidoPagoFields.tsx` declaran cada uno su propia
+constante local **con el mismo nombre**. El único lector del símbolo del módulo de schemas era el
+`superRefine` que el contrato mandaba reescribir.
+
+Resultado: seguir el contrato al pie de la letra dejaba una variable muerta, y
+`@typescript-eslint/no-unused-vars` está en **`"error"`** en este repositorio, así que
+`npm run lint` salía con exit 1. El `implementer` lo escribió como mandaba el contrato, y solo lo
+descubrió al verificar.
+
+**Por qué se escribe este error:** un `grep TRANSFER_METHOD src/` devuelve coincidencias en los tres
+archivos y confirma la frase. Lo que no distingue es **de qué declaración** viene cada una — y con
+tres constantes locales homónimas, la evidencia parece más fuerte de lo que es.
+
+**La regla:** antes de escribir en un contrato «X lo usa Y», comprueba que Y **importa** X, no que Y
+mencione su nombre. Para un símbolo no exportado, la pregunta correcta es más corta y no admite
+ambigüedad: *¿quién lo lee dentro de este mismo archivo?* Si la respuesta es «solo el código que
+este contrato manda reescribir», entonces el símbolo **no sobrevive**, y decir que se conserva es
+mandar dejar código muerto.

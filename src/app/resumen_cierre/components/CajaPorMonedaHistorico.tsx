@@ -5,13 +5,16 @@ import { ContentCard } from "@/components/ContentCard";
 import MonedaBreakdownRow from "@/app/cierre/components/MonedaBreakdownRow";
 import { useAppContext } from "@/context/AppContext";
 import { DENOMINACIONES } from "@/constants/billDenominations";
-import type { ICierreData } from "@/schemas/cierre";
+import { resolveCurrencyCreditLines } from "@/app/cierre/utils/creditoCierre";
+import type { ICierreData, ICreditFlow } from "@/schemas/cierre";
 
 interface Props {
   tiendaId: string;
   cierreId: string;
   resumenMonedas: NonNullable<ICierreData["resumenMonedas"]>;
   cajaDeducciones?: ICierreData["cajaDeducciones"];
+  /** The period's two credit figures, so each currency row can show them. */
+  creditFlow: ICreditFlow;
 }
 
 /**
@@ -24,8 +27,11 @@ export default function CajaPorMonedaHistorico({
   cierreId,
   resumenMonedas,
   cajaDeducciones,
+  creditFlow,
 }: Readonly<Props>) {
-  const { monedasNegocio } = useAppContext();
+  // `monedaBase` comes from `Negocio.monedaBase` through the context — never
+  // from `monedasNegocio`, which does not contain the base currency (E-059).
+  const { monedasNegocio, monedaBase } = useAppContext();
 
   if (resumenMonedas.length === 0) return null;
 
@@ -62,6 +68,13 @@ export default function CajaPorMonedaHistorico({
               initialFund={rm.initialFund}
               tipCash={rm.tipCash}
               tipTransfer={rm.tipTransfer}
+              creditLines={
+                resolveCurrencyCreditLines(
+                  rm.monedaCode,
+                  monedaBase,
+                  creditFlow,
+                ) ?? undefined
+              }
               tiendaId={tiendaId}
               cierreId={cierreId}
               isOpen={false}

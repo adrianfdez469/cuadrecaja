@@ -1,7 +1,7 @@
 # E-011: `querySelector('.MuiContainer-root')` mide el contenedor del Layout, no el de la página
 
 **Área:** ui
-**Apariciones:** 3 — F-004 (paso 6, verificación del contrato de diseño) · F-006 (ver la adenda del final) · F-023 (el snippet venía **escrito en el propio contrato de diseño**; ver la adenda del final). En F-011 NO llegó a ocurrir: se anticipó en el contrato de diseño y el `qa` midió con el filtro correcto. Ver la adenda de F-011 al final.
+**Apariciones:** 5 — F-039 (dos nodos distintos con la MISMA etiqueta en la misma página; ver la adenda del final) · F-004 (paso 6, verificación del contrato de diseño) · F-006 (ver la adenda del final) · F-023 (el snippet venía **escrito en el propio contrato de diseño**; ver la adenda del final). En F-011 NO llegó a ocurrir: se anticipó en el contrato de diseño y el `qa` midió con el filtro correcto. Ver la adenda de F-011 al final. · F-037 (la variante **estructural**: tres criterios del mismo documento apuntando a un nodo que no existe; ver la adenda de F-037 al final).
 
 ## Síntoma
 
@@ -122,3 +122,60 @@ actúan bien. La ayuda es el error.
 > hay que verificarlo contra el DOM real igual que cualquier otro criterio. Si no se puede
 > verificar al escribirlo, describe el elemento por lo que ES (el bloque que lleva el `bgcolor`),
 > no por cómo llegar a él desde un icono.
+
+
+---
+
+## Adenda F-037 — la variante estructural: tres criterios sobre un nodo que no existe
+
+Las tres apariciones anteriores eran **el selector equivocado**: se medía el contenedor de fuera en
+vez del elemento buscado. En F-037 el defecto fue **de reparto**, y no lo arregla ningún selector.
+
+El contrato de diseño exigía, sobre el chip de estado de crédito:
+
+- criterio 6 — que el elemento con **texto propio** llevase la clase `cc-venta-credito-chip`,
+- criterio 8 — leer el `background-color` **de ese mismo** elemento,
+- criterio 5 — contarlo una vez por venta.
+
+Sobre un `Chip` de MUI **no existe tal elemento**: `Chip.js:298` declara `ChipLabel` como un
+`<span>` propio y `:467` lo renderiza envolviendo el `label`, así que **el color va en la raíz y el
+texto en el hijo**. El nodo que tiene el color no tiene texto propio, y el que tiene texto propio no
+tiene el color. Los tres criterios eran incumplibles **juntos**, y cada uno por separado parecía
+razonable.
+
+El `implementer` lo pagó en tres intentos: pasar `className` a `StatusPill` —que **no lo acepta**— y
+luego dejar la clase en la raíz, donde el `ownTextEquals` del criterio 6 nunca la encuentra.
+
+**La corrección elegida fue un nodo único, no dos clases**, y la razón vale más que el arreglo: con
+dos clases los tres criterios pasarían, pero F-038 va a reutilizar ese mismo chip **sin leer este
+documento** y tendría que averiguar cuál de las dos mide qué. El contrato de diseño ganó una
+subsección «Un solo nodo, y **no** envuelve `StatusPill`» con las dos razones verificadas, para que
+nadie lo revierta por parecer más idiomático.
+
+**Lo que generaliza:** antes de escribir varios criterios sobre «el chip» o «el badge», comprueba en
+el `node_modules` real **cuántos nodos** monta ese componente y **qué lleva cada uno**. Si la clase,
+el texto y el color no caen en el mismo elemento, o los criterios se reparten nombrando cada nodo, o
+el componente se colapsa a uno. Decidirlo al escribir el contrato cuesta un `grep`; descubrirlo en
+el paso 5 cuesta tres intentos y una enmienda.
+
+---
+
+## Adenda F-039 — dos nodos con la misma etiqueta, y el localizador toma el que va primero
+
+Variante nueva, y la destapó el propio `qa` en su script de verificación antes de dar por bueno
+ningún criterio.
+
+En `/reportes/rentabilidad`, «Ganancia final» y «Margen bruto» **etiquetan dos nodos cada una**:
+uno en el `StatStrip` de arriba —que F-039 no toca— y otro en la cascada del estado de resultados,
+que es el que el criterio quería medir. Un localizador por texto devuelve el primero del DOM, que
+es el equivocado.
+
+Es el mismo mecanismo que la ficha original, pero sin ningún contenedor de MUI de por medio: aquí
+no se falla por medir el `Container` del `Layout` en vez del de la página, sino por medir **la
+tarjeta en vez de la fila**. La cifra que devuelve es plausible, y en un período sin crédito las
+dos coinciden — así que un escenario mal elegido pasa el criterio con el localizador roto.
+
+**La regla, ampliada:** antes de anclar un criterio en un texto, **cuenta cuántos nodos de la
+página lo contienen**. Si son dos, el criterio necesita un `data-testid`, no un texto. Y elige un
+escenario donde los dos nodos tengan **valores distintos**, o el localizador equivocado acierta
+por accidente (E-008).

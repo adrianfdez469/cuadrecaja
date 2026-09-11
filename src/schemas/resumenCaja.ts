@@ -9,6 +9,9 @@ export const resumenCajaMonedaSchema = z.object({
   // Propina en efectivo ya incluida en ventasEfectivo/totalEsperado. Se
   // reporta aparte para que el cajero sepa cuánto de la gaveta no es suyo.
   tipCash: z.number(),
+  // Debt collected in cash during the open period. Already inside totalEsperado and kept
+  // out of ventasEfectivo, so the widget can tell a sale from the collection of an old debt.
+  cobrosCreditoEfectivo: z.number(),
 });
 
 export const resumenCajaResponseSchema = z.object({

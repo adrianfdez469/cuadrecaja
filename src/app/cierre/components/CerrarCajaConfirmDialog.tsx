@@ -26,6 +26,12 @@ import {
 import { previewGastosCierre } from "@/services/gastoService";
 import type { IGastoPreview } from "@/schemas/gastos";
 import { formatCurrency, formatMontoEnMoneda } from "@/utils/formatters";
+import {
+  hasCreditToExplain,
+  readCreditFlow,
+  CREDIT_TEST_IDS,
+} from "@/app/cierre/utils/creditoCierre";
+import { CREDIT_COPY } from "@/app/cierre/utils/creditoCierreCopy";
 import DeferredSalesNotice from "./DeferredSalesNotice";
 
 interface Props {
@@ -254,7 +260,7 @@ export default function CerrarCajaConfirmDialog({
 
   // The cut the screen was showing when this dialog opened, against what the
   // server holds now. `null` on both sides means there is no cut, and then this
-  // dialog is exactly the one it was before F-029.
+  // dialog is exactly the one it was before F-031.
   const expectedCutoffAt = cierreData.salesCutoff?.cutoffAt ?? null;
   const cutoffChanged =
     !loadingCutoff &&
@@ -262,6 +268,20 @@ export default function CerrarCajaConfirmDialog({
     !sameCutoff(salesCutoff.cutoffAt, expectedCutoffAt);
   const showDeferredNotice =
     expectedCutoffAt !== null || salesCutoff?.cutoffAt != null;
+
+  // Derived, not state: it depends only on cierreData, so it needs no effect and
+  // cannot be left stale by one. It is NOT pushed into `warnings`: that array is
+  // what decides the "no problems found" state, and credit is not a problem.
+  const creditFlow = readCreditFlow(cierreData);
+  const creditNotice: IWarning | null = hasCreditToExplain(creditFlow)
+    ? {
+        severity: "info",
+        text: CREDIT_COPY.closeDialogNotice(
+          formatCurrency(creditFlow.granted),
+          formatCurrency(creditFlow.collected),
+        ),
+      }
+    : null;
 
   const handleConfirm = async () => {
     setConfirming(true);
@@ -327,6 +347,18 @@ export default function CerrarCajaConfirmDialog({
             isMobile={isMobile}
             onRefresh={onRefresh}
           />
+        )}
+
+        {/* Its own Alert, outside `warnings`: credit is not a discrepancy and
+            it does not block the close. Read before the figures it explains. */}
+        {creditNotice && (
+          <Alert
+            severity={creditNotice.severity}
+            data-testid={CREDIT_TEST_IDS.closeDialogNotice}
+            sx={{ mt: 2, py: 0.5 }}
+          >
+            {creditNotice.text}
+          </Alert>
         )}
 
         {!loading && gastosRecurrentes.length > 0 && (

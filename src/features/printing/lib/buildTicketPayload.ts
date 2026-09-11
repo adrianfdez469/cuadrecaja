@@ -81,6 +81,13 @@ export function buildTicketPayload(
         ? sale.discountCodes
         : undefined,
     tipTotal: sale.tipTotal,
+    // Both read from the Sale, NEVER from `total - totalcash - totaltransfer`: that
+    // subtraction is exactly what bug 2 gets wrong, and it is not reproduced in the printing
+    // path either (E-013).
+    creditoBase:
+      sale.creditoBase && sale.creditoBase > 0 ? sale.creditoBase : undefined,
+    clienteNombre:
+      sale.creditoBase && sale.creditoBase > 0 ? sale.clienteNombre : undefined,
     pagosDetalle: plantilla.mostrarMultimoneda ? sale.pagosDetalle : undefined,
     vueltoDetalle: plantilla.mostrarMultimoneda
       ? sale.vueltoDetalle

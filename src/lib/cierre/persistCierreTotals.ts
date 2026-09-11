@@ -27,6 +27,10 @@ export async function persistCierreComputation(
   computation: CierreComputation,
   options: PersistCierreOptions = {},
 ): Promise<PersistCierreResult> {
+  // Receivables are NEVER written from here. Unlike ProductoProveedorLiquidacion below,
+  // which this function deletes and recreates, CuentaPorCobrar and its append-only ledger
+  // are read-only to the closing engine: totalPorCobrarAlCierre is DERIVED from them, and
+  // a recalculation that rewrote them would change what it is supposed to be measuring.
   await tx.cierrePeriodo.update({
     where: { id: cierreId },
     data: {

@@ -78,6 +78,22 @@ export const createSell = async (
                     tipDetail: multimoneda.tipDetail,
                   }
                 : {}),
+              // Credit travels inside `multimoneda`, by the same road as monedaCobro and
+              // pagosDetalle — not as positional parameters fifteen, sixteen and seventeen.
+              // The signature of createSell does not change, and neither does the
+              // idempotency header: the syncId is still the axis and re-sending is still
+              // safe (E-043).
+              ...(multimoneda.creditoBase && multimoneda.creditoBase > 0
+                ? {
+                    creditoBase: multimoneda.creditoBase,
+                    ...(multimoneda.clienteId
+                      ? { clienteId: multimoneda.clienteId }
+                      : {}),
+                    ...(multimoneda.clienteNombre
+                      ? { clienteNombre: multimoneda.clienteNombre }
+                      : {}),
+                  }
+                : {}),
             }
           : {}),
       },

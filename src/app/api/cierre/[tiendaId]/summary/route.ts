@@ -150,6 +150,12 @@ export async function GET(
             totalMerma: true,
             totalDevoluciones: true,
             totalTips: true,
+            // Same `_sum`, same `where: filtros` — that is what keeps these
+            // two scoped to a single tienda. `totalPorCobrarAlCierre` is
+            // deliberately absent: it is a stock, and summing it across
+            // periods counts the same debt once per period.
+            totalCreditoOtorgado: true,
+            totalCobrosCredito: true,
           },
           where: filtros,
         }),
@@ -219,6 +225,11 @@ export async function GET(
         discountTotal: Number(v.discountTotal ?? 0),
         tipTotal: Number(v.tipTotal ?? 0),
         totaltransfer: v.totaltransfer,
+        // Synthetic sale for the drift check only: valueSales/sumSalesTotals never read
+        // creditoBase, so 0 changes no figure this route reports. It is here because
+        // CierreSale.creditoBase is required; the real value belongs to F-036, which owns
+        // this file and the two credit sums it has to add.
+        creditoBase: 0,
         tasaSnapshot: (v.tasaSnapshot as ITasaSnapshot | null) ?? null,
         pagosDetalle: null as IPagoLinea[] | null,
         vueltoDetalle: null as IVueltoLinea[] | null,
@@ -286,6 +297,8 @@ export async function GET(
       sumTotalComprasCaja: totales._sum.totalComprasCaja ?? 0,
       sumTotalGananciaFinal: totales._sum.totalGananciaFinal ?? 0,
       sumTotalTips: totales._sum.totalTips ?? 0,
+      sumTotalCreditoOtorgado: totales._sum.totalCreditoOtorgado ?? 0,
+      sumTotalCobrosCredito: totales._sum.totalCobrosCredito ?? 0,
       totalItems: totalCierres,
     });
   } catch (_error: unknown) {

@@ -80,6 +80,7 @@ export async function GET(
             : "Sin destino asignado",
         })),
         totalBase: results.pagos.totalBase,
+        totalCobradoBase: results.pagos.totalCobradoBase,
         ventasEstimadas: results.pagos.ventasEstimadas,
       },
     };

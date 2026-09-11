@@ -5,7 +5,9 @@ import {
   TICKET_MARKETING_QR_LABEL,
   TICKET_MARKETING_URL,
 } from "@/constants/ticket";
+import { CREDIT_TICKET_COPY } from "@/constants/creditoVenta";
 import { convertFromBase } from "@/lib/currency";
+import { stripControlCharacters } from "@/utils/printableText";
 import { ITicketPayload, ITicketRenderedLine } from "../types/ITicketData";
 import {
   formatTicketAmount,
@@ -29,12 +31,31 @@ function feedLine(marker: boolean): ITicketRenderedLine {
   return { kind: "feed", marker };
 }
 
+/**
+ * The two module functions that build EVERY text line of the ticket, and therefore the one
+ * place the control bytes are taken out (ADR 0120).
+ *
+ * Here and not at the customer's interpolation, for three reasons: it closes the whole class
+ * in one place — `Cajero: …` carries Usuario.nombre, the product blocks carry the product
+ * name and the footer carries `plantilla.pie`, none of which has a character bound and none
+ * of which is F-034's; it covers what the schema cannot, because the `.refine` is an ENTRANCE
+ * door and says nothing about rows written before it existed; and it is the cheapest place
+ * F-034 is entitled to touch — `escpos/encoder.ts`, where the debt really lives, is not in
+ * its list and is NOT touched.
+ *
+ * What this does NOT promise (E-017): it does not stop ESC bytes from reaching the printer —
+ * `encodeTicketToEscPos` emits them on purpose to align, cut and draw the QR. What it
+ * guarantees is that none of them comes from the text of a field.
+ *
+ * `blankLine`, `feedLine` and `qrLine` do not go through here and do not need to: they build
+ * their own content.
+ */
 function center(text: string): ITicketRenderedLine {
-  return { kind: "text", text, align: "center" };
+  return { kind: "text", text: stripControlCharacters(text), align: "center" };
 }
 
 function left(text: string): ITicketRenderedLine {
-  return { kind: "text", text, align: "left" };
+  return { kind: "text", text: stripControlCharacters(text), align: "left" };
 }
 
 function qrLine(url: string): ITicketRenderedLine {
@@ -211,6 +232,30 @@ export function buildTicketLines(
   }
 
   lines.push(left(fullSeparator(width, "=")));
+
+  // OUTSIDE the `mostrarMultimoneda` gate and with no template flag of its own: what a
+  // customer owes is the receipt of the operation itself, not an optional section.
+  //
+  // The customer line uses the same mould as `Cajero: …` — free text on the left, no column
+  // — because a long name does not fit a 32-character column; the balance uses `padLine`,
+  // like `Propina` and `Descuento`.
+  if (payload.creditoBase != null && payload.creditoBase > 0) {
+    if (payload.clienteNombre) {
+      lines.push(
+        left(`${CREDIT_TICKET_COPY.clienteLabel}: ${payload.clienteNombre}`),
+      );
+    }
+    lines.push(
+      left(
+        padLine(
+          CREDIT_TICKET_COPY.saldoLabel,
+          formatTicketAmount(payload.creditoBase),
+          width,
+        ),
+      ),
+    );
+    lines.push(left(fullSeparator(width, "-")));
+  }
 
   if (plantilla.mostrarMultimoneda) {
     const paymentLines = buildPaymentLines(payload, width);

@@ -18,6 +18,7 @@ import type {
 } from "@/lib/tiendaOnline/orderLandingPlan";
 import { movimientoCreateSchema } from "@/schemas/movimiento";
 import { pagoLineaSchema } from "@/schemas/pago";
+import { checkCreditInvariant } from "@/lib/cuentasPorCobrar/creditInvariant";
 import { formatMovimientoMotivo } from "@/utils/formatters";
 import {
   QAB_ORDER_STATUS_REPORTABLE,
@@ -401,6 +402,125 @@ describe("buildOnlineSaleAmounts", () => {
     });
 
     expect(amounts.total).toBe(250);
+  });
+
+  /**
+   * F-038 (contract § 4, § 8.2 point 2) — the THIRD branch, CREDITO. It moves
+   * nothing into either cash column and contributes NO `pagosDetalle` line:
+   * that absence is what keeps the period's cash reconciliation untouched by
+   * construction (criterion 2), because `buildResumenMonedas` only ever walks
+   * `pagosDetalle`.
+   *
+   * The "identical total" assertion is what discriminates (E-008): a branch
+   * that returned 0 for everything would still pass `totalcash === 0` and
+   * `totaltransfer === 0`, so the suite also compares `total` against what the
+   * OTHER two branches compute from the exact same input — proving the credit
+   * branch reuses the same `convertToBase` call and does not invent its own
+   * arithmetic.
+   */
+  it("CREDITO puts the whole total in creditoBase, moves NOTHING to totalcash/totaltransfer, and contributes NO pagosDetalle line", () => {
+    const args = {
+      pedidoTotal: 10,
+      pedidoCurrencyCode: "USD",
+      monedaBase: "CUP",
+      tasas: { USD: 400 },
+    };
+
+    const creditAmounts = buildOnlineSaleAmounts({
+      ...args,
+      pago: { metodo: "CREDITO", clienteId: UUID_A },
+    });
+    const cashAmounts = buildOnlineSaleAmounts({
+      ...args,
+      pago: { metodo: "EFECTIVO" },
+    });
+    const transferAmounts = buildOnlineSaleAmounts({
+      ...args,
+      pago: { metodo: "TRANSFERENCIA", transferDestinationId: UUID_DEST },
+    });
+
+    expect(creditAmounts.totalcash).toBe(0);
+    expect(creditAmounts.totaltransfer).toBe(0);
+    expect(creditAmounts.pagosDetalle).toEqual([]);
+    expect(creditAmounts.creditoBase).toBe(creditAmounts.total);
+    expect(creditAmounts.transferDestinationId).toBeUndefined();
+    expect(creditAmounts.monedaCobro).toBe("USD");
+
+    // The SAME total the other two branches compute from the same input —
+    // the credit branch does not run its own conversion.
+    expect(creditAmounts.total).toBe(4000);
+    expect(creditAmounts.total).toBe(cashAmounts.total);
+    expect(creditAmounts.total).toBe(transferAmounts.total);
+
+    // The other two branches never carry a credit.
+    expect(cashAmounts.creditoBase).toBe(0);
+    expect(transferAmounts.creditoBase).toBe(0);
+  });
+
+  it("CREDITO carries the order's own currency and amount as informative fields, read by no arithmetic", () => {
+    const amounts = buildOnlineSaleAmounts({
+      pedidoTotal: 20,
+      pedidoCurrencyCode: "USD",
+      monedaBase: "CUP",
+      tasas: { USD: 400 },
+      pago: { metodo: "CREDITO", clienteId: UUID_A },
+    });
+
+    expect(amounts.monedaDeudaCode).toBe("USD");
+    expect(amounts.montoDeudaMonedaOriginal).toBe(20);
+  });
+
+  it("a zero-total order declared CREDITO still yields creditoBase: 0 and the two informative debt fields (contract § 4.3)", () => {
+    const amounts = buildOnlineSaleAmounts({
+      pedidoTotal: 0,
+      pedidoCurrencyCode: "USD",
+      monedaBase: "CUP",
+      tasas: { USD: 400 },
+      pago: { metodo: "CREDITO", clienteId: UUID_A },
+    });
+
+    expect(amounts.total).toBe(0);
+    expect(amounts.creditoBase).toBe(0);
+    expect(amounts.pagosDetalle).toEqual([]);
+    // Deliberately gated on isCredit alone and not on pedidoTotal > 0 (§ 4.3):
+    // sellOrder never reads these two for a zero total, since its own guard
+    // is creditoBase > 0, but they still travel.
+    expect(amounts.monedaDeudaCode).toBe("USD");
+    expect(amounts.montoDeudaMonedaOriginal).toBe(0);
+  });
+});
+
+/**
+ * F-038 (contract § 5.2, § 8.2 point 3) — `checkCreditInvariant` is NOT called
+ * at runtime by `sellOrder` (contract § 5.2 explains why: it would be a
+ * function checking its own output, an unreachable and therefore untested
+ * rejection branch, E-032). The guarantee is obtained here instead: the
+ * output of the third branch of `buildOnlineSaleAmounts` must satisfy the
+ * invariant `checkCreditInvariant` already enforces for the POS's own credit
+ * sales (F-031), with no tip and no change.
+ */
+describe("checkCreditInvariant over the third branch of buildOnlineSaleAmounts", () => {
+  it("is ok: true, violation: null for a CREDITO order with no tip and no change", () => {
+    const amounts = buildOnlineSaleAmounts({
+      pedidoTotal: 10,
+      pedidoCurrencyCode: "USD",
+      monedaBase: "CUP",
+      tasas: { USD: 400 },
+      pago: { metodo: "CREDITO", clienteId: UUID_A },
+    });
+
+    const result = checkCreditInvariant({
+      total: amounts.total,
+      creditoBase: amounts.creditoBase,
+      clienteId: UUID_A,
+      pagosDetalle: amounts.pagosDetalle,
+      vueltoDetalle: [],
+      tasaSnapshot: { USD: 400 },
+      monedaBase: "CUP",
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.violation).toBeNull();
   });
 });
 
