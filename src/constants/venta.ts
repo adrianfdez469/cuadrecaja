@@ -25,17 +25,37 @@ export const SALE_ORIGINS = ["POS", "TIENDA_ONLINE"] as const;
 export type ISaleOrigin = (typeof SALE_ORIGINS)[number];
 
 /**
- * Lowest syncAttempts value that, on its own, means a sale needed more than
- * one try to reach the server.
+ * Lowest syncAttempts a row must hold to evidence a retry WHEN THE ROW DOES NOT
+ * DECLARE WHAT ITS COUNTER COUNTS — that is, when syncAttemptsAreFailures is
+ * absent.
  *
- * 2 and not 1, because two clients count differently into the same column:
- * the online POS path sends a literal 1 for a first-attempt sale, while the
- * offline queue and the manual resend send the counter as it stood BEFORE the
- * attempt, so a first-try success stores 0. Both 0 and 1 are therefore
- * produced by sales that needed no retry; 2 is not produced by any first
- * attempt of this repo's POS. ADR 0112.
+ * 2 and not 1, and this is NOT a rounding choice: before F-034 the online POS
+ * path stored a literal 1 for a sale that synced on its first try, so a stored
+ * 1 on an undeclared row is indistinguishable — FOREVER, that datum is gone —
+ * between "no retry at all" and "one real retry". 2 is the lowest value no
+ * first attempt of THIS REPO'S POS OR THE APK could have produced; a client
+ * that counted from 2 would still light the section on its first try, and that
+ * caveat is ADR 0112's, kept here on purpose. ADR 0112, ADR 0113.
  */
 export const SALE_SYNC_TRACE_MIN_ATTEMPTS = 2;
+
+/**
+ * Lowest syncAttempts a row must hold to evidence a retry WHEN THE ROW DECLARES
+ * that its counter counts failed attempts (syncAttemptsAreFailures === true).
+ *
+ * 1, because under that convention one stored unit IS one failed attempt: there
+ * is nothing to discount. ADR 0113.
+ */
+export const SALE_SYNC_TRACE_MIN_FAILED_ATTEMPTS = 1;
+
+/**
+ * What every sale POSTed by THIS bundle declares about its own counter.
+ *
+ * It is a property of the code that sends, not of the sale: every write path in
+ * this repository counts failed attempts after F-034, so the value is fixed and
+ * lives in one place instead of being typed at each call site.
+ */
+export const SALE_SYNC_ATTEMPTS_ARE_FAILURES = true;
 
 /**
  * The closed vocabulary of reasons a sale carries a sync trace, IN THE ORDER

@@ -122,6 +122,7 @@ export async function POST(
       createdAt,
       wasOffline,
       syncAttempts,
+      syncAttemptsAreFailures,
       discountCodes,
       // Multimoneda (opcionales — backward-compatible)
       monedaCobro,
@@ -491,6 +492,12 @@ export async function POST(
             frontendCreatedAt: createdAt ? new Date(createdAt) : null,
             wasOffline: wasOffline || false,
             syncAttempts: syncAttempts || 0, // 🆕 Usar syncAttempts enviado desde frontend
+            // Only an explicit declaration marks the row. Anything else — a
+            // stale bundle that does not send the field, a malformed body —
+            // leaves it NULL, which the predicate reads with the conservative
+            // threshold.
+            syncAttemptsAreFailures:
+              syncAttemptsAreFailures === true ? true : null,
             discountTotal: discountTotalCalc || 0,
             productos: {
               create: productosMegrados.map((p) => ({
@@ -1010,6 +1017,7 @@ export async function GET(
         frontendCreatedAt: venta.frontendCreatedAt ?? undefined,
         wasOffline: venta.wasOffline,
         syncAttempts: venta.syncAttempts,
+        syncAttemptsAreFailures: venta.syncAttemptsAreFailures ?? undefined,
         total: venta.total,
         totalcash: venta.totalcash,
         totaltransfer: venta.totaltransfer,

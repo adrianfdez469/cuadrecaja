@@ -5,6 +5,7 @@ import axiosClient, {
 import { IVenta } from "@/schemas/venta";
 import { IProductoVenta } from "@/schemas/producto";
 import type { IMultimonedaExtras } from "@/schemas/pago";
+import { SALE_SYNC_ATTEMPTS_ARE_FAILURES } from "@/constants/venta";
 
 const API_URL = (tiendaId: string, cierreId: string) =>
   `/api/venta/${tiendaId}/${cierreId}`;
@@ -61,6 +62,10 @@ export const createSell = async (
         createdAt,
         wasOffline,
         syncAttempts,
+        // What this bundle's counter counts. Declared by the sender, never
+        // inferred by the server, so a stale tab still running the previous
+        // bundle does NOT get its rows marked as aligned.
+        syncAttemptsAreFailures: SALE_SYNC_ATTEMPTS_ARE_FAILURES,
         transferDestinationId,
         ...(discountCodes && discountCodes.length > 0 ? { discountCodes } : {}),
         ...(multimoneda

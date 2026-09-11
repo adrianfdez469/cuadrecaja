@@ -48,6 +48,7 @@ export const ventaSchema = z.object({
   frontendCreatedAt: z.coerce.date().optional(),
   wasOffline: z.boolean().optional(),
   syncAttempts: z.number().int().optional(),
+  syncAttemptsAreFailures: z.boolean().optional(),
   appliedDiscounts: z.array(appliedDiscountSchema).optional(),
   transferDestinationId: z.string().uuid().optional(),
   transferDestination: z

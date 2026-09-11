@@ -405,6 +405,11 @@ export async function POST(
             frontendCreatedAt: createdAt ? new Date(createdAt) : null,
             wasOffline: wasOffline || false,
             syncAttempts: syncAttempts || 0,
+            // The APK already counts failed attempts (criterion 3 of F-034
+            // states it as a verified fact). Stamped here rather than asked of
+            // the client so the external /api/app contract does not have to
+            // change at all.
+            syncAttemptsAreFailures: true,
             discountTotal: discountTotalCalc || 0,
             productos: {
               create: productosMergeados.map((p) => ({

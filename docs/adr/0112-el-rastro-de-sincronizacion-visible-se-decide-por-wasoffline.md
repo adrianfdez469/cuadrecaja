@@ -1,8 +1,14 @@
 # ADR 0112: El rastro de sincronización visible se decide por `wasOffline`, y `syncAttempts` solo cuenta desde 2
 
-**Estado:** aceptado
+**Estado:** aceptado — **su umbral está enmendado por el [ADR 0113](0113-la-fila-declara-si-su-contador-cuenta-fallos-y-el-umbral-sale-de-esa-marca.md)** (2026-09-11)
 **Fecha:** 2026-09-10
 **Feature:** F-032
+
+> **El segundo hemistiquio del título —«y `syncAttempts` solo cuenta desde 2»— ya no es cierto sin
+> condición.** Desde F-034 el umbral depende de si la fila declara qué cuenta su contador: `1`
+> cuando lo declara, `2` cuando no. Lo que sigue vigente sin cambios es la señal principal
+> (`wasOffline`) y la prohibición de derivar nada de la distancia entre `frontendCreatedAt` y
+> `createdAt`. Ver la **enmienda del 2026-09-11**, al final de este documento.
 
 ## Contexto
 
@@ -110,6 +116,7 @@ cual**: es lo que esa columna es, y derivar o parafrasear cualquier otra cosa se
 | `wasOffline` a secas | Deja fuera la venta **creada con conexión** que terminó en la cola de reintentos: `wasOffline` se sella al crearla (`!isOnline`) y no se revisa después. El criterio 6 define «ordinaria» como *«no offline, **sin reintentos**»*, así que los reintentos forman parte de la definición |
 | Derivar de la distancia entre `frontendCreatedAt` y `createdAt`, con o sin umbral | Verificado en `.agents/designs/F-031.md`: es no nula en **toda** venta, también en línea. El ADR 0108 ya descartó los umbrales de desfase por convertir el criterio en función del fixture |
 | Unificar antes las dos convenciones de conteo de `syncAttempts` en el POS | Cambia lo que se **escribe**, no lo que hay escrito: haría falta además un backfill de las filas ya guardadas, y F-032 excluye explícitamente corregir ninguna fila existente. Queda declarado como deuda, abajo |
+| ~~Una columna nueva `syncedLate` calculada al insertar~~ · ~~`>= 1` en vez de `>= 2`~~ · ~~unificar las convenciones~~ | **Las tres las revisó el ADR 0113 por su nombre y dos de ellas se adoptaron en otra forma.** Ver la enmienda del 2026-09-11 |
 | Umbral `>= 1` en vez de `>= 2` | Es el mismo defecto que `> 0` con otro nombre: `1` es lo que guarda una venta en línea de primera tentativa |
 | Deducirlo de la presencia de `syncId` | Toda venta del POS lo lleva; no discrimina nada |
 | Una columna nueva `syncedLate` calculada al insertar | Migración más backfill, fuera del alcance; y congelaría en la escritura una regla que hoy se deriva de datos que ya están |
@@ -168,3 +175,62 @@ cual**: es lo que esa columna es, y derivar o parafrasear cualquier otra cosa se
   `Venta`.
 - **Reversión barata:** sin migración ni columna. Revertir el código devuelve el `GET` a omitir los
   dos campos y el diálogo a no tener sección.
+
+
+---
+
+## Enmienda del 2026-09-11: el umbral deja de ser una constante (F-034, ADR 0113)
+
+Se anota aquí, en el propio documento y con fecha, para que nadie lea el criterio de arriba como
+vigente ni descubra la contradicción leyendo el código (**E-030**).
+
+**Lo que este ADR declaró como deuda está pagado.** Su lista de *En contra* decía: *«las dos
+convenciones de conteo de `syncAttempts` no se corrigen aquí, ni en el código ni en los datos»*.
+F-034 corrige el código: el camino en línea del POS web deja de mandar el literal `1` y manda, como
+la cola y como el APK, el contador tal como estaba antes del intento. **Los datos ya guardados
+siguen sin corregirse, y no se pueden corregir**: una fila antigua con `1` es indistinguible para
+siempre entre «en línea sin reintentos» y «de cola con uno».
+
+**Lo que cambia de este documento:**
+
+- **El `>= 2` deja de valer para todo.** El umbral pasa a ser una función pura de la fila:
+  `1` si la fila declara que su contador cuenta fallos (`Venta.syncAttemptsAreFailures === true`),
+  `2` si no lo declara. `SALE_SYNC_TRACE_MIN_ATTEMPTS = 2` **conserva su nombre y su valor**, pero
+  su docstring cambia: ya no justifica el `2` con «dos clientes cuentan distinto», sino con «las
+  filas sin declaración son ambiguas».
+- **La justificación del `2` de este ADR queda como justificación de la rama sin declaración.**
+  No se borra: describe correctamente por qué una fila que no declara nada no puede bajar de `2`.
+- **Tres de sus alternativas descartadas las revisó el ADR 0113 por su nombre**: «una columna nueva
+  calculada al insertar» (se adopta, sin backfill y guardando **procedencia**, no la regla
+  calculada), «umbral `>= 1`» (se adopta **solo** para las filas declaradas) y «unificar antes las
+  dos convenciones» (se hace, y es F-034).
+- **Sobre el APK, este ADR afirmaba menos de lo que ahora se afirma.** Decía: *«lo que ese cliente
+  decida marcar es suyo, y esta decisión no lo puede afirmar»*. El criterio 3 de F-034, congelado,
+  **sí lo afirma** —con `sync_service.dart:497`, `:548` y `:958` como fuente— y sobre esa premisa
+  descansa el sello de `/api/app`. Es una premisa heredada, y su excepción está escrita en el 0113.
+
+**Lo que NO cambia, y por eso este ADR no queda reemplazado:**
+
+- **La señal principal sigue siendo `wasOffline`.**
+- **Nada se deriva de la distancia entre `frontendCreatedAt` y `createdAt`**, bajo ningún umbral.
+- **`hasSyncTrace` sigue definiéndose como «el selector devolvió algo»**, y la regla sigue escrita
+  una sola vez dentro de `saleSyncTraceReasons` — la enmienda del 2026-09-10, más arriba, sigue en
+  pie tal cual.
+- **Ninguna fila ya guardada se reclasifica ni se re-etiqueta.** Una fila antigua con `1` se sigue
+  clasificando exactamente como hoy: sin rastro.
+
+**Lo que cambia de comportamiento, y es deliberado:** este ADR decía en su lista de *En contra* que
+*«una venta creada en línea que acabó en la cola y sincronizó al segundo intento se guarda con `1`
+y por tanto no enciende la sección»*. A partir de F-034, una venta **nueva** en esa situación **sí**
+la enciende. Bajo la convención alineada `1` es un fallo, y seguir exigiendo `2` sería sub-marcar un
+rastro real.
+
+**Y una consecuencia sobre una pantalla que este ADR no nombraba:** «Mis Ventas» del POS
+(`SalesDrawer.tsx`) **compone** `(N intentos)` con su propio gate `sale.syncAttempts > 0`, dentro de
+un campo `status` que **nadie lee** — verificado el 2026-09-11: de los cuatro campos que devuelve
+`formatSaleInfo`, la pantalla consume solo `date` y `products`. La cifra nunca llegó al DOM, así que
+la decisión de este ADR de **no pintarla** se venía cumpliendo ahí **por accidente**. F-034 borra el
+bloque, por el criterio 8 —la comparación está viva aunque su texto no se lea— y con eso pasa a
+cumplirse **por construcción** en todas las pantallas de este repositorio. Su condición para
+reponerla algún día ya no es «unificar las convenciones», sino «solo sobre las filas que llevan la
+marca».

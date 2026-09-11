@@ -460,16 +460,13 @@ export const SalesDrawer: FC<IProps> = ({
 
   const formatSaleInfo = (sale: Sale) => {
     const createdDate = formatDateTime(sale.createdAt);
-    // 🆕 Mostrar intentos solo si la venta no está sincronizada o si tiene intentos
-    const syncAttemptsText =
-      sale.syncAttempts > 0 ? ` (${sale.syncAttempts} intentos)` : "";
     const offlineText = sale.wasOffline
       ? " - Creada offline"
       : " - Creada online";
 
     return {
       date: createdDate.toLocaleString(),
-      status: `${sale.syncState}${syncAttemptsText}${offlineText}`,
+      status: `${sale.syncState}${offlineText}`,
       total: `$${sale.total.toFixed(2)}`,
       products: sale.productos.length,
     };

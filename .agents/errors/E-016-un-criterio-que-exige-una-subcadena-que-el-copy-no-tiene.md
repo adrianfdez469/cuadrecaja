@@ -1,7 +1,7 @@
 # E-016: Un criterio verificable que exige una subcadena que el copy dictado no contiene
 
 **Área:** ui
-**Apariciones:** 5 — F-005 (dos veces en el mismo documento: criterios 43 y 20) · F-020 (criterio 23) · F-011 (dos variantes nuevas) · F-012 (dos más, y una invierte el modo de fallo) · F-023 (la subcadena prohibida **dentro de una palabra del propio copy**; cazada por el `ui-designer` antes de escribirse). Ver las adendas.
+**Apariciones:** 7 — F-005 (dos veces en el mismo documento: criterios 43 y 20) · F-020 (criterio 23) · F-011 (dos variantes nuevas) · F-012 (dos más, y una invierte el modo de fallo) · F-023 (la subcadena prohibida **dentro de una palabra del propio copy**; cazada por el `ui-designer` antes de escribirse) · F-031 (dos formas: la granularidad del formateador, y `sync` dentro de `async`) · **F-034 (el call site de la función en vez del consumo del campo)**. Ver las adendas.
 
 ## Síntoma
 
@@ -213,3 +213,62 @@ Un comentario no es una fuente: **abre el formateador**.
 un criterio de ausencia sobre `src/app/ventas/`; el `grep` da seis coincidencias y **todas son de
 `async`**. Es la misma forma que `administre` conteniendo `admin`, ya registrada arriba: antes de
 prohibir una subcadena, búscala **en el código que la rodea**, no solo en el copy.
+
+## Adenda F-034 (2026-09-11) — se grepeó el CALL SITE de la función, no el CONSUMO del campo
+
+La variante más cara de todas hasta ahora, no por lo que costó arreglar —texto— sino por hasta
+dónde llegó: **un hecho falso sobre lo que una pantalla pinta atravesó el spec, el contrato de
+interfaces y un ADR aceptado**, y estuvo a punto de fijar la justificación de una decisión.
+
+El spec de F-034 afirmaba que «Mis Ventas» del POS *«hoy ya pinta `(1 intentos)` en toda venta en
+línea ordinaria»*, y lo daba por **verificado por `grep`**. La comprobación que lo respaldaba era:
+
+```
+grep -n "formatSaleInfo" src/app/pos/components/SalesDrawer.tsx
+  595:  const saleInfo = formatSaleInfo(s);   ← rama móvil
+  797:  const saleInfo = formatSaleInfo(s);   ← rama escritorio
+```
+
+Cierto, y **no prueba nada**: eso es el *call site* de la función, no el consumo de su resultado.
+`formatSaleInfo` devuelve cuatro campos y la pantalla **lee dos**:
+
+```
+grep -n "saleInfo\." src/app/pos/components/SalesDrawer.tsx
+  647:  {saleInfo.date}    841:  {saleInfo.products}    847:  {saleInfo.date}
+```
+
+`status` —el campo que llevaba `` (N intentos)``, el `syncState` crudo y el texto
+*«Creada online/offline»*— **se compone y se descarta**. Nunca llegó al DOM. Y `total`, su vecino,
+estaba igual de muerto: apareció al repetir la comprobación con los campos de al lado.
+
+**Lo halló el `ui-designer`** al tocarle mirar esa pantalla, y lo verificó el coordinador antes de
+pasarlo. No se buscaba: salió porque el mandato obligaba a describir lo que la pantalla enseña.
+
+### Por qué es E-016 y no otra cosa
+
+Es el mismo mecanismo de siempre —**una comprobación textual que casa con algo parecido a lo que se
+quería comprobar**— un escalón más arriba: no es una subcadena dentro de otra palabra, es un
+**símbolo dentro del ámbito equivocado**. `formatSaleInfo` aparece, sí, pero en la línea que la
+llama, no en la que pinta. El resultado es idéntico al de las otras seis apariciones: el documento
+afirma algo del DOM que el DOM no sostiene.
+
+### Cómo evitarlo, en un comando
+
+> Para afirmar que una pantalla **pinta** algo, grepea el **consumo del campo**, no la llamada a la
+> función que lo produce: `grep -n "<campo>" <archivo>`. **Si la única línea que sale es la que lo
+> compone, no se pinta.**
+>
+> Y repítelo con los **campos vecinos del mismo objeto**: un objeto de presentación con un campo
+> muerto suele tener más de uno, y así fue como apareció que `total` también lo estaba.
+
+### Lo que salvó la decisión
+
+Que el motivo estaba sobredeterminado. La línea había que borrarla igual, porque su gate
+—`sale.syncAttempts > 0`— viola el criterio 8 de F-034 esté vivo o muerto el texto que alimenta.
+**La decisión no cambió; cambió su motivo, y a uno más fuerte**: de «deja de pintar una cifra
+ambigua» a «borra código muerto que además incumple un criterio». La pantalla cumplía el criterio 7
+**por accidente** —bastaba escribir `{saleInfo.status}` en el JSX para romperlo— y pasa a cumplirlo
+**por construcción**.
+
+Si el motivo no hubiera estado sobredeterminado, el ADR habría quedado justificando una decisión
+correcta con un hecho falso, que es la forma en que estos errores sobreviven a su corrección.
