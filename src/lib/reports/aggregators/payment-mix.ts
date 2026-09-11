@@ -1,9 +1,10 @@
 import { convertToBase } from "@/lib/currency";
+import { PAYMENT_MIX_CREDIT_TYPE } from "@/constants/reportes";
 import type { SalesAggregator } from "./index";
 import type { NormalizedSale } from "../sales-stream";
 
 export type PaymentMixRow = {
-  /** "cash" | "transfer" */
+  /** "cash" | "transfer" | PAYMENT_MIX_CREDIT_TYPE. */
   tipo: string;
   moneda: string;
   /** Amount in the original currency — what was physically taken in. */
@@ -26,8 +27,22 @@ export type TransferDestinationRow = {
 export type PaymentMixResult = {
   rows: PaymentMixRow[];
   destinos: TransferDestinationRow[];
+  /**
+   * Every row added up, credit included. This is the denominator of
+   * `participacionPorcentaje`, so the shares of a period with credit add up to 100.
+   */
   totalBase: number;
-  /** Sales with no pagosDetalle, reconstructed from the legacy columns. */
+  /**
+   * Money physically taken in: every row whose `tipo` is not
+   * PAYMENT_MIX_CREDIT_TYPE. `add()` is called from exactly four places — the
+   * `pagosDetalle` loop, the two legacy rebuilds and the credit row — and the first
+   * three are money that reached the drawer, so "not credit" is the same set as
+   * "physically received" and is stated as the definition rather than as an
+   * enumeration of payment methods that would have to be kept in step with
+   * `pagoLineaSchema`.
+   */
+  totalCobradoBase: number;
+  /** Sales with no pagosDetalle and no credit, rebuilt from the legacy columns. */
   ventasEstimadas: number;
 };
 
@@ -95,6 +110,19 @@ export function createPaymentMixAggregator(
 
   return {
     consume(sale: NormalizedSale) {
+      // The credit row first, so it is added for a fully-credit sale and for a
+      // partially-credit one alike.
+      const creditAmount = sale.creditAmount;
+      if (creditAmount > 0) {
+        add(
+          PAYMENT_MIX_CREDIT_TYPE,
+          baseCurrency,
+          creditAmount,
+          creditAmount,
+          false,
+        );
+      }
+
       if (sale.payments && sale.payments.length > 0) {
         for (const payment of sale.payments) {
           add(
@@ -113,6 +141,11 @@ export function createPaymentMixAggregator(
         }
         return;
       }
+
+      // A sale with credit and no payment lines is NOT a legacy sale: its split is
+      // complete, it is just all on credit. Returning here is what keeps it out of
+      // `ventasEstimadas` and out of the "N sale(s) have no payment breakdown" notice.
+      if (creditAmount > 0) return;
 
       // Legacy sale: rebuild the split from the flat columns.
       ventasEstimadas += 1;
@@ -136,6 +169,11 @@ export function createPaymentMixAggregator(
     finalize() {
       const list = Array.from(rows.values());
       const totalBase = list.reduce((acc, row) => acc + row.montoBase, 0);
+      const totalCobradoBase = list.reduce(
+        (acc, row) =>
+          row.tipo === PAYMENT_MIX_CREDIT_TYPE ? acc : acc + row.montoBase,
+        0,
+      );
 
       const withShare: PaymentMixRow[] = list.map((row) => ({
         ...row,
@@ -149,6 +187,7 @@ export function createPaymentMixAggregator(
           (a, b) => b.montoBase - a.montoBase,
         ),
         totalBase,
+        totalCobradoBase,
         ventasEstimadas,
       };
     },

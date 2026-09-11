@@ -1,7 +1,7 @@
 # E-026: `npm test` en verde no implica `npx tsc --noEmit` limpio
 
 **Área:** tests
-**Apariciones:** 2 — F-006, F-008
+**Apariciones:** 3 — F-006, F-008 · F-037 (la forma más pura: verde en Vitest, rojo en `tsc`; ver la adenda del final)
 
 ## Síntoma
 
@@ -87,3 +87,29 @@ concreto** antes de cerrar, aunque la suite completa sea territorio ajeno:
 ```bash
 npx vitest run src/__tests__/routeGuardInventory.test.ts
 ```
+
+---
+
+## Adenda F-037 — la forma más pura de la ficha, y la más barata de arreglar
+
+Las dos apariciones anteriores eran de proceso. La de F-037 es el enunciado literal de la ficha, en
+su forma mínima.
+
+El `dev-tester` escribió `aggregator.finalize()` sin argumento. Los siete agregadores del repo
+**implementan** `finalize()` sin parámetro, así que en tiempo de ejecución funciona y **Vitest
+pasa en verde**. Pero la interfaz `SalesAggregator<T>` declara
+`finalize(context: AggregatorContext)` (`src/lib/reports/aggregators/index.ts:19`), así que
+`npx tsc --noEmit` da `TS2554: Expected 1 arguments, but got 0` — doce veces en un solo archivo.
+
+Lo destapó el **otro lado del paso 5**: el `implementer` corrió `tsc` sobre el árbol completo y lo
+vio, sin poder arreglarlo porque el archivo está en la frontera del `dev-tester`.
+
+Dos cosas que vale la pena quedarse:
+
+1. **La solución correcta fue adaptar el test, no el contrato.** Ampliar la firma a
+   `finalize(context?)` habría puesto la suite en verde cambiando la interfaz del producto para
+   acomodar un test. El patrón que ya existía en el repo —un `FAKE_CONTEXT` pasado como
+   `{} as AggregatorContext`— resuelve el mismo problema sin tocar nada de `src/`.
+2. **Una implementación puede ser más laxa que su interfaz sin que nadie lo note**, porque quien
+   la llama desde producción siempre pasa el argumento. El hueco solo aparece cuando un test la
+   llama directamente.

@@ -96,6 +96,17 @@ export type NormalizedSale = {
    * discount or an unreserved line all break that subtraction.
    */
   deliveryFeeBase: number;
+  /**
+   * Part of the sale handed over on credit, in base currency. Read verbatim from
+   * `Venta.creditoBase` (ADR 0104), NEVER deduced as `netAmount - sum(payments)`: an
+   * online order charges delivery that the lines do not carry, so that subtraction
+   * gives a different number for the same sale (spec criterion 3, E-013).
+   *
+   * REQUIRED, and always a finite number: `Venta.creditoBase` is `Float @default(0)`
+   * and not nullable, so "absent" is not a state this field can be in. 0 for every
+   * sale that was paid at the counter and for every sale older than the migration.
+   */
+  creditAmount: number;
   lines: NormalizedSaleLine[];
   discountsByRule: Map<string, DiscountRuleTotals>;
 };
@@ -415,6 +426,7 @@ function normalizeSale(
     netAmount: Math.max(0, grossAmount - discountTotal),
     netProfit,
     deliveryFeeBase,
+    creditAmount: venta.creditoBase ?? 0,
     lines,
     discountsByRule: perRule,
   };

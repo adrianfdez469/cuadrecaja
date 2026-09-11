@@ -40,6 +40,8 @@ export const operationsReportResponseSchema = z.object({
     mix: z.array(paymentMixRowSchema),
     destinos: z.array(transferDestinationRowSchema),
     totalBase: z.number(),
+    /** Base of the mix table's shares MINUS the synthetic credit row. */
+    totalCobradoBase: z.number(),
     ventasEstimadas: z.number(),
   }),
 });

@@ -51,6 +51,9 @@ function makeSale(overrides: Partial<NormalizedSale> = {}): NormalizedSale {
     // no delivery. Not this file's concern (see summaryEnvioTiendaOnline.test.ts),
     // but every NormalizedSale needs a value or the object stops compiling.
     deliveryFeeBase: 0,
+    // F-037, ADR 0131: REQUIRED on NormalizedSale, read from Venta.creditoBase.
+    // 0 here too — not this file's concern (see paymentMixCredito.test.ts).
+    creditAmount: 0,
     lines: [],
     discountsByRule: new Map(),
     origen: "POS",

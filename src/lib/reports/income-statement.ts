@@ -1,37 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import { convertToBase } from "@/lib/currency";
-import { calcularGananciaFinal } from "@/lib/gastos";
+import { assembleIncomeStatement } from "./income-statement-assembly";
 import type { ReportScope } from "./scope";
 import type { SalesSummary } from "./aggregators/summary";
 import type { ClosingDeductions } from "./closing-totals";
+import type { ExpenseLine, IncomeStatement } from "./income-statement-assembly";
 import type { ITasaSnapshot } from "@/schemas/tasaCambio";
 
-export type ExpenseLine = {
-  categoria: string;
-  naturaleza: "OPERATIVO" | "INVERSION";
-  monto: number;
-  cantidad: number;
-};
-
-export type IncomeStatement = {
-  ventasBrutas: number;
-  descuentos: number;
-  ventasNetas: number;
-  costoMercanciaVendida: number;
-  margenBruto: number;
-  margenBrutoPorcentaje: number;
-  /** OPERATIVO only — the closing's own definition of what reduces profit. */
-  gastosOperativos: number;
-  gastosPorCategoria: ExpenseLine[];
-  /** INVERSION expenses: they consume cash but never reduce profit. */
-  gastosInversion: number;
-  inversionPorCategoria: ExpenseLine[];
-  merma: number;
-  devoluciones: number;
-  gananciaFinal: number;
-  /** Non-zero only if the category breakdown fails to reconcile with the closings. */
-  ajusteConciliacion: number;
-};
+export type { ExpenseLine, IncomeStatement } from "./income-statement-assembly";
 
 type RateHistoryEntry = { monedaCode: string; tasa: number; createdAt: Date };
 
@@ -127,42 +103,12 @@ export async function buildIncomeStatement(
     }
   }
 
-  const ventasBrutas = summary.totalBruto;
-  const descuentos = summary.totalDescuentos;
-  const ventasNetas = summary.totalPeriodo;
-  const costoMercanciaVendida = summary.costoMercanciaVendida;
-  const margenBruto = summary.gananciaTotal;
-
-  const gastosOperativos = deductions.totalGastos;
-  const gananciaFinal = calcularGananciaFinal(
-    margenBruto,
-    gastosOperativos,
-    deductions.totalMerma,
-    deductions.totalDevoluciones,
-  );
-
-  const ajusteConciliacion = gastosOperativos - breakdownOperativo;
-
-  return {
-    ventasBrutas,
-    descuentos,
-    ventasNetas,
-    costoMercanciaVendida,
-    margenBruto,
-    margenBrutoPorcentaje:
-      ventasNetas > 0 ? (margenBruto / ventasNetas) * 100 : 0,
-    gastosOperativos,
-    gastosPorCategoria: Array.from(operativos.values()).sort(
-      (a, b) => b.monto - a.monto,
-    ),
+  return assembleIncomeStatement({
+    summary,
+    deductions,
+    gastosPorCategoria: Array.from(operativos.values()),
+    inversionPorCategoria: Array.from(inversiones.values()),
     gastosInversion,
-    inversionPorCategoria: Array.from(inversiones.values()).sort(
-      (a, b) => b.monto - a.monto,
-    ),
-    merma: deductions.totalMerma,
-    devoluciones: deductions.totalDevoluciones,
-    gananciaFinal,
-    ajusteConciliacion:
-      Math.abs(ajusteConciliacion) > 0.01 ? ajusteConciliacion : 0,
-  };
+    breakdownOperativo,
+  });
 }
