@@ -1,7 +1,7 @@
 # E-017: Un absoluto escrito en un contrato o un ADR que el código no sostiene
 
 **Área:** build
-**Apariciones:** 3 — F-020 (la misma frase en **cinco** sitios, más una segunda del mismo género) · F-006 (**cuatro** criterios de diseño, ver la primera adenda) · F-038 (una afirmación de uso cierta del **valor** y falsa del **símbolo**, ver la segunda adenda)
+**Apariciones:** 4 — F-020 (la misma frase en **cinco** sitios, más una segunda del mismo género) · F-006 (**cuatro** criterios de diseño, ver la primera adenda) · F-029 (una frase **a favor** del diseño elegido, propagada a seis sitios y descubierta con el feature ya cerrado) · F-038 (una afirmación de uso cierta del **valor** y falsa del **símbolo**, ver la última adenda)
 
 ## Síntoma
 
@@ -105,6 +105,50 @@ Dos matices que hicieron falta al corregirlos:
   sus propios spinners, su propio `Drawer` y su propio texto. Ver [E-011](E-011-medir-el-contenedor-equivocado-de-mui.md).
 - Un repaso que solo comprueba **subcadenas de copy** —como el de [E-016](E-016-un-criterio-que-exige-una-subcadena-que-el-copy-no-tiene.md)— **no ve esta clase de fallo**. Son dos repasos distintos.
 
+
+---
+
+## Adenda (F-029): el absoluto que **premia** al diseño elegido, y que nadie contrasta porque suena a ventaja
+
+El de F-020 y el de F-006 se escribían sobre código que aún no existía. Este es peor de detectar:
+se escribió en la lista **"A favor"** de un ADR, como una de las razones por las que se adoptó el
+mecanismo.
+
+> Una venta *offline* de ayer que sincroniza hoy, con el corte ya puesto, entra en el cierre
+> correcto **por su propio `createdAt`**.
+
+Es falso: `Venta.createdAt` la sella Postgres (`DEFAULT CURRENT_TIMESTAMP`) y ninguna de las dos
+rutas de creación de venta la escribe; la hora del dispositivo se guarda aparte, en
+`frontendCreatedAt`, y el corte no la lee. Una venta *offline* entra por **la hora en que se
+sincronizó**.
+
+**Por qué sobrevivió a todo el pipeline.** Un absoluto en la lista de costes invita a que alguien
+lo discuta; uno en la lista de beneficios **cierra la discusión**: es la razón por la que se
+eligió el diseño, así que releerlo se siente como releer la decisión, no como verificar un hecho.
+Y de ahí se propagó a seis sitios —el "Contexto" del ADR, su tabla de alternativas (donde servía
+para descartar el diseño rival), la fila de una alternativa del ADR hermano, dos secciones del
+contrato y las `notes` del feature—, en todos como premisa, nunca como afirmación a comprobar.
+
+**Los dos daños, distintos del de F-020:**
+
+- La frase **derrotaba a una alternativa**. En la tabla del ADR 0104 el diseño de lista de ids
+  perdía, entre otras cosas, porque "difiere mal la venta *offline* atrasada". Bajo la verdad,
+  **los dos diseños la difieren**: era un empate presentado como ventaja.
+- Fabricó una **justificación falsa para un acotado correcto**. El clamp por abajo se explicaba
+  con "una venta *offline* con `createdAt` anterior a `fechaInicio`", un caso que no puede darse.
+  El acotado es correcto y el test que lo cubre también; lo falso es el ejemplo — que acabó en el
+  **nombre** del test y en el docstring de la función, dos sitios que ya no se pueden tocar sin
+  reabrir el feature.
+
+**Cómo evitarlo, además de lo que ya dice la ficha:**
+
+- **Revisa la lista "A favor" con la misma desconfianza que la de "En contra".** Un beneficio
+  afirmado es una afirmación sobre el código igual que una limitación, y tiene menos lectores
+  escépticos.
+- **Cuando un punto sirva para descartar una alternativa, compruébalo antes de escribir la fila.**
+  Una tabla de alternativas es la parte del ADR que más se lee y menos se verifica.
+- **Un ejemplo dentro de una justificación es una afirmación, no una ilustración.** "Alcanzable
+  por X" tiene que ser cierto para X, o el ejemplo se lleva por delante el nombre de un test.
 
 ---
 

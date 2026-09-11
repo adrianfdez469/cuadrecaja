@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/utils/auth";
-import { resolveTenantAxis, withTenantScope } from "@/lib/tenantScope";
+import {
+  assertPermisoEnNegocio,
+  resolveTenantAxis,
+  withTenantScope,
+} from "@/lib/tenantScope";
 import {
   CLIENTES_API_ERRORS,
   CLIENTES_LIST_LIMIT,
@@ -33,10 +37,7 @@ function resolveListLimit(raw: string | null): number {
 export async function GET(request: NextRequest) {
   try {
     const session = await getSession();
-    const { negocioId, response } = resolveTenantAxis({
-      session,
-      permisoRequerido: null,
-    });
+    const { negocioId, response } = resolveTenantAxis({ session });
     if (!negocioId) return response;
 
     const { searchParams } = new URL(request.url);
@@ -81,11 +82,16 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const session = await getSession();
-    const { negocioId, response } = resolveTenantAxis({
+    const { negocioId, response } = resolveTenantAxis({ session });
+    if (!negocioId) return response;
+
+    // Business-scoped resource: no single store bounds it, so the gate uses the
+    // permissions the session carries. See assertPermisoEnNegocio.
+    const denial = assertPermisoEnNegocio({
       session,
       permisoRequerido: CLIENTES_PERMISO_CONFIGURACION,
     });
-    if (!negocioId) return response;
+    if (denial) return denial;
 
     let body: unknown;
     try {

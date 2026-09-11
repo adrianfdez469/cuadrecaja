@@ -18,8 +18,11 @@ import {
   Typography,
 } from "@mui/material";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
-import { ICierreData } from "@/schemas/cierre";
-import { fetchMonedaBreakdown } from "@/services/cierrePeriodService";
+import { ICierreData, ISalesCutoffState } from "@/schemas/cierre";
+import {
+  fetchCierreData,
+  fetchMonedaBreakdown,
+} from "@/services/cierrePeriodService";
 import { previewGastosCierre } from "@/services/gastoService";
 import type { IGastoPreview } from "@/schemas/gastos";
 import { formatCurrency, formatMontoEnMoneda } from "@/utils/formatters";
@@ -29,15 +32,26 @@ import {
   CREDIT_TEST_IDS,
 } from "@/app/cierre/utils/creditoCierre";
 import { CREDIT_COPY } from "@/app/cierre/utils/creditoCierreCopy";
+import DeferredSalesNotice from "./DeferredSalesNotice";
 
 interface Props {
   open: boolean;
   tiendaId: string;
   cierreId: string;
   cierreData: ICierreData;
+  isMobile: boolean;
   onClose: () => void;
   onConfirm: (gastosRecurrentesSeleccionados: IGastoPreview[]) => Promise<void>;
+  /** The stored cut moved: the screen reloads and this dialog goes away. */
+  onRefresh: () => void;
 }
+
+/** Two instants are the same cut when they are the same millisecond, or both absent. */
+const sameCutoff = (a: Date | string | null, b: Date | string | null) => {
+  if (!a) return !b;
+  if (!b) return false;
+  return new Date(a).getTime() === new Date(b).getTime();
+};
 
 const gastoKey = (g: IGastoPreview, idx: number) =>
   g.gastoTiendaId ?? `idx-${idx}`;
@@ -59,16 +73,43 @@ export default function CerrarCajaConfirmDialog({
   tiendaId,
   cierreId,
   cierreData,
+  isMobile,
   onClose,
   onConfirm,
+  onRefresh,
 }: Props) {
   const [loading, setLoading] = useState(false);
+  // The deferral figure is asked to the server again when this dialog opens:
+  // THAT refetch is the recount against the real state of the period, not
+  // against the snapshot the selector had.
+  const [salesCutoff, setSalesCutoff] = useState<ISalesCutoffState | null>(
+    null,
+  );
+  const [loadingCutoff, setLoadingCutoff] = useState(false);
   const [warnings, setWarnings] = useState<IWarning[]>([]);
   const [confirming, setConfirming] = useState(false);
   const [gastosRecurrentes, setGastosRecurrentes] = useState<IGastoPreview[]>(
     [],
   );
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    setSalesCutoff(null);
+    setLoadingCutoff(true);
+    fetchCierreData(tiendaId, cierreId)
+      .then((fresh) => {
+        if (!cancelled) setSalesCutoff(fresh.salesCutoff ?? null);
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setLoadingCutoff(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, tiendaId, cierreId]);
 
   useEffect(() => {
     if (!open) return;
@@ -217,6 +258,17 @@ export default function CerrarCajaConfirmDialog({
   const gananciaFinalEstimada = gananciaMostrada - totalOperativosSeleccionados;
   const esNegativa = gananciaFinalEstimada < 0;
 
+  // The cut the screen was showing when this dialog opened, against what the
+  // server holds now. `null` on both sides means there is no cut, and then this
+  // dialog is exactly the one it was before F-031.
+  const expectedCutoffAt = cierreData.salesCutoff?.cutoffAt ?? null;
+  const cutoffChanged =
+    !loadingCutoff &&
+    salesCutoff !== null &&
+    !sameCutoff(salesCutoff.cutoffAt, expectedCutoffAt);
+  const showDeferredNotice =
+    expectedCutoffAt !== null || salesCutoff?.cutoffAt != null;
+
   // Derived, not state: it depends only on cierreData, so it needs no effect and
   // cannot be left stale by one. It is NOT pushed into `warnings`: that array is
   // what decides the "no problems found" state, and credit is not a problem.
@@ -283,6 +335,18 @@ export default function CerrarCajaConfirmDialog({
           <Alert severity="success" sx={{ py: 0.5 }}>
             No se detectaron problemas.
           </Alert>
+        )}
+
+        {showDeferredNotice && (
+          <DeferredSalesNotice
+            loading={loadingCutoff}
+            deferredCount={salesCutoff?.deferredCount ?? 0}
+            deferredTotal={salesCutoff?.deferredTotal ?? 0}
+            expectedCount={cierreData.salesCutoff?.deferredCount ?? 0}
+            cutoffChanged={cutoffChanged}
+            isMobile={isMobile}
+            onRefresh={onRefresh}
+          />
         )}
 
         {/* Its own Alert, outside `warnings`: credit is not a discrepancy and
@@ -402,7 +466,9 @@ export default function CerrarCajaConfirmDialog({
           variant="contained"
           color="warning"
           onClick={handleConfirm}
-          disabled={confirming || loading}
+          // Confirming with a cut the server already moved would only earn a
+          // 409: the race is avoided instead of awaited.
+          disabled={confirming || loading || cutoffChanged}
         >
           {confirming ? "Cerrando..." : "Sí, cerrar caja"}
         </Button>

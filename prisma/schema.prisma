@@ -572,6 +572,16 @@ model CierrePeriodo {
   // range, which is exactly what the history showed before this column existed.
   etiqueta    String?
 
+  // The instant the operator prepared this period to be closed at, or NULL when
+  // no cut is set. A sale belongs to this period's close when its createdAt is
+  // less than or equal to this value; a later one is moved to the period that
+  // the close creates, which starts exactly here.
+  //
+  // Only meaningful while the period is open. Once fechaFin is written the
+  // relation (Venta.cierrePeriodoId) is the truth and every reader ignores this
+  // column: it stays as the record of how the period was closed.
+  salesCutoffAt DateTime?
+
   // Campos denormalizados para resumen.
   //
   // Once the period is closed these columns ARE the figures of the period

@@ -16,6 +16,7 @@ import {
 import { buildResumenPropinas, totalPropinasBase } from "@/lib/tips";
 import { buildCuentasPorCobrarSnapshot } from "@/lib/cuentasPorCobrar/aging";
 import type { ICuentaPorCobrarSnapshotInput } from "@/lib/cuentasPorCobrar/aging";
+import { saleReportedAt } from "@/lib/venta/saleTime";
 import type { IDeduccionItem } from "@/schemas/cierre";
 import type { IPagoLinea, IVueltoLinea } from "@/schemas/pago";
 import type { ITasaCambio, ITasaSnapshot } from "@/schemas/tasaCambio";
@@ -58,6 +59,8 @@ export interface CierreAppliedDiscount {
 export interface CierreSale {
   id: string;
   createdAt: Date;
+  /** The selling device's own clock, or null. See saleEffectiveAt. */
+  frontendCreatedAt: Date | null;
   /** The stored `Venta.total`; only the reconciliation script reads it. */
   total?: number;
   discountTotal: number;
@@ -295,10 +298,15 @@ export function valueSales(
   historialTasas: TasaHistoryRecord[],
 ): ValuedSale[] {
   return ventas.map((sale) => {
+    // The rate in force WHEN THE SALE HAPPENED, which is the reported instant
+    // and not the sync stamp: the same clock computePercentageBaseTotals uses,
+    // so both engines read one sale with one clock. Uncapped on purpose — a
+    // historical rate is a fact of the past, and capping it to the present
+    // would answer a different question than the one it is asked.
     const tasas = resolveSnapshotFromHistory(
       historialTasas,
       sale.tasaSnapshot,
-      sale.createdAt,
+      saleReportedAt(sale),
     );
     const lineas = sale.productos.map<ValuedSaleLine>((line) => {
       const precioBase = convertToBase(
@@ -349,6 +357,28 @@ export function sumSalesTotals(ventasValoradas: ValuedSale[]): SalesTotals {
     }),
     { totalVentas: 0, totalVentasBrutas: 0, totalDescuentos: 0 },
   );
+}
+
+export interface IDeferredSalesSummary {
+  count: number;
+  /** Base currency, net of discounts. Same arithmetic as the period's totalVentas. */
+  totalVentas: number;
+}
+
+/**
+ * What the confirmation dialog announces gets deferred, valued with the very
+ * engine that produces the period's own figures — so "the total dropped by X"
+ * and "X is deferred" are the same number, not two estimates.
+ */
+export function summarizeDeferredSales(
+  deferred: CierreSale[],
+  monedaBase: string,
+  historialTasas: TasaHistoryRecord[],
+): IDeferredSalesSummary {
+  const { totalVentas } = sumSalesTotals(
+    valueSales(deferred, monedaBase, historialTasas),
+  );
+  return { count: deferred.length, totalVentas };
 }
 
 /**

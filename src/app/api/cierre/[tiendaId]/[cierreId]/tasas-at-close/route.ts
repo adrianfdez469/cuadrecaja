@@ -16,7 +16,6 @@ export async function GET(
     const session = await getSession();
     const { negocioId, response } = resolveTenantAxis({
       session,
-      permisoRequerido: null,
     });
     if (!negocioId) return response;
 

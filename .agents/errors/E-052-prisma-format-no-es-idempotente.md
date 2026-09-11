@@ -1,7 +1,10 @@
 # E-052: `prisma format` reformatea modelos ajenos y ensucia un PR atómico
 
 **Área:** prisma
-**Apariciones:** 2 — F-008 (el formateo, y su revert, que causó un daño peor)
+**Apariciones:** 3 — F-008 (el formateo, y su revert, que causó un daño peor); F-029 (`qa`, al
+revertir una mutación de auditoría de tests con `git checkout` sobre un archivo — `src/lib/gastos.ts`
+— que ya llevaba ~75 líneas sin commitear del propio feature: el checkout se las llevó todas, no
+solo la mutación)
 
 ## Síntoma
 

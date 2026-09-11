@@ -180,6 +180,18 @@ export async function GET(
       ),
       totalesDesactualizados,
       totalsComputedAt: cierre.totalsComputedAt ?? undefined,
+      // Always emitted, with `cutoffAt: null` when there is no cut. It is the
+      // source of the deferral notice, which is why the screen asks for this
+      // endpoint again when it opens the confirmation dialog: that refetch IS
+      // the recount against the real state of the period.
+      salesCutoff: {
+        cutoffAt: cierre.salesCutoffAt,
+        // Both sides of the SAME partition the loader already made: the screen
+        // never has to infer one from the other.
+        includedCount: input.ventas.length,
+        deferredCount: loaded.deferred.count,
+        deferredTotal: loaded.deferred.totalVentas,
+      },
     };
     return NextResponse.json(cierreData);
   } catch (_error: unknown) {

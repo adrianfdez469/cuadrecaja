@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/utils/auth";
 import {
+  assertPermisoEnTienda,
   resolveTenantAxis,
   tenantNotFoundResponse,
   withTenantScope,
@@ -51,10 +52,7 @@ export async function POST(
 
   try {
     const session = await getSession();
-    const { negocioId, response } = resolveTenantAxis({
-      session,
-      permisoRequerido: CUENTAS_POR_COBRAR_PERMISO_COBRAR,
-    });
+    const { negocioId, response } = resolveTenantAxis({ session });
     if (response) return response;
 
     const { cuentaId } = await params;
@@ -86,6 +84,17 @@ export async function POST(
     // The SAME 404 for "it does not exist" and for "it belongs to another business"
     // (criterion 13). Never a 403, which would confirm the row exists.
     if (!cuenta) return tenantNotFoundResponse();
+
+    // ADR 0107: the permission is checked against the store THE DEBT belongs to, never against
+    // the one the session happens to have selected. `withTenantScope` above only bounds the row
+    // to the business, so without this a user holding the permission in one store could operate
+    // on a debt of another store of the same business. Ownership first, permission second.
+    const denial = await assertPermisoEnTienda({
+      session,
+      tiendaId: cuenta.tiendaId,
+      permisoRequerido: CUENTAS_POR_COBRAR_PERMISO_COBRAR,
+    });
+    if (denial) return denial;
 
     const [negocio, negocioMonedas] = await Promise.all([
       prisma.negocio.findUnique({

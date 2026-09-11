@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/utils/auth";
 import {
+  assertPermisoEnNegocio,
   resolveTenantAxis,
   tenantNotFoundResponse,
   withTenantScope,
@@ -34,10 +35,7 @@ type RouteContext = { params: Promise<{ id: string }> };
 export async function GET(_request: NextRequest, { params }: RouteContext) {
   try {
     const session = await getSession();
-    const { negocioId, response } = resolveTenantAxis({
-      session,
-      permisoRequerido: null,
-    });
+    const { negocioId, response } = resolveTenantAxis({ session });
     if (!negocioId) return response;
 
     const { id } = await params;
@@ -68,11 +66,16 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
 export async function PUT(request: NextRequest, { params }: RouteContext) {
   try {
     const session = await getSession();
-    const { negocioId, response } = resolveTenantAxis({
+    const { negocioId, response } = resolveTenantAxis({ session });
+    if (!negocioId) return response;
+
+    // Business-scoped resource: no single store bounds it, so the gate uses the
+    // permissions the session carries. See assertPermisoEnNegocio.
+    const denial = assertPermisoEnNegocio({
       session,
       permisoRequerido: CLIENTES_PERMISO_CONFIGURACION,
     });
-    if (!negocioId) return response;
+    if (denial) return denial;
 
     const { id } = await params;
 
@@ -181,11 +184,16 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
 export async function DELETE(_request: NextRequest, { params }: RouteContext) {
   try {
     const session = await getSession();
-    const { negocioId, response } = resolveTenantAxis({
+    const { negocioId, response } = resolveTenantAxis({ session });
+    if (!negocioId) return response;
+
+    // Business-scoped resource: no single store bounds it, so the gate uses the
+    // permissions the session carries. See assertPermisoEnNegocio.
+    const denial = assertPermisoEnNegocio({
       session,
       permisoRequerido: CLIENTES_PERMISO_CONFIGURACION,
     });
-    if (!negocioId) return response;
+    if (denial) return denial;
 
     const { id } = await params;
 

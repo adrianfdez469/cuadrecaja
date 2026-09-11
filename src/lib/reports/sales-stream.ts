@@ -13,6 +13,7 @@ import type { ITasaSnapshot } from "@/schemas/tasaCambio";
 import type { IPagoLinea } from "@/schemas/pago";
 import { SALE_ORIGINS } from "@/constants/venta";
 import type { ISaleOrigin } from "@/constants/venta";
+import { saleReportedAt } from "@/lib/venta/saleTime";
 
 /**
  * Server-internal shapes: they carry Maps, Dates and callbacks and never cross
@@ -305,7 +306,7 @@ function normalizeSale(
   const rates = resolveSnapshotFromHistory(
     rateHistory,
     venta.tasaSnapshot as ITasaSnapshot | null,
-    venta.frontendCreatedAt ?? venta.createdAt,
+    saleReportedAt(venta),
   );
   const discountTotal = Number(venta.discountTotal ?? 0);
 
@@ -410,7 +411,7 @@ function normalizeSale(
     id: venta.id,
     origen:
       venta.pedidoEntranteId === null ? SALE_ORIGINS[0] : SALE_ORIGINS[1],
-    soldAt: venta.frontendCreatedAt ?? venta.createdAt,
+    soldAt: saleReportedAt(venta),
     closingPeriodId: venta.cierrePeriodoId,
     sellerId: venta.usuarioId,
     collectionCurrency: venta.monedaCobro,

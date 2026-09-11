@@ -24,6 +24,7 @@ import {
 } from "@/lib/cuentasPorCobrar/applyMovimiento";
 import type { ITasaSnapshot } from "@/schemas/tasaCambio";
 import type { IPagoLinea } from "@/schemas/pago";
+import { saleReportedAt } from "@/lib/venta/saleTime";
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -134,7 +135,7 @@ export async function DELETE(
     const tasas = resolveSnapshotFromHistory(
       await loadTasaHistory(tienda.negocio.id),
       ventaProducto.venta.tasaSnapshot as ITasaSnapshot | null,
-      ventaProducto.venta.frontendCreatedAt ?? ventaProducto.venta.createdAt,
+      saleReportedAt(ventaProducto.venta),
     );
     const pagos = (ventaProducto.venta.pagosDetalle ?? null) as
       IPagoLinea[] | null;

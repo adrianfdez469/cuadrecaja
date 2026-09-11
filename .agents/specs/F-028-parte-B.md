@@ -9,7 +9,7 @@
 
 ## Qué hay que lograr
 
-QAB ya construyó su F-039 (verificado en su código): cuando un evento de un lote falla, los
+QAB ya construyó su F-037 (verificado en su código): cuando un evento de un lote falla, los
 eventos **posteriores del mismo lote** que dependen de él vuelven también en `failed[]`, con
 `error: "DEPENDENCY_FAILED_IN_BATCH"`. El evento arrastrado **nunca llegó a aplicarse** — ni bien
 ni mal — y el contrato ordena reintentarlo **tal cual**, con su `payload.updatedAt` original.

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/utils/auth";
 import { verificarPermisoUsuario } from "@/utils/permisos_back";
 import {
+  assertPermisoEnTienda,
   resolveTenantAxis,
   tenantNotFoundResponse,
   withTenantScope,
@@ -10,19 +11,25 @@ import {
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const session = await getSession();
     const user = session.user;
 
-    if (!verificarPermisoUsuario(user.permisos, "configuracion.locales.acceder", user.rol)) {
+    if (
+      !verificarPermisoUsuario(
+        user.permisos,
+        "configuracion.locales.acceder",
+        user.rol,
+      )
+    ) {
       return NextResponse.json(
         { error: "Acceso no autorizado" },
-        { status: 403 }
+        { status: 403 },
       );
     }
-    
+
     const { id } = await params;
 
     if (!id) {
@@ -37,24 +44,29 @@ export async function DELETE(
     if (!tienda) {
       return NextResponse.json(
         { error: "Tienda no encontrada" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
-    
     const tiendaConRelaciones = await prisma.tienda.findUnique({
       where: { id },
       include: {
-        productos: { take: 1 },  // Solo necesitamos saber si existe al menos 1
-        ventas: { take: 1 },     // Igual para ventas
+        productos: { take: 1 }, // Solo necesitamos saber si existe al menos 1
+        ventas: { take: 1 }, // Igual para ventas
       },
     });
 
     // 2. Si tiene productos o ventas, lanzar error
-    if (tiendaConRelaciones?.productos.length || tiendaConRelaciones?.ventas.length) {
+    if (
+      tiendaConRelaciones?.productos.length ||
+      tiendaConRelaciones?.ventas.length
+    ) {
       return NextResponse.json(
-        { error: "No se puede eliminar la tienda porque tiene productos o ventas asociadas" },
-        { status: 500 }
+        {
+          error:
+            "No se puede eliminar la tienda porque tiene productos o ventas asociadas",
+        },
+        { status: 500 },
       );
     }
 
@@ -71,13 +83,13 @@ export async function DELETE(
 
     return NextResponse.json(
       { message: "Tienda eliminada correctamente" },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error) {
     console.error(error);
     return NextResponse.json(
       { error: "Error al eliminar la tienda" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -85,7 +97,7 @@ export async function DELETE(
 // Actualizar una tienda existente
 export async function PUT(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await params;
@@ -93,10 +105,7 @@ export async function PUT(
     // F-021, gate B. Same permission the verb already demanded: this feature adds scope, never
     // permissions (ADR 0078).
     const session = await getSession();
-    const { negocioId, response } = resolveTenantAxis({
-      session,
-      permisoRequerido: "configuracion.locales.acceder",
-    });
+    const { negocioId, response } = resolveTenantAxis({ session });
     if (!negocioId) return response;
 
     const tiendaDelNegocio = await prisma.tienda.findFirst({
@@ -104,6 +113,17 @@ export async function PUT(
       select: { id: true },
     });
     if (!tiendaDelNegocio) return tenantNotFoundResponse();
+
+    // Gate B, step two (ADR 0107): the permission is checked against THIS store —
+    // the `id` of the path is the store itself — and not against the one the
+    // session was computed for. `UsuarioTienda` carries a `rolId` per store, so
+    // the two are not the same thing.
+    const denial = await assertPermisoEnTienda({
+      session,
+      tiendaId: tiendaDelNegocio.id,
+      permisoRequerido: "configuracion.locales.acceder",
+    });
+    if (denial) return denial;
 
     const { nombre, tipo, usuariosRoles } = await req.json();
 
@@ -118,7 +138,11 @@ export async function PUT(
 
     if (usuarioIds.length > 0) {
       const usuariosDelNegocio = await prisma.usuario.count({
-        where: withTenantScope("usuario", { id: { in: usuarioIds } }, negocioId),
+        where: withTenantScope(
+          "usuario",
+          { id: { in: usuarioIds } },
+          negocioId,
+        ),
       });
       if (usuariosDelNegocio !== usuarioIds.length) {
         return tenantNotFoundResponse();
@@ -148,10 +172,12 @@ export async function PUT(
           // Primero eliminamos todas las relaciones existentes
           deleteMany: {},
           // Luego creamos las nuevas relaciones con roles
-          create: usuariosRoles.map((item: { usuarioId: string, rolId?: string }) => ({
-            usuario: { connect: { id: item.usuarioId } },
-            ...(item.rolId && { rol: { connect: { id: item.rolId } } })
-          })),
+          create: usuariosRoles.map(
+            (item: { usuarioId: string; rolId?: string }) => ({
+              usuario: { connect: { id: item.usuarioId } },
+              ...(item.rolId && { rol: { connect: { id: item.rolId } } }),
+            }),
+          ),
         },
       },
       include: {
@@ -163,17 +189,17 @@ export async function PUT(
                 nombre: true,
                 usuario: true,
                 rol: true,
-                localActualId: true
-              }
+                localActualId: true,
+              },
             },
             rol: {
               select: {
                 id: true,
                 nombre: true,
-                descripcion: true
-              }
-            }
-          }
+                descripcion: true,
+              },
+            },
+          },
         },
       },
     });
@@ -184,7 +210,7 @@ export async function PUT(
       if (!usuarioTienda.usuario.localActualId) {
         await prisma.usuario.update({
           where: { id: usuarioTienda.usuario.id },
-          data: { localActualId: id }
+          data: { localActualId: id },
         });
       }
     }
@@ -193,16 +219,16 @@ export async function PUT(
     const tiendaFormateada = {
       ...updatedTienda,
       usuarios: updatedTienda.usuarios.map((u) => u.usuario), // Compatibilidad
-      usuariosTiendas: updatedTienda.usuarios // Nueva estructura con roles
+      usuariosTiendas: updatedTienda.usuarios, // Nueva estructura con roles
     };
-    
+
     return NextResponse.json(tiendaFormateada, { status: 201 });
   } catch (error) {
     console.error(error);
 
     return NextResponse.json(
       { error: "Error al actualizar la tienda" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -50,3 +50,6 @@ next-env.d.ts
 /.claude/agent-memory/
 .worktrees/
 .superpowers/
+
+# Artefactos temporales de los agentes de QA (capturas, fixtures, informes)
+.qa-tmp/

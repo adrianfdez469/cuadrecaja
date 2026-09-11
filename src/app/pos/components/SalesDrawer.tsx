@@ -57,6 +57,7 @@ import { formatDateTime, formatMontoEnMoneda } from "@/utils/formatters";
 import { IProductoTiendaPos } from "@/schemas/producto";
 import { convertToBase } from "@/lib/currency";
 import { usePrinter } from "@/features/printing/hooks/usePrinter";
+import { saleReportedAt } from "@/lib/venta/saleTime";
 
 interface IProps {
   showSales: boolean;
@@ -383,10 +384,14 @@ export const SalesDrawer: FC<IProps> = ({
           transferDestinationId: venta.transferDestinationId,
           usuarioId: venta.usuarioId,
           dbId: venta.id,
-          // 🆕 USAR CAMPOS DE LA BASE DE DATOS
-          createdAt: venta.frontendCreatedAt
-            ? new Date(venta.frontendCreatedAt).getTime()
-            : new Date(venta.createdAt).getTime(),
+          // The reported instant of the sale. `venta` arrives unparsed from the
+          // network, so both timestamps are coerced here, at the boundary.
+          createdAt: saleReportedAt({
+            createdAt: new Date(venta.createdAt),
+            frontendCreatedAt: venta.frontendCreatedAt
+              ? new Date(venta.frontendCreatedAt)
+              : null,
+          }).getTime(),
           wasOffline: venta.wasOffline || false,
           syncAttempts: venta.syncAttempts || 0, // 🆕 Preservar intentos de la base de datos
           // Multimoneda — necesarios para el guard de "eliminar producto individual"

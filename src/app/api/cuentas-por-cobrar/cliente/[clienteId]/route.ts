@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/utils/auth";
 import {
+  assertPermisoEnNegocio,
   resolveTenantAxis,
   tenantNotFoundResponse,
   withTenantScope,
@@ -42,11 +43,16 @@ export async function GET(
 ) {
   try {
     const session = await getSession();
-    const { negocioId, response } = resolveTenantAxis({
+    const { negocioId, response } = resolveTenantAxis({ session });
+    if (response) return response;
+
+    // Business-scoped resource: no single store bounds it, so the gate uses the
+    // permissions the session carries. See assertPermisoEnNegocio.
+    const denial = assertPermisoEnNegocio({
       session,
       permisoRequerido: CUENTAS_POR_COBRAR_PERMISO,
     });
-    if (response) return response;
+    if (denial) return denial;
 
     const { clienteId } = await params;
 

@@ -146,6 +146,12 @@ export function useVirtualRows<T>(
     paddingBottom,
     totalSize: virtualizer.getTotalSize(),
     measureElement: virtualizer.measureElement,
+    /**
+     * Brings one item into view. Only does anything while virtualizing — below
+     * `minItems` every row is in the DOM already and the caller can scroll to
+     * its own element.
+     */
+    scrollToIndex: virtualizer.scrollToIndex,
     /** Resta esto al `start` de cada item para posicionarlo dentro de la lista. */
     offset,
   };

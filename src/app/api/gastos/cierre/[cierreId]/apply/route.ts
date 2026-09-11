@@ -3,9 +3,15 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/utils/auth";
 import { verificarPermisoUsuario } from "@/utils/permisos_back";
 import { applyGastosSchema } from "@/schemas/gastos";
-import { calcularGananciaFinal } from "@/lib/gastos";
+import {
+  calcularGananciaFinal,
+  computePercentageBaseTotals,
+  type PercentageBaseSale,
+} from "@/lib/gastos";
+import { partitionSalesByCutoff } from "@/lib/cierre/salesCutoff";
 import { buildTasaSnapshot, convertToBase } from "@/lib/currency";
 import { loadTasaHistory } from "@/lib/tasaSnapshotResolver";
+import type { ITasaSnapshot } from "@/schemas/tasaCambio";
 
 export async function POST(
   req: NextRequest,
@@ -32,7 +38,9 @@ export async function POST(
     const cierre = await prisma.cierrePeriodo.findFirst({
       where: { id: cierreId, tienda: { negocioId: user.negocio.id } },
       include: {
-        tienda: { select: { negocio: { select: { id: true, monedaBase: true } } } },
+        tienda: {
+          select: { negocio: { select: { id: true, monedaBase: true } } },
+        },
       },
     });
     if (!cierre) {
@@ -71,32 +79,118 @@ export async function POST(
     const { gastosToApply } = parsed.data;
 
     const monedaBase = cierre.tienda.negocio.monedaBase ?? "CUP";
-    const tasas = buildTasaSnapshot(
-      await loadTasaHistory(cierre.tienda.negocio.id),
+    const historialTasas = await loadTasaHistory(cierre.tienda.negocio.id);
+    const tasas = buildTasaSnapshot(historialTasas);
+
+    /**
+     * The two totals a percentage expense is a percentage OF, recomputed here
+     * over the sales the cut includes. This route persists money, and until now
+     * it trusted the `montoCalculado` the browser sent: filtering only the
+     * preview would leave the figure depending on the client.
+     */
+    const cutoffAt = cierre.fechaFin === null ? cierre.salesCutoffAt : null;
+    const ventasPeriodo = await prisma.venta.findMany({
+      where: { cierrePeriodoId: cierreId },
+      select: {
+        createdAt: true,
+        frontendCreatedAt: true,
+        discountTotal: true,
+        tasaSnapshot: true,
+        productos: {
+          select: {
+            cantidad: true,
+            precio: true,
+            costo: true,
+            monedaPrecioCode: true,
+            monedaCostoCode: true,
+          },
+        },
+      },
+    });
+    const ventas: PercentageBaseSale[] = ventasPeriodo.map((v) => ({
+      createdAt: v.createdAt,
+      frontendCreatedAt: v.frontendCreatedAt,
+      discountTotal: v.discountTotal,
+      tasaSnapshot: (v.tasaSnapshot as ITasaSnapshot | null) ?? null,
+      productos: v.productos,
+    }));
+    // One clock for the whole request: the same instant the effective time of
+    // every sale is capped against, so the base this route persists cannot
+    // disagree with the partition the close performs.
+    const now = new Date();
+    const { included } = partitionSalesByCutoff(ventas, cutoffAt, now);
+    const base = computePercentageBaseTotals(
+      included,
+      monedaBase,
+      historialTasas,
     );
 
     /**
-     * The currency of a recurring expense is read back from `GastoTienda`, not
-     * taken from the request: the body reaches us straight from the browser, and
-     * a currency decides how much the amount is worth once converted. Restricted
-     * to this store's rows so an id from another store cannot be smuggled in.
+     * The currency AND the percentage of a recurring expense are read back from
+     * `GastoTienda`, not taken from the request: the body reaches us straight
+     * from the browser, and both decide how much money ends up written.
+     * Restricted to this store's rows so an id from another store cannot be
+     * smuggled in.
      */
     const gastoTiendaIds = gastosToApply
       .map((g) => g.gastoTiendaId)
       .filter((id): id is string => Boolean(id));
-    const monedaPorGastoTienda = new Map(
+    const filaPorGastoTienda = new Map(
       (
         await prisma.gastoTienda.findMany({
           where: { id: { in: gastoTiendaIds }, tiendaId: cierre.tiendaId },
-          select: { id: true, monedaCode: true },
+          select: { id: true, monedaCode: true, porcentaje: true },
         })
-      ).map((g) => [g.id, g.monedaCode]),
+      ).map((g) => [g.id, g]),
     );
+
+    /**
+     * Every non-MONTO_FIJO item MUST resolve to a row of THIS store, or the whole
+     * request is rejected before anything is written.
+     *
+     * `gastoPreviewSchema` declares `gastoTiendaId` as nullable/optional and
+     * `porcentaje` as any number, so a hand-made POST with
+     * `{ tipoCalculo: "PORCENTAJE_VENTAS", gastoTiendaId: null, porcentaje: 999 }`
+     * parses fine; and the map above resolves to `undefined` IN SILENCE when the
+     * id belongs to another store. Without this guard that silence becomes an
+     * amount. It breaks no legitimate caller: the preview always returns a
+     * `gastoTiendaId` for the recurring expenses, which are the only ones this
+     * route applies.
+     */
+    const sinFilaDeLaTienda = gastosToApply.some(
+      (g) =>
+        g.tipoCalculo !== "MONTO_FIJO" &&
+        (!g.gastoTiendaId || !filaPorGastoTienda.has(g.gastoTiendaId)),
+    );
+    if (sinFilaDeLaTienda) {
+      return NextResponse.json(
+        { error: "Gasto recurrente no válido para esta tienda" },
+        { status: 400 },
+      );
+    }
+
     /** Percentage-based amounts come from base-currency totals: always base. */
     const monedaDe = (g: (typeof gastosToApply)[number]): string | null =>
       g.tipoCalculo === "MONTO_FIJO" && g.gastoTiendaId
-        ? (monedaPorGastoTienda.get(g.gastoTiendaId) ?? null)
+        ? (filaPorGastoTienda.get(g.gastoTiendaId)?.monedaCode ?? null)
         : null;
+
+    /**
+     * The amount that gets persisted. The two percentage kinds are recomputed
+     * on the server over the included sales; MONTO_FIJO keeps coming from the
+     * body, exactly as today. There is no branch reading the percentage from the
+     * body: if there were, the guard above would be worth nothing.
+     */
+    const montoAPersistir = (g: (typeof gastosToApply)[number]): number => {
+      if (g.tipoCalculo === "MONTO_FIJO") return g.montoCalculado;
+      const porcentaje =
+        filaPorGastoTienda.get(g.gastoTiendaId)?.porcentaje ?? 0;
+      if (g.tipoCalculo === "PORCENTAJE_VENTAS")
+        return (porcentaje / 100) * base.totalVentas;
+      if (g.tipoCalculo === "PORCENTAJE_GANANCIAS")
+        return (porcentaje / 100) * base.totalGanancia;
+      return g.montoCalculado;
+    };
 
     // Obtener los gastos ad-hoc ya registrados para sumarlos al total
     const gastosAdHocExistentes = await prisma.gastoCierre.findMany({
@@ -113,9 +207,14 @@ export async function POST(
             categoria: g.categoria,
             tipoCalculo: g.tipoCalculo,
             naturaleza: g.naturaleza,
-            montoCalculado: g.montoCalculado,
+            montoCalculado: montoAPersistir(g),
             monto: g.monto ?? null,
-            porcentaje: g.porcentaje ?? null,
+            // The rate the amount above was actually computed with, so the row
+            // never records a percentage that does not explain its own amount.
+            porcentaje:
+              g.tipoCalculo === "MONTO_FIJO"
+                ? (g.porcentaje ?? null)
+                : (filaPorGastoTienda.get(g.gastoTiendaId)?.porcentaje ?? null),
             esAdHoc: false,
             monedaCode: monedaDe(g),
           })),
@@ -126,10 +225,15 @@ export async function POST(
       // Amounts in a foreign currency are converted before summing — mixing
       // 20 USD into a CUP total as a bare 20 understates the expense.
       const enBase = (montoCalculado: number, monedaCode: string | null) =>
-        convertToBase(montoCalculado, monedaCode ?? monedaBase, tasas, monedaBase);
+        convertToBase(
+          montoCalculado,
+          monedaCode ?? monedaBase,
+          tasas,
+          monedaBase,
+        );
       const totalGastosRecurrentes = gastosToApply
         .filter((g) => g.naturaleza === "OPERATIVO")
-        .reduce((s, g) => s + enBase(g.montoCalculado, monedaDe(g)), 0);
+        .reduce((s, g) => s + enBase(montoAPersistir(g), monedaDe(g)), 0);
       const totalGastosAdHoc = gastosAdHocExistentes
         .filter((g) => g.naturaleza === "OPERATIVO")
         .reduce((s, g) => s + enBase(g.montoCalculado, g.monedaCode), 0);

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/utils/auth";
 import {
+  assertPermisoEnTienda,
   resolveTenantAxis,
   tenantNotFoundResponse,
   withTenantScope,
@@ -52,10 +53,7 @@ export async function POST(
 
   try {
     const session = await getSession();
-    const { negocioId, response } = resolveTenantAxis({
-      session,
-      permisoRequerido: CUENTAS_POR_COBRAR_PERMISO_PERDONAR,
-    });
+    const { negocioId, response } = resolveTenantAxis({ session });
     if (response) return response;
 
     const { cuentaId } = await params;
@@ -82,9 +80,20 @@ export async function POST(
 
     const cuenta = await prisma.cuentaPorCobrar.findFirst({
       where: withTenantScope("cuentaPorCobrar", { id: cuentaId }, negocioId),
-      select: { id: true, saldoPendiente: true },
+      select: { id: true, tiendaId: true, saldoPendiente: true },
     });
     if (!cuenta) return tenantNotFoundResponse();
+
+    // ADR 0107: the permission is checked against the store THE DEBT belongs to, never against
+    // the one the session happens to have selected. `withTenantScope` above only bounds the row
+    // to the business, so without this a user holding the permission in one store could operate
+    // on a debt of another store of the same business. Ownership first, permission second.
+    const denial = await assertPermisoEnTienda({
+      session,
+      tiendaId: cuenta.tiendaId,
+      permisoRequerido: CUENTAS_POR_COBRAR_PERMISO_PERDONAR,
+    });
+    if (denial) return denial;
 
     // Forgiving an already settled account is refused HERE, before the transaction opens, with
     // its own reason: the guard order of § 3.1 is not touched, because widening guard 1 would
