@@ -13,11 +13,11 @@ afectados y borrar la entrada de la tabla de abiertas.
 nueve puntos y los cinco menores de la revisión del 2026-09-09 salvo dos, que quedan anotados abajo
 como **residuos** — no como solicitudes nuevas, porque abrir una es decisión del humano.
 
-**Lo que no está resuelto no es una solicitud, es un estado: la v13 es un BORRADOR sin publicar.**
-Mientras no retiren el aviso, `entity` no admite `ZONE_TARIFF` y emitirlo se lleva el lote entero
-con un `400 INVALID_BATCH`. La forma ya se puede especificar, diseñar e implementar; la **emisión**
-espera. Es el mismo camino que `BUSINESS` recorrió entre la v11 y la v12.2, y es la razón de ser de
-`QAB_OUTBOX_WITHHELD_ENTITIES`.
+**Y desde el 2026-09-10 tampoco queda el estado que lo acompañaba: la v13.5 PUBLICA la v13 y
+retira el aviso.** `entity` admite `ZONE_TARIFF` y `deliveryFeeMode` admite `ZONE_BASED`: la emisión
+ya no espera nada, igual que `BUSINESS` dejó de esperar en la v12.2. No cambia ni una regla, ni un
+campo, ni un código de error respecto a la v13.4. La red de seguridad que cubrió esa espera,
+`QAB_OUTBOX_WITHHELD_ENTITIES`, queda **cableada y vacía** para la próxima entidad que la necesite.
 
 ## Resueltas
 
@@ -30,7 +30,7 @@ espera. Es el mismo camino que `BUSINESS` recorrió entre la v11 y la v12.2, y e
 | S-005 | `EXCHANGE_RATE` no tiene guarda anti-rancio | contrato v11 ② | 2026-09-06 |
 | S-006 | Un fallo por evento no arrastra a sus dependientes del mismo lote | contrato v11 ③ | 2026-09-06 |
 | S-008 | El escaparate no sabe qué monedas mostrar (`displayCurrencies`) | contrato v12, afinada en la v12.1, **en pie desde la v12.2** | 2026-09-06 |
-| S-007 | Envío por zonas: `ZONE_BASED`, tarifario por zona y `contact.zoneCode` | contrato **v13** (F-041 a F-045 de QAB) — borrador, la emisión aún no | 2026-09-10 |
+| S-007 | Envío por zonas: `ZONE_BASED`, tarifario por zona y `contact.zoneCode` | contrato **v13**, **publicada en la v13.5** (F-041 a F-045 de QAB) — la emisión ya está permitida | 2026-09-10 |
 
 Las cuatro de la v11 se concedieron **enteras y en una sola versión**, y la v11 se publicó
 **antes de estar construida** del lado de queandabuscando: está acordada, no en pie. QAB avisa
@@ -441,14 +441,18 @@ que es lo que sí depende de nosotros.
 
 ---
 
-### S-007 · Envío por zonas: `ZONE_BASED`, tarifario por zona y `contact.zoneCode` — CONCEDIDA en la v13 · revisada el 2026-09-10
+### S-007 · Envío por zonas: `ZONE_BASED`, tarifario por zona y `contact.zoneCode` — CONCEDIDA en la v13 · PUBLICADA en la v13.5 · revisada el 2026-09-11
 
-> **CONCEDIDA. El contrato está en v13.4 y las zonas ya son contrato**, con una condición de estado
-> que no es un matiz: **el documento es un BORRADOR sin publicar y la emisión sigue prohibida**
-> hasta que retiren el aviso. Lo que falta de su lado es su **F-043** —aceptar `ZONE_TARIFF` en
-> `entity`, `ZONE_BASED`, `STORE.zoneCode` y la precedencia—, que se está terminando de implementar
-> y verificar; su **F-044** (selector, mapa y el pedido llevando `zoneCode`/`zoneName`) ya está
-> construido, y **F-045**, **F-046** y **F-045** están aplicados en el documento.
+> **CONCEDIDA Y EN PIE. El contrato está en v13.5, PUBLICADA**, y la condición de estado que la
+> acompañaba —el borrador y la prohibición de emitir— **ya no existe**: la v13.5 retira el aviso sin
+> cambiar ni una regla, ni un campo, ni un código de error. Lo que faltaba de su lado era su
+> **F-043** —aceptar `ZONE_TARIFF` en `entity`, `ZONE_BASED`, `STORE.zoneCode` y la precedencia—, y
+> es justo lo que terminaron: por eso cayó el aviso. Su **F-044** (selector, mapa y el pedido
+> llevando `zoneCode`/`zoneName`) ya estaba construido, y las cuatro revisiones menores del borrador
+> están aplicadas en el documento: **v13.1 (su F-042)**, **v13.2 (su F-043)**, **v13.3 (su F-045)** y
+> **v13.4 (su F-046)**, según el mapeo que el propio contrato publica en su cabecera. **Ojo: esos
+> números son de queandabuscando y colisionan con los nuestros** — la anotación anterior decía
+> «F-045, F-046 y F-045», con v13.2 mal atribuida y un número repetido.
 >
 > **De los nueve puntos de la revisión del 2026-09-09 se conceden ocho, y los dos graves enteros:**
 >
