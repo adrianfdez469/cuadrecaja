@@ -534,7 +534,7 @@ export const TIENDA_ONLINE_ORDER_COPY = {
     "No se pudo cambiar el estado y el pedido sigue como estaba. Vuelve a intentarlo en un momento.",
 
   /* F-014 — the delivery dialog */
-  /** `aria-label` of the group of the two payment methods. */
+  /** `aria-label` of the group of the three payment methods. */
   pagoGrupo: "Forma de pago",
   /** A question, not a section label: it is NOT painted in small caps. */
   pagoPregunta: "¿Cómo se cobró este pedido?",
@@ -547,10 +547,20 @@ export const TIENDA_ONLINE_ORDER_COPY = {
    * half-made declaration.
    */
   pagoSinDestinos:
-    "Este local no tiene destinos de transferencia configurados, así que un cobro por transferencia no se puede registrar todavía. Créalos en Destinos de Transferencia, o registra el cobro en efectivo.",
+    "Este local no tiene destinos de transferencia configurados, así que un cobro por transferencia no se puede registrar todavía. Créalos en Destinos de Transferencia, o registra el cobro en efectivo o a crédito.",
+  /* F-036 — the debtor of a collection on credit. */
+  /**
+   * Label of the debtor row. The SAME word `VENTA_CREDITO_COPY.bloqueDeudor`
+   * gives this field in the sale detail: two names for one field is two
+   * vocabularies.
+   */
+  pagoClienteRotulo: "Deudor",
+  /** The row before anybody has been chosen. With a choice it shows the NAME. */
+  pagoClienteElegir: "Elegir el cliente que queda debiendo",
   /* Why `Cambiar el estado` is still off, and it disappears when it stops explaining. */
   pagoFaltaMetodo: "Elige cómo se cobró este pedido para poder registrarlo.",
   pagoFaltaDestino: "Elige a qué destino entró la transferencia.",
+  pagoFaltaCliente: "Elige a quién se le fía este pedido.",
   /** Header of the second notice. The lines themselves are `orderLandingSkipLines`. */
   landingSkipTitle:
     "Hay líneas de este pedido que no se pudieron descontar del inventario. Revísalo y ajústalo a mano si hace falta:",
@@ -676,14 +686,22 @@ export function orderStatusFailureOffersRetry(qabError: string): boolean {
 /* -------------------------------------------------------------------------- */
 
 /**
- * The two payment methods, as words. Typed against the constant of the
+ * The three payment methods, as words. Typed against the constant of the
  * interface contract, so a value too many or too few does NOT compile.
  *
- * These are literally the two strings the POS already prints — in
+ * The first two are literally the strings the POS already prints — in
  * `AddPaymentSheet`, `PaymentCard`, `SaleDoneView`, `VentaDetailDialog` and
  * `SaleExtrasSummary`, always as the same inline ternary. This feature does not
  * invent vocabulary: it reuses what is already in five places and puts it, for
  * the first time, in a named map instead of a sixth ternary.
+ *
+ * `A crédito` is the same rule applied to the third one (F-036): it is, character
+ * for character, `VENTA_CREDITO_COPY.chipConSaldo` and
+ * `CREDIT_CHECKOUT_COPY.addPaymentRow`. It is written here as a literal and NOT
+ * imported from them, exactly like its two sisters, because crossing
+ * `tiendaOnline` with the POS's credit modules for one label would couple two
+ * modules that do not know each other today. The suite asserts the equality, so
+ * the price of not coupling them is one test and not a drift.
  */
 export const TIENDA_ONLINE_PAYMENT_METHOD_LABELS: Record<
   (typeof TIENDA_ONLINE_PAYMENT_METHODS)[number],
@@ -691,6 +709,7 @@ export const TIENDA_ONLINE_PAYMENT_METHOD_LABELS: Record<
 > = {
   EFECTIVO: "Efectivo",
   TRANSFERENCIA: "Transferencia",
+  CREDITO: "A crédito",
 };
 
 /**
@@ -710,7 +729,7 @@ export function orderDeliverySaleNotice(formattedAmount: string | null): string 
 }
 
 /**
- * The tail the four blocked sentences share, and it is deliberate: the guard of
+ * The tail the five blocked sentences share, and it is deliberate: the guard of
  * ADR 0073 exists precisely so that nothing is called and nothing is written,
  * and that is the fact that takes the fright out of the message.
  */
@@ -727,13 +746,18 @@ const BLOCKED_COPY: Record<IOrderLandingBlockerValue, string> = {
   NO_OPEN_PERIOD: `Este local no tiene un período de caja abierto, así que la venta de este pedido no tendría dónde entrar. Ábrelo —o pídeselo a quien lo hace— y vuelve a pulsar ${CAMBIAR_ESTADO_QUOTED}. ${NOTHING_LEFT_THIS_POS}`,
   UNKNOWN_TRANSFER_DESTINATION: `El destino de transferencia que elegiste no es de este local. Vuelve a pulsar ${CAMBIAR_ESTADO_QUOTED} y elige uno de la lista. ${NOTHING_LEFT_THIS_POS}`,
   MISSING_EXCHANGE_RATE: `Este negocio no tiene registrada una tasa de cambio para la moneda de este pedido, así que su importe no se puede convertir sin inventarlo. Regístrala en Tasas de cambio y vuelve a pulsar ${CAMBIAR_ESTADO_QUOTED}. ${NOTHING_LEFT_THIS_POS}`,
+  // `negocio` and NOT `local`: `Cliente` hangs from the business, while the
+  // transfer destination above hangs from the store. The word is the difference
+  // between the two scopes, and saying «local» here would teach the manager a
+  // data model that is false (ADR 0130).
+  UNKNOWN_CLIENTE: `El cliente que elegiste como deudor no es de este negocio. Vuelve a pulsar ${CAMBIAR_ESTADO_QUOTED} y elígelo de la lista de clientes. ${NOTHING_LEFT_THIS_POS}`,
 };
 
 const BLOCKED_FALLBACK = `Este pedido todavía no se puede registrar como entregado en este POS. ${NOTHING_LEFT_THIS_POS}`;
 
 /**
  * PURE. The sentence one blocked delivery is shown as. TOTAL over any string: a
- * fourth reason added tomorrow falls into the reserve sentence instead of
+ * fifth reason added tomorrow falls into the reserve sentence instead of
  * leaving the screen blank. No code, no HTTP number: those are internal
  * vocabulary (ADR 0034, E-009).
  */

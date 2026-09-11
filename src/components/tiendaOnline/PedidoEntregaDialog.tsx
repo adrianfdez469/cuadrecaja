@@ -14,6 +14,7 @@ import { PedidoPagoFields } from "@/components/tiendaOnline/PedidoPagoFields";
 import type { IPedidoPagoMetodo } from "@/components/tiendaOnline/PedidoPagoFields";
 import { TIENDA_ONLINE_ORDER_AMOUNT_KIND } from "@/constants/tiendaOnline";
 import type { IQabOrderStatusReportable } from "@/lib/qab/qabOrderStatusClient";
+import type { IClienteOption } from "@/schemas/clienteSaldo";
 import type {
   IPedidoEntrantePago,
   ITiendaOnlineOrder,
@@ -22,6 +23,9 @@ import type {
 
 /** The method that needs a destination. */
 const TRANSFER_METHOD = "TRANSFERENCIA" satisfies IPedidoPagoMetodo;
+
+/** The method that needs a debtor. */
+const CREDIT_METHOD = "CREDITO" satisfies IPedidoPagoMetodo;
 
 /** Below this many destinations there is nothing to choose, so nothing to ask. */
 const MIN_DESTINATIONS_TO_CHOOSE = 2;
@@ -68,9 +72,15 @@ export interface PedidoEntregaDialogProps {
  * it, so neither `busy` nor `confirm.loading` is ever set — which is what keeps
  * this route free of the one spinner `AppDialog` can paint.
  *
- * Closing it without confirming DISCARDS the declaration: a half-made statement
- * that comes back days later, over another collection, is worse than starting
- * again, and starting again is two taps.
+ * Closing it without confirming DISCARDS the declaration — the debtor included:
+ * a half-made statement that comes back days later, over another collection, is
+ * worse than starting again, and starting again is two taps.
+ *
+ * Switching methods does NOT discard the other method's field: the debtor
+ * survives a trip through `Efectivo` and the default destination stays loaded
+ * while `A crédito` is chosen. What guarantees neither leaks into the other's
+ * body is the early `return` of each branch of `handleConfirm`, and nothing
+ * else (ADR 0130).
  */
 export function PedidoEntregaDialog({
   open,
@@ -84,6 +94,9 @@ export function PedidoEntregaDialog({
   const [transferDestinationId, setTransferDestinationId] = useState<
     string | null
   >(() => defaultDestinationId(destinations));
+  // There is NO `defaultCliente` and none is invented: a default destination is
+  // a fact the business configured, a debtor would be a guess about this order.
+  const [cliente, setCliente] = useState<IClienteOption | null>(null);
 
   const amountNotice = useMemo(() => {
     // The unquoted branch of the DTO HAS NO `total`, so there is no number to
@@ -101,16 +114,27 @@ export function PedidoEntregaDialog({
     metodo === TRANSFER_METHOD &&
     destinations.length >= MIN_DESTINATIONS_TO_CHOOSE;
   const missingDestination = needsDestination && transferDestinationId === null;
+  const missingCliente = metodo === CREDIT_METHOD && cliente === null;
 
   const reason =
     metodo === null
       ? TIENDA_ONLINE_ORDER_COPY.pagoFaltaMetodo
       : missingDestination
         ? TIENDA_ONLINE_ORDER_COPY.pagoFaltaDestino
-        : null;
+        : missingCliente
+          ? TIENDA_ONLINE_ORDER_COPY.pagoFaltaCliente
+          : null;
 
   const handleConfirm = () => {
     if (metodo === null) return;
+    if (metodo === CREDIT_METHOD) {
+      // The one extra field of this method, and never the other one: sending a
+      // `transferDestinationId` alongside it is row 9 of the schema's table and
+      // the body would be refused with a 400 the screen cannot explain.
+      if (cliente === null) return;
+      onConfirm({ metodo, clienteId: cliente.id });
+      return;
+    }
     if (metodo !== TRANSFER_METHOD) {
       onConfirm({ metodo });
       return;
@@ -148,8 +172,11 @@ export function PedidoEntregaDialog({
           destinations={destinations}
           metodo={metodo}
           transferDestinationId={transferDestinationId}
+          clienteId={cliente?.id ?? null}
+          clienteNombre={cliente?.nombre ?? null}
           onMetodoChange={setMetodo}
           onDestinationChange={setTransferDestinationId}
+          onClienteChange={setCliente}
         />
 
         {/* A control that is off always says why, and the reason goes away the

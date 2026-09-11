@@ -302,10 +302,18 @@ export const TIENDA_ONLINE_ORDER_LANDING_BLOCKERS = [
   "NO_OPEN_PERIOD",
   "UNKNOWN_TRANSFER_DESTINATION",
   "MISSING_EXCHANGE_RATE",
+  // F-036. The declared debtor does not resolve to a Cliente OF THIS BUSINESS.
+  // Cliente hangs from negocioId, NOT from tiendaId: this is the one blocker of
+  // the four whose scope is the business and not the store (ADR 0130).
+  "UNKNOWN_CLIENTE",
 ] as const;
 
-/** How the order was collected. ONE method for the whole amount (ADR 0073). */
-export const TIENDA_ONLINE_PAYMENT_METHODS = ["EFECTIVO", "TRANSFERENCIA"] as const;
+/** How the order was collected. ONE method for the whole amount (ADR 0073, ADR 0130). */
+export const TIENDA_ONLINE_PAYMENT_METHODS = [
+  "EFECTIVO",
+  "TRANSFERENCIA",
+  "CREDITO",
+] as const;
 
 /**
  * Prefix of `MovimientoStock.motivo` for both landing movements. It is followed
@@ -313,3 +321,77 @@ export const TIENDA_ONLINE_PAYMENT_METHODS = ["EFECTIVO", "TRANSFERENCIA"] as co
  * public credential (ADR 0061) and `motivo` is shown in the movements list.
  */
 export const TIENDA_ONLINE_ORDER_MOVEMENT_MOTIVO_PREFIX = "Pedido tienda online";
+
+/* -------------------------------------------------------------------------- */
+/* F-036 — CREDITO, the third method of a DELIVERED                            */
+/* -------------------------------------------------------------------------- */
+
+/** What an extra field of `pago` can be for a method. */
+export const TIENDA_ONLINE_PAYMENT_FIELD_RULES = ["REQUIRED", "FORBIDDEN"] as const;
+
+/** The extra fields of `pago`, in the order they are validated. */
+export const TIENDA_ONLINE_PAYMENT_EXTRA_FIELDS = [
+  "transferDestinationId",
+  "clienteId",
+] as const;
+
+/**
+ * Which extra field each payment method REQUIRES and which it FORBIDS. THE ONE
+ * definition of the nine combinations: the schema loops over it, and nothing
+ * else states the rule in its own words (E-014, E-039).
+ *
+ * `Record<…>` over both constants on purpose: a FOURTH method, or a THIRD extra
+ * field, does not compile until its rule is decided here. That is the hole the
+ * two-branch xor of ADR 0073 left open and this table closes — with three
+ * methods that xor kept accepting the third one by accident, and knew nothing
+ * at all about `clienteId`.
+ */
+export const TIENDA_ONLINE_PAYMENT_METHOD_FIELDS = {
+  EFECTIVO: {
+    transferDestinationId: "FORBIDDEN",
+    clienteId: "FORBIDDEN",
+  },
+  TRANSFERENCIA: {
+    transferDestinationId: "REQUIRED",
+    clienteId: "FORBIDDEN",
+  },
+  CREDITO: {
+    transferDestinationId: "FORBIDDEN",
+    clienteId: "REQUIRED",
+  },
+} as const satisfies Record<
+  (typeof TIENDA_ONLINE_PAYMENT_METHODS)[number],
+  Record<
+    (typeof TIENDA_ONLINE_PAYMENT_EXTRA_FIELDS)[number],
+    (typeof TIENDA_ONLINE_PAYMENT_FIELD_RULES)[number]
+  >
+>;
+
+/**
+ * The Zod issue message of each extra field. NOT an HTTP body: the PATCH answers
+ * `400 { error: "INVALID_BODY" }` and never returns `parsed.error.issues`, so
+ * these strings only ever reach a caller of `.safeParse` (E-065). English, like
+ * every other message in this schema module.
+ */
+export const TIENDA_ONLINE_PAYMENT_FIELD_MESSAGES = {
+  transferDestinationId:
+    "transferDestinationId is required for TRANSFERENCIA and forbidden for EFECTIVO and CREDITO",
+  clienteId:
+    "clienteId is required for CREDITO and forbidden for EFECTIVO and TRANSFERENCIA",
+} as const satisfies Record<
+  (typeof TIENDA_ONLINE_PAYMENT_EXTRA_FIELDS)[number],
+  string
+>;
+
+/**
+ * The `code` of the throw that aborts a credit landing whose debtor did not come
+ * back from the tenant-scoped query. Sixteen characters at most and `[A-Z0-9_]`
+ * only, so TIENDA_ONLINE_ORDER_STATUS_CAUSE_PATTERN accepts it and
+ * `orderStatusWriteFailureCause` names it in the divergence line instead of
+ * collapsing it into the unknown cause.
+ *
+ * FROZEN LITERAL. It measures EXACTLY the 16 characters the pattern allows, with
+ * no margin left: any rename one character longer stops matching and the cause
+ * silently degrades to the unknown one. Renaming it is a decision, not an edit.
+ */
+export const TIENDA_ONLINE_CREDIT_TENANT_ERROR = "CREDIT_NO_TENANT" as const;
