@@ -3,6 +3,10 @@ import {
   CONTROL_CHARACTERS_MESSAGE,
   hasControlCharacters,
 } from "@/utils/printableText";
+import {
+  CLIENTE_TELEFONO_MESSAGE,
+  isValidClienteTelefono,
+} from "@/lib/clientes/clienteTelefono";
 
 export const clienteSchema = z.object({
   id: z.string().uuid(),
@@ -28,10 +32,17 @@ export const createClienteSchema = z.object({
     .refine((value) => !hasControlCharacters(value), {
       message: CONTROL_CHARACTERS_MESSAGE,
     }),
-  // descripcion, direccion y telefono: SIN CAMBIOS.
+  // descripcion and direccion: same bounds as clienteSchema.
   descripcion: z.string().max(300, "Máximo 300 caracteres").optional(),
   direccion: z.string().max(300, "Máximo 300 caracteres").optional(),
-  telefono: z.string().max(40, "Máximo 40 caracteres").optional(),
+  // telefono: comma-separated phone numbers only (optional leading `+` per number). The
+  // rule lives in ONE place — src/lib/clientes/clienteTelefono.ts — so both writing
+  // surfaces and this schema cannot drift.
+  telefono: z
+    .string()
+    .max(40, "Máximo 40 caracteres")
+    .refine(isValidClienteTelefono, { message: CLIENTE_TELEFONO_MESSAGE })
+    .optional(),
 });
 
 export const updateClienteSchema = createClienteSchema.partial();

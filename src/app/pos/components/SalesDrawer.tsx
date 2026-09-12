@@ -58,6 +58,12 @@ import { IProductoTiendaPos } from "@/schemas/producto";
 import { convertToBase } from "@/lib/currency";
 import { usePrinter } from "@/features/printing/hooks/usePrinter";
 import { saleReportedAt } from "@/lib/venta/saleTime";
+import {
+  resolveVentaCreditoEstado,
+  ventaChipSaldo,
+} from "@/lib/cuentasPorCobrar/ventaCreditoEstado";
+import { VENTA_CREDITO_COPY } from "@/constants/ventaCredito";
+import { CreditoEstadoChip } from "@/components/credito/CreditoEstadoChip";
 
 interface IProps {
   showSales: boolean;
@@ -606,6 +612,9 @@ export const SalesDrawer: FC<IProps> = ({
                           p.cantidad
                       );
                     }, 0);
+                    // Credit — same chip and same vocabulary as /ventas (F-037); the state
+                    // resolver and the figure helper both read the Sale structurally.
+                    const estadoCredito = resolveVentaCreditoEstado(s);
                     return (
                       <Box
                         key={s.identifier}
@@ -630,12 +639,22 @@ export const SalesDrawer: FC<IProps> = ({
                           gap={1}
                         >
                           <Box sx={{ minWidth: 0 }}>
-                            <Box display="flex" alignItems="center" gap={1}>
+                            <Box
+                              display="flex"
+                              alignItems="center"
+                              gap={1}
+                              flexWrap="wrap"
+                            >
                               <Chip
                                 size="small"
                                 label={s.synced ? "Subida" : "Pendiente"}
                                 color={s.synced ? "success" : "warning"}
                                 variant="filled"
+                              />
+                              <CreditoEstadoChip
+                                estado={estadoCredito}
+                                saldoPendiente={ventaChipSaldo(s)}
+                                monedaBase={monedaBase}
                               />
                               <Typography
                                 variant="caption"
@@ -654,6 +673,18 @@ export const SalesDrawer: FC<IProps> = ({
                               Transf{" "}
                               {formatMontoEnMoneda(s.totaltransfer, monedaBase)}
                             </Typography>
+                            {estadoCredito !== "SIN_CREDITO" &&
+                              s.clienteNombre && (
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                  sx={{ mt: 0.5, display: "block" }}
+                                >
+                                  {VENTA_CREDITO_COPY.listaCliente(
+                                    s.clienteNombre,
+                                  )}
+                                </Typography>
+                              )}
                           </Box>
                           <Typography
                             variant="subtitle1"
@@ -776,6 +807,9 @@ export const SalesDrawer: FC<IProps> = ({
                       <TableCell align="right">
                         <b>Transf</b>
                       </TableCell>
+                      <TableCell>
+                        <b>{VENTA_CREDITO_COPY.columnaCredito}</b>
+                      </TableCell>
                       <TableCell align="right">
                         <b>Total</b>
                       </TableCell>
@@ -787,7 +821,7 @@ export const SalesDrawer: FC<IProps> = ({
                   <TableBody>
                     {ventasVirtual.paddingTop > 0 && (
                       <TableRow style={{ height: ventasVirtual.paddingTop }}>
-                        <TableCell colSpan={6} sx={{ p: 0, border: 0 }} />
+                        <TableCell colSpan={7} sx={{ p: 0, border: 0 }} />
                       </TableRow>
                     )}
                     {ventasVirtual.visible.map(({ item: s, virtual }) => {
@@ -808,6 +842,8 @@ export const SalesDrawer: FC<IProps> = ({
                             p.cantidad
                         );
                       }, 0);
+                      // Credit — same chip and same vocabulary as /ventas (F-037).
+                      const estadoCredito = resolveVentaCreditoEstado(s);
                       return (
                         <Fragment key={s.identifier}>
                           <TableRow
@@ -849,6 +885,25 @@ export const SalesDrawer: FC<IProps> = ({
                             </TableCell>
                             <TableCell align="right">
                               {formatMontoEnMoneda(s.totaltransfer, monedaBase)}
+                            </TableCell>
+                            <TableCell>
+                              <CreditoEstadoChip
+                                estado={estadoCredito}
+                                saldoPendiente={ventaChipSaldo(s)}
+                                monedaBase={monedaBase}
+                              />
+                              {estadoCredito !== "SIN_CREDITO" &&
+                                s.clienteNombre && (
+                                  <Typography
+                                    variant="caption"
+                                    color="text.secondary"
+                                    sx={{ display: "block", mt: 0.5 }}
+                                  >
+                                    {VENTA_CREDITO_COPY.listaCliente(
+                                      s.clienteNombre,
+                                    )}
+                                  </Typography>
+                                )}
                             </TableCell>
                             <TableCell align="right">
                               <Typography variant="h6">
@@ -939,7 +994,7 @@ export const SalesDrawer: FC<IProps> = ({
                     })}
                     {ventasVirtual.paddingBottom > 0 && (
                       <TableRow style={{ height: ventasVirtual.paddingBottom }}>
-                        <TableCell colSpan={6} sx={{ p: 0, border: 0 }} />
+                        <TableCell colSpan={7} sx={{ p: 0, border: 0 }} />
                       </TableRow>
                     )}
                   </TableBody>

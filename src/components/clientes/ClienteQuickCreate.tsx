@@ -5,12 +5,17 @@ import { Box, Button, ButtonBase, Stack, TextField, Typography } from "@mui/mate
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import { touch } from "@/theme";
 import { SHEET_ROW_SX } from "@/app/pos/components/checkout/BottomSheet";
-import { CLIENTES_DOM, CLIENTES_EXTRA_COPY } from "@/constants/clientes";
+import { CLIENTES_COPY, CLIENTES_DOM, CLIENTES_EXTRA_COPY } from "@/constants/clientes";
 import {
   clienteCreateActionLabel,
   CLIENTE_CREATE_BLOCK_COPY,
 } from "@/lib/clientes/clienteCopy";
 import { normalizeClienteNombre } from "@/lib/clientes/clienteNombre";
+import {
+  hasClienteTelefonoError,
+  normalizeClienteTelefono,
+  sanitizeClienteTelefono,
+} from "@/lib/clientes/clienteTelefono";
 import { toClienteOption } from "@/lib/clientes/clienteCache";
 import type { IClienteCreateBlockReason } from "@/lib/clientes/clienteSearch";
 import type { ICreateCliente } from "@/schemas/cliente";
@@ -59,6 +64,10 @@ export function ClienteQuickCreate({
 
   const label = clienteCreateActionLabel(term);
 
+  // Field-level validation: a + with no digits behind it stays as an error on the field,
+  // not as a silently dropped character.
+  const telefonoInvalido = hasClienteTelefonoError(telefono);
+
   // A blocked action can never stay unfolded: losing the connection with the short form open
   // would leave a form nobody can submit.
   useEffect(() => {
@@ -99,11 +108,12 @@ export function ClienteQuickCreate({
     const nombreLimpio = normalizeClienteNombre(nombre);
     if (nombreLimpio === "" || saving) return;
 
+    const telefonoLimpio = normalizeClienteTelefono(telefono);
     setSaving(true);
     try {
       const response = await onCreate({
         nombre: nombreLimpio,
-        ...(telefono.trim() !== "" && { telefono: telefono.trim() }),
+        ...(telefonoLimpio !== "" && { telefono: telefonoLimpio }),
       });
       if (!response) return;
       close();
@@ -126,13 +136,23 @@ export function ClienteQuickCreate({
         <TextField
           fullWidth
           label={CLIENTES_EXTRA_COPY.quickTelefono}
+          error={telefonoInvalido}
+          helperText={
+            telefonoInvalido
+              ? CLIENTES_COPY.formTelefonoError
+              : CLIENTES_COPY.formTelefonoAyuda
+          }
           value={telefono}
-          onChange={(event) => setTelefono(event.target.value)}
+          onChange={(event) => setTelefono(sanitizeClienteTelefono(event.target.value))}
         />
         <Button
           variant="contained"
           onClick={submit}
-          disabled={saving || normalizeClienteNombre(nombre) === ""}
+          disabled={
+            saving ||
+            normalizeClienteNombre(nombre) === "" ||
+            telefonoInvalido
+          }
           sx={{ minHeight: touch.comfortable }}
         >
           {CLIENTES_EXTRA_COPY.quickCrear}

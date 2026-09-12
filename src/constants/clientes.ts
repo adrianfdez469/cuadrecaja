@@ -94,7 +94,12 @@ export const CLIENTES_COPY = {
   formNombre: "Nombre del cliente",
   formNombrePlaceholder: "Ej: Ana Pérez, Taller El Sol…",
   formTelefono: "Teléfono",
-  formTelefonoPlaceholder: "Ej: +53 5555 5555",
+  // These two follow the comma-separated phone rule (src/lib/clientes/clienteTelefono.ts),
+  // which postdates the design's § 5 copy: a placeholder showing "+53 5555 5555" would
+  // advertise characters the field now drops.
+  formTelefonoPlaceholder: "Ej: +5353334449,534319958",
+  formTelefonoAyuda: "Solo números, con + opcional, separados por comas.",
+  formTelefonoError: "Después del + debe seguir al menos un número.",
   formDireccion: "Dirección",
   formDescripcion: "Nota",
   formDescripcionPlaceholder:
