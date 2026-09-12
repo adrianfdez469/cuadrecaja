@@ -9,6 +9,7 @@ import { calcularEfectivoDisponiblePorMoneda } from "@/lib/movimiento/caja";
 import { validateTip } from "@/lib/tips";
 import { packsToOpen, unitsFromPacks } from "@/lib/fractionStock";
 import { saleMovementFecha } from "@/lib/venta/saleTime";
+import { compareSalesByReportedAtDesc } from "@/lib/venta/saleOrder";
 import {
   MISSING_EXCHANGE_RATE_ERROR,
   missingExchangeRateMessage,
@@ -139,6 +140,7 @@ export async function POST(
       createdAt,
       wasOffline,
       syncAttempts,
+      syncAttemptsAreFailures,
       discountCodes,
       // Multimoneda (opcionales — backward-compatible)
       monedaCobro,
@@ -596,6 +598,12 @@ export async function POST(
             frontendCreatedAt: createdAt ? new Date(createdAt) : null,
             wasOffline: wasOffline || false,
             syncAttempts: syncAttempts || 0, // 🆕 Usar syncAttempts enviado desde frontend
+            // Only an explicit declaration marks the row. Anything else — a
+            // stale bundle that does not send the field, a malformed body —
+            // leaves it NULL, which the predicate reads with the conservative
+            // threshold.
+            syncAttemptsAreFailures:
+              syncAttemptsAreFailures === true ? true : null,
             discountTotal: discountTotalCalc || 0,
             creditoBase: creditoBasePersistido,
             clienteId: clienteIdEfectivo,
@@ -1284,76 +1292,80 @@ export async function GET(
         },
         scope.negocioId,
       ),
-      orderBy: {
-        createdAt: "desc",
-      },
     });
 
-    const ventas: IVenta[] = ventasPrisma.map((venta) => ({
-      id: venta.id,
-      createdAt: venta.createdAt,
-      // The selling device's own clock. Without it the cutoff dialog falls back
-      // to the sync stamp for every sale, paints the wrong hour and orders the
-      // list by it — with no error anywhere (E-013).
-      frontendCreatedAt: venta.frontendCreatedAt ?? undefined,
-      total: venta.total,
-      totalcash: venta.totalcash,
-      totaltransfer: venta.totaltransfer,
-      discountTotal: Number(venta.discountTotal ?? 0),
-      tiendaId: venta.tiendaId,
-      usuarioId: venta.usuarioId,
-      cierrePeriodoId: venta.cierrePeriodoId,
-      usuario: {
-        id: venta.usuario.id,
-        nombre: venta.usuario.nombre,
-        usuario: "",
-        rol: "",
-      },
-      productos: venta.productos.map((p) => ({
-        id: p.producto.producto.id,
-        ventaProductoId: p.id,
-        ventaId: venta.id,
-        productoTiendaId: p.productoTiendaId,
-        cantidad: p.cantidad,
-        name: p.producto.proveedor
-          ? `${p.producto?.producto?.nombre} - ${p.producto.proveedor.nombre}`
-          : (p.producto?.producto?.nombre ?? undefined),
-        price: p.precio ?? undefined,
-        monedaPrecioCode: p.monedaPrecioCode ?? undefined,
-      })),
-      appliedDiscounts: (venta.appliedDiscounts || []).map((ad) => ({
-        id: ad.id,
-        discountRuleId: ad.discountRuleId,
-        ventaId: ad.ventaId,
-        amount: ad.amount,
-        // Prisma almacena JSON, lo convertimos al tipo esperado de la UI (si es posible)
-        productsAffected: ad.productsAffected as unknown as
-          { productoTiendaId: string; cantidad: number }[] | undefined,
-        createdAt: ad.createdAt,
-        ruleName: ad.discountRule?.name,
-      })),
-      transferDestinationId: venta.transferDestinationId ?? undefined,
-      transferDestination: venta.transferDestination ?? undefined,
-      syncId: venta.syncId,
-      monedaCobro: venta.monedaCobro ?? undefined,
-      pagosDetalle:
-        (venta.pagosDetalle as unknown as IVenta["pagosDetalle"]) ?? undefined,
-      vueltoDetalle:
-        (venta.vueltoDetalle as unknown as IVenta["vueltoDetalle"]) ??
-        undefined,
-      tasaSnapshot:
-        (venta.tasaSnapshot as unknown as IVenta["tasaSnapshot"]) ?? undefined,
-      tipTotal: Number(venta.tipTotal ?? 0),
-      tipDetail:
-        (venta.tipDetail as unknown as IVenta["tipDetail"]) ?? undefined,
-      creditoBase: Number(venta.creditoBase ?? 0),
-      clienteId: venta.clienteId ?? undefined,
-      clienteNombre: venta.cliente?.nombre ?? undefined,
-      // IMPORTED from src/lib/ventaMapper.ts, never a second assembly of the same block: if each
-      // caller built it its own way, the chip of /ventas and the chip of the mobile app could
-      // disagree about the very same sale (F-037, contract § 5).
-      credito: buildVentaCreditoResumen(venta.cuentaPorCobrar),
-    }));
+    const ventas: IVenta[] = ventasPrisma
+      .sort(compareSalesByReportedAtDesc)
+      .map((venta) => ({
+        id: venta.id,
+        createdAt: venta.createdAt,
+        // The selling device's own clock. Without it the cutoff dialog falls back
+        // to the sync stamp for every sale, paints the wrong hour and orders the
+        // list by it — with no error anywhere (E-013).
+        frontendCreatedAt: venta.frontendCreatedAt ?? undefined,
+        wasOffline: venta.wasOffline,
+        syncAttempts: venta.syncAttempts,
+        syncAttemptsAreFailures: venta.syncAttemptsAreFailures ?? undefined,
+        total: venta.total,
+        totalcash: venta.totalcash,
+        totaltransfer: venta.totaltransfer,
+        discountTotal: Number(venta.discountTotal ?? 0),
+        tiendaId: venta.tiendaId,
+        usuarioId: venta.usuarioId,
+        cierrePeriodoId: venta.cierrePeriodoId,
+        usuario: {
+          id: venta.usuario.id,
+          nombre: venta.usuario.nombre,
+          usuario: "",
+          rol: "",
+        },
+        productos: venta.productos.map((p) => ({
+          id: p.producto.producto.id,
+          ventaProductoId: p.id,
+          ventaId: venta.id,
+          productoTiendaId: p.productoTiendaId,
+          cantidad: p.cantidad,
+          name: p.producto.proveedor
+            ? `${p.producto?.producto?.nombre} - ${p.producto.proveedor.nombre}`
+            : (p.producto?.producto?.nombre ?? undefined),
+          price: p.precio ?? undefined,
+          monedaPrecioCode: p.monedaPrecioCode ?? undefined,
+        })),
+        appliedDiscounts: (venta.appliedDiscounts || []).map((ad) => ({
+          id: ad.id,
+          discountRuleId: ad.discountRuleId,
+          ventaId: ad.ventaId,
+          amount: ad.amount,
+          // Prisma almacena JSON, lo convertimos al tipo esperado de la UI (si es posible)
+          productsAffected: ad.productsAffected as unknown as
+            { productoTiendaId: string; cantidad: number }[] | undefined,
+          createdAt: ad.createdAt,
+          ruleName: ad.discountRule?.name,
+        })),
+        transferDestinationId: venta.transferDestinationId ?? undefined,
+        transferDestination: venta.transferDestination ?? undefined,
+        syncId: venta.syncId,
+        monedaCobro: venta.monedaCobro ?? undefined,
+        pagosDetalle:
+          (venta.pagosDetalle as unknown as IVenta["pagosDetalle"]) ??
+          undefined,
+        vueltoDetalle:
+          (venta.vueltoDetalle as unknown as IVenta["vueltoDetalle"]) ??
+          undefined,
+        tasaSnapshot:
+          (venta.tasaSnapshot as unknown as IVenta["tasaSnapshot"]) ??
+          undefined,
+        tipTotal: Number(venta.tipTotal ?? 0),
+        tipDetail:
+          (venta.tipDetail as unknown as IVenta["tipDetail"]) ?? undefined,
+        creditoBase: Number(venta.creditoBase ?? 0),
+        clienteId: venta.clienteId ?? undefined,
+        clienteNombre: venta.cliente?.nombre ?? undefined,
+        // IMPORTED from src/lib/ventaMapper.ts, never a second assembly of the same block: if each
+        // caller built it its own way, the chip of /ventas and the chip of the mobile app could
+        // disagree about the very same sale (F-037, contract § 5).
+        credito: buildVentaCreditoResumen(venta.cuentaPorCobrar),
+      }));
 
     return NextResponse.json(ventas);
   } catch (error) {

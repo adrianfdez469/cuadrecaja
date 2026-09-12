@@ -38,6 +38,8 @@ import {
 } from "@mui/icons-material";
 import { IVenta } from "@/schemas/venta";
 import { formatDate, formatTimeShort } from "@/utils/formatters";
+import { saleReportedAt } from "@/lib/venta/saleTime";
+import { toSaleTimestamps } from "@/lib/venta/ventaTimestamps";
 import { useAppContext } from "@/context/AppContext";
 import { convertToBase, formatMoneda } from "@/lib/currency";
 import {
@@ -48,6 +50,7 @@ import { VENTA_CREDITO_DOM } from "@/constants/ventaCredito";
 import { VentaCreditoBlock } from "./VentaCreditoBlock";
 import { shape } from "@/theme/tokens";
 import { SaleExtrasSummary } from "@/components/SaleExtrasSummary";
+import SaleSyncTraceCard from "@/app/ventas/components/SaleSyncTraceCard";
 import { usePermisos } from "@/utils/permisos_front";
 import { usePrinter } from "@/features/printing/hooks/usePrinter";
 import { ventaToSale } from "@/features/printing/lib/ventaToSale";
@@ -83,6 +86,8 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
   const puedeImprimir = verificarPermiso("operaciones.pos-venta.imprimir");
 
   if (!venta) return null;
+
+  const reportedAt = saleReportedAt(toSaleTimestamps(venta));
 
   const tasas = tasasVigentes;
 
@@ -234,7 +239,7 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
             <InfoCard
               icon={<CalendarToday />}
               title="Fecha"
-              value={formatDate(venta.createdAt)}
+              value={formatDate(reportedAt)}
               color="info"
             />
           </Grid>
@@ -242,7 +247,7 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
             <InfoCard
               icon={<CalendarToday />}
               title="Hora"
-              value={formatTimeShort(venta.createdAt)}
+              value={formatTimeShort(reportedAt)}
               color="info"
             />
           </Grid>
@@ -279,6 +284,9 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
             clienteNombre={venta.clienteNombre}
           />
         )}
+
+        {/* Renders nothing unless this sale carries a sync trace. */}
+        <SaleSyncTraceCard venta={venta} />
 
         {/* Detalle de pago, vuelto, propina y tasa de cambio de la venta */}
         {(venta.pagosDetalle?.length ||

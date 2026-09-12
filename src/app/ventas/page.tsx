@@ -28,15 +28,8 @@ import {
   Tooltip,
   useTheme,
   useMediaQuery,
-  alpha,
 } from "@mui/material";
-import {
-  Delete,
-  Search,
-  Refresh,
-  Visibility,
-  ReceiptLong,
-} from "@mui/icons-material";
+import { Delete, Search, Refresh, Visibility } from "@mui/icons-material";
 import { fetchLastPeriod, openPeriod } from "@/services/cierrePeriodService";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
@@ -54,10 +47,20 @@ import { LoadingState } from "@/components/LoadingState";
 import SelectableTextField from "@/components/SelectableTextField";
 import VentaDetailDialog from "./components/VentaDetailDialog";
 import { formatDate, formatDateTime, isToday } from "@/utils/formatters";
+import { saleReportedAt } from "@/lib/venta/saleTime";
+import { toSaleTimestamps } from "@/lib/venta/ventaTimestamps";
+import { hasSyncTrace } from "@/lib/venta/saleSyncTrace";
+import { saleHistoryEmptyReason } from "@/lib/venta/saleHistoryFilter";
+import SyncTraceFilterToggle from "./components/SyncTraceFilterToggle";
+import SalesHistoryEmptyState from "./components/SalesHistoryEmptyState";
 import { usePermisos } from "@/utils/permisos_front";
 import { MultiCurrencyAmount } from "@/components/MultiCurrencyAmount";
+import { touch } from "@/theme/tokens";
 import { CreditoEstadoChip } from "@/components/credito/CreditoEstadoChip";
-import { VENTA_CREDITO_COPY, VENTA_CREDITO_DOM } from "@/constants/ventaCredito";
+import {
+  VENTA_CREDITO_COPY,
+  VENTA_CREDITO_DOM,
+} from "@/constants/ventaCredito";
 import { resolveVentaCreditoEstado } from "@/lib/cuentasPorCobrar/ventaCreditoEstado";
 import {
   evaluateVentaDeleteGuard,
@@ -67,6 +70,14 @@ import { matchesVentaSearch } from "./utils/ventaSearch";
 
 /** The Tooltip of the delete-sale button when nothing blocks it: today's literal. */
 const TOOLTIP_ELIMINAR_VENTA = "Eliminar venta";
+
+/**
+ * Said once, in one node, at every width: the two figures follow whatever the
+ * list is showing. Kept as a constant so its rendered text is exactly this
+ * string, with no help from JSX whitespace collapsing.
+ */
+const FILTER_FIGURES_NOTICE =
+  "Con el filtro activo, Total Vendido y Monto Hoy cuentan solo las ventas que se ven. Quita el filtro para ver las cifras del período completo.";
 
 const Ventas = () => {
   const { user, loadingContext, monedaBase } = useAppContext();
@@ -79,6 +90,7 @@ const Ventas = () => {
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [ventas, setVentas] = useState<IVenta[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [showOnlySyncTraced, setShowOnlySyncTraced] = useState(false);
   const [noPeriodFound, setNoPeriodFound] = useState(false);
   const [noLocalActual, setNoLocalActual] = useState(false);
   const [isProcessingPeriod, setIsProcessingPeriod] = useState(false);
@@ -233,9 +245,21 @@ const Ventas = () => {
 
   // The predicate lives in a `.ts` so a test can import it (E-015). It matches everything it
   // matched before and adds `clienteNombre`, the debtor of a credit sale (criterion 4).
-  const filteredVentas = ventas.filter((venta) =>
+  const searchedVentas = ventas.filter((venta) =>
     matchesVentaSearch(venta, searchTerm),
   );
+
+  const filteredVentas = showOnlySyncTraced
+    ? searchedVentas.filter(hasSyncTrace)
+    : searchedVentas;
+
+  const emptyReason = saleHistoryEmptyReason({
+    totalCount: ventas.length,
+    visibleCount: filteredVentas.length,
+    searchTerm,
+    syncTraceFilterActive: showOnlySyncTraced,
+    anySaleWithSyncTrace: ventas.some(hasSyncTrace),
+  });
 
   // Resolved ONCE for the page and over `ventas`, never over `filteredVentas`: on the filtered
   // list, typing in the search box would make a column appear and disappear while the table is
@@ -286,7 +310,7 @@ const Ventas = () => {
   );
 
   const montoHoy = filteredVentas
-    .filter((v) => isToday(v.createdAt))
+    .filter((v) => isToday(saleReportedAt(toSaleTimestamps(v))))
     .reduce((sum, venta) => sum + (venta.total || 0), 0);
 
   if (loadingContext || isDataLoading) {
@@ -429,6 +453,12 @@ const Ventas = () => {
         />
       )}
 
+      {showOnlySyncTraced && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          {FILTER_FIGURES_NOTICE}
+        </Alert>
+      )}
+
       {/* Lista de ventas */}
       <ContentCard
         title="Historial de Ventas"
@@ -438,120 +468,60 @@ const Ventas = () => {
             : undefined
         }
         headerActions={
-          <SelectableTextField
-            size="small"
-            placeholder={
-              isMobile
-                ? VENTA_CREDITO_COPY.buscarPlaceholderCorto
-                : VENTA_CREDITO_COPY.buscarPlaceholder
-            }
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <Search />
-                </InputAdornment>
-              ),
-            }}
-            sx={{
-              width: isMobile ? "100%" : 250,
-            }}
-          />
+          // Stacked at 320px and side by side from `sm` up, with the search
+          // first: `useFlexGap` so the gap survives the wrap onto a second
+          // line, and `stretch` so the button fills the column without needing
+          // a width of its own.
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            alignItems={{ xs: "stretch", sm: "center" }}
+            spacing={1.25}
+            useFlexGap
+            flexWrap="wrap"
+          >
+            <SelectableTextField
+              size="small"
+              placeholder={
+                isMobile
+                  ? VENTA_CREDITO_COPY.buscarPlaceholderCorto
+                  : VENTA_CREDITO_COPY.buscarPlaceholder
+              }
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Search />
+                  </InputAdornment>
+                ),
+              }}
+              sx={{
+                width: isMobile ? "100%" : 252,
+                flexShrink: 0,
+                // The field sits next to a control that clears the touch floor
+                // by itself, so it has to clear it too. `border-box` because
+                // InputBase sets the inner input to `content-box`, where a
+                // height would add its padding on top.
+                "& .MuiOutlinedInput-input": {
+                  boxSizing: "border-box",
+                  height: touch.min,
+                },
+              }}
+            />
+            <SyncTraceFilterToggle
+              active={showOnlySyncTraced}
+              onToggle={setShowOnlySyncTraced}
+            />
+          </Stack>
         }
         noPadding
         fullHeight
       >
-        {filteredVentas.length === 0 ? (
-          <Box
-            sx={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              py: 6,
-              px: 2,
-            }}
-          >
-            {/* Icon with wash background */}
-            <Box
-              sx={{
-                bgcolor: alpha(theme.palette.info.main, 0.1),
-                borderRadius: "50%",
-                p: 2,
-                mb: 2,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: 64,
-                height: 64,
-              }}
-            >
-              <ReceiptLong
-                sx={{
-                  fontSize: 48,
-                  color: theme.palette.info.main,
-                }}
-              />
-            </Box>
-
-            {/* Main heading */}
-            <Typography
-              variant="body1"
-              sx={{
-                fontSize: "17px",
-                fontWeight: 700,
-                mb: 1,
-                textAlign: "center",
-              }}
-            >
-              {searchTerm
-                ? "No se encontraron ventas"
-                : "No hay ventas registradas en este período"}
-            </Typography>
-
-            {/* Subheading */}
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              sx={{
-                fontSize: "14px",
-                mb: searchTerm ? 0 : 2,
-                textAlign: "center",
-              }}
-            >
-              {searchTerm
-                ? "Intenta con otros términos de búsqueda"
-                : "Las ventas aparecerán aquí cuando:"}
-            </Typography>
-
-            {/* Bullet points */}
-            {!searchTerm && (
-              <Stack spacing={0.5} sx={{ mt: 1 }}>
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{ fontSize: "13px" }}
-                >
-                  • Se realicen ventas desde el POS
-                </Typography>
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{ fontSize: "13px" }}
-                >
-                  • Se procesen transacciones
-                </Typography>
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{ fontSize: "13px" }}
-                >
-                  • Se registren pagos de clientes
-                </Typography>
-              </Stack>
-            )}
-          </Box>
+        {emptyReason !== null ? (
+          <SalesHistoryEmptyState
+            reason={emptyReason}
+            onClearFilter={() => setShowOnlySyncTraced(false)}
+          />
         ) : isMobile ? (
           // Vista móvil con cards más densos
           // Con muchas ventas la lista gana su propio scroll y solo pinta las
@@ -568,150 +538,157 @@ const Ventas = () => {
                   : undefined
               }
             >
-              {ventasVirtual.visible.map(({ item: venta, virtual }) => (
-                <Card
-                  key={venta.id}
-                  {...(virtual
-                    ? {
-                        "data-index": virtual.index,
-                        ref: ventasVirtual.measureElement,
-                        style: {
-                          position: "absolute",
-                          top: 0,
-                          left: 0,
-                          right: 0,
-                          transform: `translateY(${virtual.start - ventasVirtual.offset}px)`,
-                        },
-                      }
-                    : {})}
-                  onClick={() => handleOpenVenta(venta)}
-                  sx={{
-                    cursor: "pointer",
-                    "&:hover": {
-                      backgroundColor: "semantic.surface.sunken",
-                    },
-                  }}
-                >
-                  <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
-                    <Box
-                      display="flex"
-                      justifyContent="space-between"
-                      alignItems="flex-start"
-                      gap={1.5}
-                    >
-                      {/* venta.total ya está en moneda base; mostramos base + equivalentes */}
-                      <MultiCurrencyAmount
-                        amount={venta.total}
-                        variant="stat"
-                      />
-                      <Stack direction="row" gap={0.5} sx={{ flexShrink: 0 }}>
-                        <IconButton
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenVenta(venta);
-                          }}
-                          color="primary"
-                        >
-                          <Visibility fontSize="small" />
-                        </IconButton>
-                        <Tooltip title={ventaDeleteInfo(venta).motivo}>
-                          {/* The span is new here: a Tooltip does not fire over a disabled
+              {ventasVirtual.visible.map(({ item: venta, virtual }) => {
+                const reportedAt = saleReportedAt(toSaleTimestamps(venta));
+
+                return (
+                  <Card
+                    key={venta.id}
+                    {...(virtual
+                      ? {
+                          "data-index": virtual.index,
+                          ref: ventasVirtual.measureElement,
+                          style: {
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            transform: `translateY(${virtual.start - ventasVirtual.offset}px)`,
+                          },
+                        }
+                      : {})}
+                    onClick={() => handleOpenVenta(venta)}
+                    sx={{
+                      cursor: "pointer",
+                      "&:hover": {
+                        backgroundColor: "semantic.surface.sunken",
+                      },
+                    }}
+                  >
+                    <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
+                      <Box
+                        display="flex"
+                        justifyContent="space-between"
+                        alignItems="flex-start"
+                        gap={1.5}
+                      >
+                        {/* venta.total ya está en moneda base; mostramos base + equivalentes */}
+                        <MultiCurrencyAmount
+                          amount={venta.total}
+                          variant="stat"
+                        />
+                        <Stack direction="row" gap={0.5} sx={{ flexShrink: 0 }}>
+                          <IconButton
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenVenta(venta);
+                            }}
+                            color="primary"
+                          >
+                            <Visibility fontSize="small" />
+                          </IconButton>
+                          <Tooltip title={ventaDeleteInfo(venta).motivo}>
+                            {/* The span is new here: a Tooltip does not fire over a disabled
                               button, and the reason has to be in the DOM. No `aria-label` of
                               its own — it would flatten the one the Tooltip writes. */}
-                          <span className={VENTA_CREDITO_DOM.accionVenta}>
-                            <IconButton
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleCancelVenta(venta);
-                              }}
-                              color="error"
-                              disabled={
-                                deletingVentaId === venta.id ||
-                                !ventaDeleteInfo(venta).allowed
-                              }
-                            >
-                              {deletingVentaId === venta.id ? (
-                                <CircularProgress size={18} />
-                              ) : (
-                                <Delete fontSize="small" />
-                              )}
-                            </IconButton>
-                          </span>
-                        </Tooltip>
-                      </Stack>
-                    </Box>
-
-                    {/* El estado de crédito, solo, en su propia línea: es lo que decide si la
-                        tarjeta interesa, así que queda pegado a la cifra que califica. */}
-                    {resolveVentaCreditoEstado(venta) !== "SIN_CREDITO" && (
-                      <Box sx={{ mt: 1 }}>
-                        <CreditoEstadoChip
-                          estado={resolveVentaCreditoEstado(venta)}
-                          saldoPendiente={venta.credito?.saldoPendiente}
-                          monedaBase={monedaBase}
-                        />
+                            <span className={VENTA_CREDITO_DOM.accionVenta}>
+                              <IconButton
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleCancelVenta(venta);
+                                }}
+                                color="error"
+                                disabled={
+                                  deletingVentaId === venta.id ||
+                                  !ventaDeleteInfo(venta).allowed
+                                }
+                              >
+                                {deletingVentaId === venta.id ? (
+                                  <CircularProgress size={18} />
+                                ) : (
+                                  <Delete fontSize="small" />
+                                )}
+                              </IconButton>
+                            </span>
+                          </Tooltip>
+                        </Stack>
                       </Box>
-                    )}
-                    {/* Debajo del chip y no al lado: a 320 px un pill con etiqueta e importe
+
+                      {/* El estado de crédito, solo, en su propia línea: es lo que decide si la
+                        tarjeta interesa, así que queda pegado a la cifra que califica. */}
+                      {resolveVentaCreditoEstado(venta) !== "SIN_CREDITO" && (
+                        <Box sx={{ mt: 1 }}>
+                          <CreditoEstadoChip
+                            estado={resolveVentaCreditoEstado(venta)}
+                            saldoPendiente={venta.credito?.saldoPendiente}
+                            monedaBase={monedaBase}
+                          />
+                        </Box>
+                      )}
+                      {/* Debajo del chip y no al lado: a 320 px un pill con etiqueta e importe
                         más un nombre de persona no caben en la misma línea sin envolver, y un
                         pill envuelto pierde su forma. */}
-                    {venta.clienteNombre && (
-                      <Typography
-                        variant="caption"
-                        className={VENTA_CREDITO_DOM.cliente}
+                      {venta.clienteNombre && (
+                        <Typography
+                          variant="caption"
+                          className={VENTA_CREDITO_DOM.cliente}
+                          sx={{
+                            display: "block",
+                            mt: 0.5,
+                            color: "semantic.text.secondary",
+                          }}
+                        >
+                          {VENTA_CREDITO_COPY.listaCliente(venta.clienteNombre)}
+                        </Typography>
+                      )}
+
+                      <Stack
+                        direction="row"
+                        alignItems="center"
+                        gap={1}
                         sx={{
-                          display: "block",
-                          mt: 0.5,
-                          color: "semantic.text.secondary",
+                          mt: 1.5,
+                          pt: 1.25,
+                          borderTop: 1,
+                          borderColor: "divider",
                         }}
                       >
-                        {VENTA_CREDITO_COPY.listaCliente(venta.clienteNombre)}
-                      </Typography>
-                    )}
-
-                    <Stack
-                      direction="row"
-                      alignItems="center"
-                      gap={1}
-                      sx={{
-                        mt: 1.5,
-                        pt: 1.25,
-                        borderTop: 1,
-                        borderColor: "divider",
-                      }}
-                    >
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          sx={{ fontVariantNumeric: "tabular-nums" }}
+                        >
+                          #{venta.id.slice(-8)}
+                        </Typography>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          sx={{ fontVariantNumeric: "tabular-nums" }}
+                        >
+                          · {formatDateTime(reportedAt)}
+                        </Typography>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          sx={{
+                            ml: "auto",
+                            fontVariantNumeric: "tabular-nums",
+                          }}
+                        >
+                          {venta.productos?.length || 0} prod.
+                        </Typography>
+                      </Stack>
                       <Typography
                         variant="caption"
                         color="text.secondary"
-                        sx={{ fontVariantNumeric: "tabular-nums" }}
+                        sx={{ display: "block", mt: 0.5 }}
                       >
-                        #{venta.id.slice(-8)}
+                        {venta.usuario?.nombre || ""}
                       </Typography>
-                      <Typography
-                        variant="caption"
-                        color="text.secondary"
-                        sx={{ fontVariantNumeric: "tabular-nums" }}
-                      >
-                        · {formatDateTime(venta.createdAt)}
-                      </Typography>
-                      <Typography
-                        variant="caption"
-                        color="text.secondary"
-                        sx={{ ml: "auto", fontVariantNumeric: "tabular-nums" }}
-                      >
-                        {venta.productos?.length || 0} prod.
-                      </Typography>
-                    </Stack>
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      sx={{ display: "block", mt: 0.5 }}
-                    >
-                      {venta.usuario?.nombre || ""}
-                    </Typography>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </Stack>
           </Box>
         ) : (
@@ -740,125 +717,132 @@ const Ventas = () => {
                     <TableCell colSpan={columnCount} sx={{ p: 0, border: 0 }} />
                   </TableRow>
                 )}
-                {ventasVirtual.visible.map(({ item: venta, virtual }) => (
-                  <TableRow
-                    key={venta.id}
-                    {...(virtual
-                      ? {
-                          "data-index": virtual.index,
-                          ref: ventasVirtual.measureElement,
-                        }
-                      : {})}
-                    onClick={() => handleOpenVenta(venta)}
-                    sx={{
-                      cursor: "pointer",
-                      "&:hover": {
-                        backgroundColor: "semantic.surface.sunken",
-                      },
-                    }}
-                  >
-                    <TableCell>
-                      <Typography variant="body2" fontWeight="medium">
-                        #{venta.id.slice(-8)}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                        sx={{ fontVariantNumeric: "tabular-nums" }}
-                      >
-                        {formatDate(venta.createdAt)} ·{" "}
-                        {formatDateTime(venta.createdAt).split(" • ")[1]}
-                      </Typography>
-                    </TableCell>
-                    <TableCell align="right">
-                      {/* venta.total ya está en moneda base; mostramos base + equivalentes */}
-                      <MultiCurrencyAmount amount={venta.total} align="right" />
-                    </TableCell>
-                    {hayCredito && (
+                {ventasVirtual.visible.map(({ item: venta, virtual }) => {
+                  const reportedAt = saleReportedAt(toSaleTimestamps(venta));
+
+                  return (
+                    <TableRow
+                      key={venta.id}
+                      {...(virtual
+                        ? {
+                            "data-index": virtual.index,
+                            ref: ventasVirtual.measureElement,
+                          }
+                        : {})}
+                      onClick={() => handleOpenVenta(venta)}
+                      sx={{
+                        cursor: "pointer",
+                        "&:hover": {
+                          backgroundColor: "semantic.surface.sunken",
+                        },
+                      }}
+                    >
                       <TableCell>
-                        {resolveVentaCreditoEstado(venta) !==
-                          "SIN_CREDITO" && (
-                          <CreditoEstadoChip
-                            estado={resolveVentaCreditoEstado(venta)}
-                            saldoPendiente={venta.credito?.saldoPendiente}
-                            monedaBase={monedaBase}
-                          />
-                        )}
-                        {venta.clienteNombre && (
-                          <Typography
-                            variant="caption"
-                            className={VENTA_CREDITO_DOM.cliente}
-                            sx={{
-                              display: "block",
-                              color: "semantic.text.secondary",
-                            }}
-                          >
-                            {VENTA_CREDITO_COPY.listaCliente(
-                              venta.clienteNombre,
-                            )}
-                          </Typography>
-                        )}
+                        <Typography variant="body2" fontWeight="medium">
+                          #{venta.id.slice(-8)}
+                        </Typography>
                       </TableCell>
-                    )}
-                    <TableCell align="right">
-                      <Typography
-                        variant="body2"
-                        sx={{ fontVariantNumeric: "tabular-nums" }}
-                      >
-                        {venta.productos?.length || 0}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" color="text.secondary">
-                        {venta.usuario?.nombre || ""}
-                      </Typography>
-                    </TableCell>
-                    <TableCell align="center">
-                      <Stack
-                        direction="row"
-                        spacing={0.5}
-                        justifyContent="center"
-                      >
-                        <Tooltip title="Ver detalles">
-                          <IconButton
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleOpenVenta(venta);
-                            }}
-                            size="small"
-                            color="primary"
-                          >
-                            <Visibility fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title={ventaDeleteInfo(venta).motivo}>
-                          <span className={VENTA_CREDITO_DOM.accionVenta}>
+                      <TableCell>
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          sx={{ fontVariantNumeric: "tabular-nums" }}
+                        >
+                          {formatDate(reportedAt)} ·{" "}
+                          {formatDateTime(reportedAt).split(" • ")[1]}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        {/* venta.total ya está en moneda base; mostramos base + equivalentes */}
+                        <MultiCurrencyAmount
+                          amount={venta.total}
+                          align="right"
+                        />
+                      </TableCell>
+                      {hayCredito && (
+                        <TableCell>
+                          {resolveVentaCreditoEstado(venta) !==
+                            "SIN_CREDITO" && (
+                            <CreditoEstadoChip
+                              estado={resolveVentaCreditoEstado(venta)}
+                              saldoPendiente={venta.credito?.saldoPendiente}
+                              monedaBase={monedaBase}
+                            />
+                          )}
+                          {venta.clienteNombre && (
+                            <Typography
+                              variant="caption"
+                              className={VENTA_CREDITO_DOM.cliente}
+                              sx={{
+                                display: "block",
+                                color: "semantic.text.secondary",
+                              }}
+                            >
+                              {VENTA_CREDITO_COPY.listaCliente(
+                                venta.clienteNombre,
+                              )}
+                            </Typography>
+                          )}
+                        </TableCell>
+                      )}
+                      <TableCell align="right">
+                        <Typography
+                          variant="body2"
+                          sx={{ fontVariantNumeric: "tabular-nums" }}
+                        >
+                          {venta.productos?.length || 0}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" color="text.secondary">
+                          {venta.usuario?.nombre || ""}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="center">
+                        <Stack
+                          direction="row"
+                          spacing={0.5}
+                          justifyContent="center"
+                        >
+                          <Tooltip title="Ver detalles">
                             <IconButton
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleCancelVenta(venta);
+                                handleOpenVenta(venta);
                               }}
                               size="small"
-                              color="error"
-                              disabled={
-                                deletingVentaId === venta.id ||
-                                !ventaDeleteInfo(venta).allowed
-                              }
+                              color="primary"
                             >
-                              {deletingVentaId === venta.id ? (
-                                <CircularProgress size={18} />
-                              ) : (
-                                <Delete fontSize="small" />
-                              )}
+                              <Visibility fontSize="small" />
                             </IconButton>
-                          </span>
-                        </Tooltip>
-                      </Stack>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                          </Tooltip>
+                          <Tooltip title={ventaDeleteInfo(venta).motivo}>
+                            <span className={VENTA_CREDITO_DOM.accionVenta}>
+                              <IconButton
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleCancelVenta(venta);
+                                }}
+                                size="small"
+                                color="error"
+                                disabled={
+                                  deletingVentaId === venta.id ||
+                                  !ventaDeleteInfo(venta).allowed
+                                }
+                              >
+                                {deletingVentaId === venta.id ? (
+                                  <CircularProgress size={18} />
+                                ) : (
+                                  <Delete fontSize="small" />
+                                )}
+                              </IconButton>
+                            </span>
+                          </Tooltip>
+                        </Stack>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
                 {ventasVirtual.paddingBottom > 0 && (
                   <TableRow style={{ height: ventasVirtual.paddingBottom }}>
                     <TableCell colSpan={columnCount} sx={{ p: 0, border: 0 }} />

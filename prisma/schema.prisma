@@ -503,6 +503,12 @@ model Venta {
   wasOffline        Boolean   @default(false) // Si la venta se creó sin conexión
   syncAttempts      Int       @default(0) // Contador de intentos de sincronización
 
+  // Whether the syncAttempts of THIS row counts FAILED attempts.
+  // Nullable and WITHOUT a default on purpose: rows written before this column
+  // existed must stay NULL, meaning "no client ever declared it", never false
+  // meaning "it counted started attempts". No migration may backfill it.
+  syncAttemptsAreFailures Boolean?
+
   // Relación con descuentos aplicados
   appliedDiscounts AppliedDiscount[]
 

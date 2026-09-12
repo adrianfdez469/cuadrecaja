@@ -1117,6 +1117,15 @@ export default function POSInterface() {
         // 5. Intentar sincronizar con el backend si estamos online
         if (isOnline) {
           try {
+            // The counter as it stood BEFORE this attempt: markSyncing below is
+            // what increments it, and what is persisted is FAILED attempts, so
+            // the attempt about to start must not be counted in advance. Same
+            // rule the retry queue already applies.
+            const failedSyncAttempts =
+              useSalesStore
+                .getState()
+                .sales.find((s) => s.identifier === identifier)?.syncAttempts ??
+              0;
             markSyncing(identifier); // Marcar como sincronizando
             const ventaDb = await createSell(
               tiendaId,
@@ -1130,7 +1139,7 @@ export default function POSInterface() {
               transferDestinationId,
               Date.now(),
               !isOnline,
-              1,
+              failedSyncAttempts,
               discountCodes,
               multimoneda,
             );
