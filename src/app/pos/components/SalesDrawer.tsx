@@ -5,6 +5,7 @@ import {
   getInsufficientStockItems,
   shouldRetrySyncFailure,
 } from "@/app/pos/utils/syncErrors";
+import { buildSyncMultimoneda } from "@/app/pos/utils/syncPayload";
 import {
   Close,
   CloudUpload,
@@ -199,14 +200,9 @@ export const SalesDrawer: FC<IProps> = ({
     for (const syncObj of salesToSync) {
       try {
         markSyncing(syncObj.identifier);
-        const multimonedaSyncAll = syncObj.pagosDetalle
-          ? {
-              monedaCobro: syncObj.monedaCobro ?? "CUP",
-              pagosDetalle: syncObj.pagosDetalle,
-              vueltoDetalle: syncObj.vueltoDetalle ?? [],
-              tasaSnapshot: syncObj.tasaSnapshot ?? {},
-            }
-          : undefined;
+        // THE ONE place that rebuilds this payload, shared with the background sweep. Built
+        // by hand here, it had already drifted: this re-send dropped the tip.
+        const multimonedaSyncAll = buildSyncMultimoneda(syncObj);
         const ventaDb = await createSell(
           syncObj.tiendaId,
           syncObj.cierreId,
@@ -239,14 +235,9 @@ export const SalesDrawer: FC<IProps> = ({
     const syncObj = sales.find((s) => s.identifier === sale.identifier);
     try {
       markSyncing(syncObj.identifier);
-      const multimonedaSyncOne = syncObj.pagosDetalle
-        ? {
-            monedaCobro: syncObj.monedaCobro ?? "CUP",
-            pagosDetalle: syncObj.pagosDetalle,
-            vueltoDetalle: syncObj.vueltoDetalle ?? [],
-            tasaSnapshot: syncObj.tasaSnapshot ?? {},
-          }
-        : undefined;
+      // THE ONE place that rebuilds this payload, shared with the background sweep. Built
+      // by hand here, it had already drifted: this re-send dropped the tip.
+      const multimonedaSyncOne = buildSyncMultimoneda(syncObj);
       const ventaDb = await createSell(
         syncObj.tiendaId,
         syncObj.cierreId,
@@ -413,6 +404,15 @@ export const SalesDrawer: FC<IProps> = ({
           // mostraría el vuelto pero no la propina que sí se cobró.
           tipTotal: venta.tipTotal,
           tipDetail: venta.tipDetail,
+          // Credit — without these three, a credit sale reloaded from the server comes back
+          // into the POS as a cash sale and its reprint comes out with no customer, even
+          // though the server has it stored correctly.
+          creditoBase: venta.creditoBase,
+          clienteId: venta.clienteId ?? undefined,
+          clienteNombre: venta.clienteNombre,
+          // The debt of the sale, so the delete gate of the two drawers can read it without a
+          // request of its own (F-037, contract § 1.3).
+          credito: venta.credito ?? null,
           productos: venta.productos.map((p) => {
             return {
               name: p.name,

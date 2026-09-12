@@ -5,8 +5,8 @@ import {
 } from "@/lib/venta/saleOrder";
 
 /**
- * F-032 — contract § "Firmas públicas" > 1, `src/lib/venta/saleOrder.ts`
- * (ADR 0111). `compareSalesByReportedAtDesc` is THE only thing that decides
+ * F-048 — contract § "Firmas públicas" > 1, `src/lib/venta/saleOrder.ts`
+ * (ADR 0147). `compareSalesByReportedAtDesc` is THE only thing that decides
  * the order of `/ventas`: newest reported instant first, ties broken by id
  * ascending.
  *

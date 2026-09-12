@@ -72,6 +72,9 @@ export async function POST(
         totalMerma: true,
         totalDevoluciones: true,
         totalTips: true,
+        totalCreditoOtorgado: true,
+        totalCobrosCredito: true,
+        totalPorCobrarAlCierre: true,
         totalsComputedAt: true,
         resumenMonedas: {
           select: {

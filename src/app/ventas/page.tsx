@@ -50,15 +50,26 @@ import { formatDate, formatDateTime, isToday } from "@/utils/formatters";
 import { saleReportedAt } from "@/lib/venta/saleTime";
 import { toSaleTimestamps } from "@/lib/venta/ventaTimestamps";
 import { hasSyncTrace } from "@/lib/venta/saleSyncTrace";
-import {
-  matchesSaleSearchTerm,
-  saleHistoryEmptyReason,
-} from "@/lib/venta/saleHistoryFilter";
+import { saleHistoryEmptyReason } from "@/lib/venta/saleHistoryFilter";
 import SyncTraceFilterToggle from "./components/SyncTraceFilterToggle";
 import SalesHistoryEmptyState from "./components/SalesHistoryEmptyState";
 import { usePermisos } from "@/utils/permisos_front";
 import { MultiCurrencyAmount } from "@/components/MultiCurrencyAmount";
 import { touch } from "@/theme/tokens";
+import { CreditoEstadoChip } from "@/components/credito/CreditoEstadoChip";
+import {
+  VENTA_CREDITO_COPY,
+  VENTA_CREDITO_DOM,
+} from "@/constants/ventaCredito";
+import { resolveVentaCreditoEstado } from "@/lib/cuentasPorCobrar/ventaCreditoEstado";
+import {
+  evaluateVentaDeleteGuard,
+  VENTA_DELETE_BLOCK_TEXT,
+} from "@/lib/cuentasPorCobrar/ventaDeleteGuard";
+import { matchesVentaSearch } from "./utils/ventaSearch";
+
+/** The Tooltip of the delete-sale button when nothing blocks it: today's literal. */
+const TOOLTIP_ELIMINAR_VENTA = "Eliminar venta";
 
 /**
  * Said once, in one node, at every width: the two figures follow whatever the
@@ -69,7 +80,7 @@ const FILTER_FIGURES_NOTICE =
   "Con el filtro activo, Total Vendido y Monto Hoy cuentan solo las ventas que se ven. Quita el filtro para ver las cifras del período completo.";
 
 const Ventas = () => {
-  const { user, loadingContext } = useAppContext();
+  const { user, loadingContext, monedaBase } = useAppContext();
   const { showMessage } = useMessageContext();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
@@ -170,7 +181,14 @@ const Ventas = () => {
           handleCloseDetail();
         } catch (error) {
           console.error(error);
-          showMessage("La venta no pudo ser eliminada", "error");
+          // The body of the 409 IS the reason, and it has to reach the screen: it is the
+          // visible half of criteria 5 and 6. It works because the code chosen is 409 and not
+          // 403 — axiosClient replaces the body of ANY 403 (E-009). Today's literal stays as
+          // the last resort only.
+          const msg =
+            (error as { response?: { data?: { error?: string } } })?.response
+              ?.data?.error || "La venta no pudo ser eliminada";
+          showMessage(msg, "error");
         } finally {
           setDeletingVentaId(null);
         }
@@ -225,8 +243,10 @@ const Ventas = () => {
     }
   }, [loadingContext]);
 
+  // The predicate lives in a `.ts` so a test can import it (E-015). It matches everything it
+  // matched before and adds `clienteNombre`, the debtor of a credit sale (criterion 4).
   const searchedVentas = ventas.filter((venta) =>
-    matchesSaleSearchTerm(venta, searchTerm),
+    matchesVentaSearch(venta, searchTerm),
   );
 
   const filteredVentas = showOnlySyncTraced
@@ -240,6 +260,38 @@ const Ventas = () => {
     syncTraceFilterActive: showOnlySyncTraced,
     anySaleWithSyncTrace: ventas.some(hasSyncTrace),
   });
+
+  // Resolved ONCE for the page and over `ventas`, never over `filteredVentas`: on the filtered
+  // list, typing in the search box would make a column appear and disappear while the table is
+  // being read. And a business that never sells on credit sees no empty column.
+  const hayCredito = ventas.some(
+    (venta) => resolveVentaCreditoEstado(venta) !== "SIN_CREDITO",
+  );
+  // Derived from the same boolean, never written twice: the padding rows of the virtualization
+  // would otherwise be one column short and the table would skew as it scrolls.
+  const columnCount = hayCredito ? 7 : 6;
+
+  /** The delete-sale verdict of one row, and the reason to show when it refuses. */
+  const ventaDeleteInfo = (venta: IVenta) => {
+    const veredicto = evaluateVentaDeleteGuard({
+      credito: venta.credito ?? null,
+      pagosDetalle: venta.pagosDetalle,
+      productos: venta.productos?.length ?? 0,
+    }).venta;
+
+    const motivo =
+      veredicto.reason === "CREDITO_CON_COBROS"
+        ? VENTA_DELETE_BLOCK_TEXT.creditoConCobros(
+            venta.credito?.cobros ?? 0,
+            venta.credito?.cobrosMontoBase ?? 0,
+            monedaBase,
+          )
+        : veredicto.reason === "CREDITO_CON_MOVIMIENTOS"
+          ? VENTA_DELETE_BLOCK_TEXT.creditoConMovimientos()
+          : TOOLTIP_ELIMINAR_VENTA;
+
+    return { allowed: veredicto.allowed, motivo };
+  };
 
   // Un negocio activo acumula ventas sin techo, y esta lista las pintaba todas
   // —tarjeta en móvil, fila en escritorio— cada vez que se abría la pantalla.
@@ -429,7 +481,11 @@ const Ventas = () => {
           >
             <SelectableTextField
               size="small"
-              placeholder={isMobile ? "Buscar..." : "Buscar venta..."}
+              placeholder={
+                isMobile
+                  ? VENTA_CREDITO_COPY.buscarPlaceholderCorto
+                  : VENTA_CREDITO_COPY.buscarPlaceholder
+              }
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               InputProps={{
@@ -531,22 +587,60 @@ const Ventas = () => {
                           >
                             <Visibility fontSize="small" />
                           </IconButton>
-                          <IconButton
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleCancelVenta(venta);
-                            }}
-                            color="error"
-                            disabled={deletingVentaId === venta.id}
-                          >
-                            {deletingVentaId === venta.id ? (
-                              <CircularProgress size={18} />
-                            ) : (
-                              <Delete fontSize="small" />
-                            )}
-                          </IconButton>
+                          <Tooltip title={ventaDeleteInfo(venta).motivo}>
+                            {/* The span is new here: a Tooltip does not fire over a disabled
+                              button, and the reason has to be in the DOM. No `aria-label` of
+                              its own — it would flatten the one the Tooltip writes. */}
+                            <span className={VENTA_CREDITO_DOM.accionVenta}>
+                              <IconButton
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleCancelVenta(venta);
+                                }}
+                                color="error"
+                                disabled={
+                                  deletingVentaId === venta.id ||
+                                  !ventaDeleteInfo(venta).allowed
+                                }
+                              >
+                                {deletingVentaId === venta.id ? (
+                                  <CircularProgress size={18} />
+                                ) : (
+                                  <Delete fontSize="small" />
+                                )}
+                              </IconButton>
+                            </span>
+                          </Tooltip>
                         </Stack>
                       </Box>
+
+                      {/* El estado de crédito, solo, en su propia línea: es lo que decide si la
+                        tarjeta interesa, así que queda pegado a la cifra que califica. */}
+                      {resolveVentaCreditoEstado(venta) !== "SIN_CREDITO" && (
+                        <Box sx={{ mt: 1 }}>
+                          <CreditoEstadoChip
+                            estado={resolveVentaCreditoEstado(venta)}
+                            saldoPendiente={venta.credito?.saldoPendiente}
+                            monedaBase={monedaBase}
+                          />
+                        </Box>
+                      )}
+                      {/* Debajo del chip y no al lado: a 320 px un pill con etiqueta e importe
+                        más un nombre de persona no caben en la misma línea sin envolver, y un
+                        pill envuelto pierde su forma. */}
+                      {venta.clienteNombre && (
+                        <Typography
+                          variant="caption"
+                          className={VENTA_CREDITO_DOM.cliente}
+                          sx={{
+                            display: "block",
+                            mt: 0.5,
+                            color: "semantic.text.secondary",
+                          }}
+                        >
+                          {VENTA_CREDITO_COPY.listaCliente(venta.clienteNombre)}
+                        </Typography>
+                      )}
 
                       <Stack
                         direction="row"
@@ -607,6 +701,11 @@ const Ventas = () => {
                   <TableCell>ID Venta</TableCell>
                   <TableCell>Fecha</TableCell>
                   <TableCell align="right">Monto Total</TableCell>
+                  {/* Entre `Monto Total` y `Productos`: ahí es donde el ojo ya está leyendo
+                      dinero. Montada por dato, no por fila. */}
+                  {hayCredito && (
+                    <TableCell>{VENTA_CREDITO_COPY.columnaCredito}</TableCell>
+                  )}
                   <TableCell align="right">Productos</TableCell>
                   <TableCell>Usuario</TableCell>
                   <TableCell align="center">Acciones</TableCell>
@@ -615,7 +714,7 @@ const Ventas = () => {
               <TableBody>
                 {ventasVirtual.paddingTop > 0 && (
                   <TableRow style={{ height: ventasVirtual.paddingTop }}>
-                    <TableCell colSpan={6} sx={{ p: 0, border: 0 }} />
+                    <TableCell colSpan={columnCount} sx={{ p: 0, border: 0 }} />
                   </TableRow>
                 )}
                 {ventasVirtual.visible.map(({ item: venta, virtual }) => {
@@ -660,6 +759,32 @@ const Ventas = () => {
                           align="right"
                         />
                       </TableCell>
+                      {hayCredito && (
+                        <TableCell>
+                          {resolveVentaCreditoEstado(venta) !==
+                            "SIN_CREDITO" && (
+                            <CreditoEstadoChip
+                              estado={resolveVentaCreditoEstado(venta)}
+                              saldoPendiente={venta.credito?.saldoPendiente}
+                              monedaBase={monedaBase}
+                            />
+                          )}
+                          {venta.clienteNombre && (
+                            <Typography
+                              variant="caption"
+                              className={VENTA_CREDITO_DOM.cliente}
+                              sx={{
+                                display: "block",
+                                color: "semantic.text.secondary",
+                              }}
+                            >
+                              {VENTA_CREDITO_COPY.listaCliente(
+                                venta.clienteNombre,
+                              )}
+                            </Typography>
+                          )}
+                        </TableCell>
+                      )}
                       <TableCell align="right">
                         <Typography
                           variant="body2"
@@ -691,8 +816,8 @@ const Ventas = () => {
                               <Visibility fontSize="small" />
                             </IconButton>
                           </Tooltip>
-                          <Tooltip title="Eliminar venta">
-                            <span>
+                          <Tooltip title={ventaDeleteInfo(venta).motivo}>
+                            <span className={VENTA_CREDITO_DOM.accionVenta}>
                               <IconButton
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -700,7 +825,10 @@ const Ventas = () => {
                                 }}
                                 size="small"
                                 color="error"
-                                disabled={deletingVentaId === venta.id}
+                                disabled={
+                                  deletingVentaId === venta.id ||
+                                  !ventaDeleteInfo(venta).allowed
+                                }
                               >
                                 {deletingVentaId === venta.id ? (
                                   <CircularProgress size={18} />
@@ -717,7 +845,7 @@ const Ventas = () => {
                 })}
                 {ventasVirtual.paddingBottom > 0 && (
                   <TableRow style={{ height: ventasVirtual.paddingBottom }}>
-                    <TableCell colSpan={6} sx={{ p: 0, border: 0 }} />
+                    <TableCell colSpan={columnCount} sx={{ p: 0, border: 0 }} />
                   </TableRow>
                 )}
               </TableBody>

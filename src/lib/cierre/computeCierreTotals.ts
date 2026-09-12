@@ -10,9 +10,12 @@ import {
   buildResumenMonedas,
   calcularTotalesMovimientosPeriodo,
   montoCompraEnCaja,
+  refundCashRatio,
   type MovimientoCajaRelevante,
 } from "@/lib/movimiento/caja";
 import { buildResumenPropinas, totalPropinasBase } from "@/lib/tips";
+import { buildCuentasPorCobrarSnapshot } from "@/lib/cuentasPorCobrar/aging";
+import type { ICuentaPorCobrarSnapshotInput } from "@/lib/cuentasPorCobrar/aging";
 import { saleReportedAt } from "@/lib/venta/saleTime";
 import type { IDeduccionItem } from "@/schemas/cierre";
 import type { IPagoLinea, IVueltoLinea } from "@/schemas/pago";
@@ -63,6 +66,8 @@ export interface CierreSale {
   discountTotal: number;
   tipTotal: number;
   totaltransfer: number;
+  /** Venta.creditoBase: the part of `total` handed over on credit, in base currency. */
+  creditoBase: number;
   tasaSnapshot: ITasaSnapshot | null;
   pagosDetalle: IPagoLinea[] | null;
   vueltoDetalle: IVueltoLinea[] | null;
@@ -99,6 +104,12 @@ export interface CierreComputationInput {
   gastos: CierreGasto[];
   movimientos: CierreMovimiento[];
   initialFundAmounts: Record<string, number>;
+  /** ABONO rows whose `fecha` falls inside the period. */
+  abonos: CierreAbono[];
+  /** Accounts still open at the cutoff, with their movements ALREADY cut off by the loader. */
+  cuentasPorCobrar: ICuentaPorCobrarSnapshotInput[];
+  /** Transfer destinations of the store, to name the one an abono line points at. */
+  transferDestinations: { id: string; nombre: string }[];
 }
 
 /** Exactly the denormalized columns of `CierrePeriodo`. */
@@ -119,6 +130,19 @@ export interface CierreStoredTotals {
   totalMerma: number;
   totalDevoluciones: number;
   totalTips: number;
+  /**
+   * Sum of Venta.creditoBase of the period. Inside totalVentas, outside the drawer.
+   *
+   * These three columns are mirrored in `cierreStoredTotalsSchema` and `cierreDataSchema`
+   * (src/schemas/cierre.ts). That file belongs to F-036 and is extended there, when the
+   * closing screens start rendering the figures; until then the three travel in the JSON
+   * of every response without a declared type.
+   */
+  totalCreditoOtorgado: number;
+  /** Debt collected during this period, whatever period the debt was born in. Inside the drawer, outside totalVentas. */
+  totalCobrosCredito: number;
+  /** Store balance still outstanding at the cutoff, across all periods. A STOCK, never summed across periods. */
+  totalPorCobrarAlCierre: number;
 }
 
 /** Exactly the columns of `ResumenMonedaCierre`, keyed by currency. */
@@ -190,6 +214,82 @@ export interface CierreComputation {
  * real gap means the sales changed after the figures were stored.
  */
 export const CIERRE_TOTALS_DRIFT_TOLERANCE = 0.01;
+
+/**
+ * An ABONO row of MovimientoCuentaPorCobrar, as the engine reads it.
+ *
+ * It deliberately does NOT carry `monto`. MovimientoCuentaPorCobrar.monto is the ledger
+ * figure; totalCobrosCredito is defined as what entered the drawer, which comes out of
+ * pagosDetalle. Carrying both into the same input would put two candidates for the same
+ * definition side by side.
+ */
+export interface CierreAbono {
+  id: string;
+  /** When the collection happened. This alone is what assigns it to a period. */
+  fecha: Date;
+  /** Its OWN rates, from the day it was collected — never the closing rates. */
+  tasaSnapshot: ITasaSnapshot | null;
+  /** Same IPagoLinea[] shape as Venta.pagosDetalle, so one function reads both. */
+  pagosDetalle: IPagoLinea[] | null;
+}
+
+export interface ValuedAbono {
+  abono: CierreAbono;
+  /** Its own snapshot completed from history, resolved at `abono.fecha`. */
+  tasas: ITasaSnapshot;
+  /** Base value of its cash AND transfer lines. */
+  totalBase: number;
+  /** Base value of its transfer lines, keyed by transferDestinationId. */
+  transferBaseByDestination: Record<string, number>;
+}
+
+/**
+ * Values every collection of the period with its OWN (completed) rates.
+ *
+ * Deliberately parallel to valueSales, and for the same reason: a collection happens weeks
+ * after the sale, in another state of the market, so valuing it with the closing rates
+ * would credit the drawer with a rate that was not in force when the customer paid.
+ */
+export function valueAbonos(
+  abonos: CierreAbono[],
+  monedaBase: string,
+  historialTasas: TasaHistoryRecord[],
+): ValuedAbono[] {
+  const input = Array.isArray(abonos) ? abonos : [];
+  return input.map((abono) => {
+    const tasas = resolveSnapshotFromHistory(
+      historialTasas,
+      abono.tasaSnapshot,
+      abono.fecha,
+    );
+    const transferBaseByDestination: Record<string, number> = {};
+    let totalBase = 0;
+    const lineas = Array.isArray(abono.pagosDetalle) ? abono.pagosDetalle : [];
+    for (const linea of lineas) {
+      // Same rule as buildResumenMonedas: a line whose tipo is neither "cash" nor
+      // "transfer" contributes to nothing. No warning is emitted here — that function
+      // already logs one for this very line and a second would duplicate the period's log.
+      if (linea.tipo !== "cash" && linea.tipo !== "transfer") continue;
+      // linea.equivalenteBase is NOT read: the drawer values this same line with
+      // convertToBase, and taking a different number here would open a gap in the
+      // reconciliation equation (ADR 0112).
+      const enBase = convertToBase(
+        linea.monto,
+        linea.moneda,
+        tasas,
+        monedaBase,
+      );
+      totalBase += enBase;
+      // A transfer line without a destination adds to totalBase and to no destination,
+      // exactly as a sale whose transferDestination is null does today.
+      if (linea.tipo === "transfer" && linea.transferDestinationId) {
+        transferBaseByDestination[linea.transferDestinationId] =
+          (transferBaseByDestination[linea.transferDestinationId] ?? 0) + enBase;
+      }
+    }
+    return { abono, tasas, totalBase, transferBaseByDestination };
+  });
+}
 
 /** Values every sale of the period with its own (completed) rates. */
 export function valueSales(
@@ -305,18 +405,26 @@ export function computeCierreTotals(
 ): CierreComputation {
   const { monedaBase, historialTasas } = input;
 
+  // The instant the period is measured against: the closing instant of a closed period,
+  // now while it is still open. Hoisted because the receivables snapshot needs the very
+  // same one.
+  const corteCierre = input.fechaFin ?? new Date();
   // Rates of the period itself, for everything that is not a sale: the rate
   // in force when it closed (or now, while open). Deterministic across
   // recalculations, unlike "the latest rate" the old close used.
   const tasasCierre = resolveSnapshotFromHistory(
     historialTasas,
     null,
-    input.fechaFin ?? new Date(),
+    corteCierre,
   );
 
   const ventasValoradas = valueSales(input.ventas, monedaBase, historialTasas);
+  // Valued next to the sales, not in the cash block: the per-destination accumulation
+  // below needs the result before the drawer is built.
+  const abonosValorados = valueAbonos(input.abonos, monedaBase, historialTasas);
 
   let totalVentas = 0;
+  let totalCreditoOtorgado = 0;
   let totalVentasBrutas = 0;
   let totalDescuentos = 0;
   let totalTransferencia = 0;
@@ -336,6 +444,10 @@ export function computeCierreTotals(
     totalDescuentos += Number(sale.discountTotal ?? 0);
     totalVentasBrutas += valued.ventaBruta;
     totalVentas += valued.ventaNeta;
+    // The only line the credit adds here. totalVentas, totalGanancia, totalInversion, the
+    // discount proration and the consignment settlements do NOT change: profit is accrued
+    // on delivery and an uncollected debt is not a refund.
+    totalCreditoOtorgado += Number(sale.creditoBase ?? 0);
 
     accumulateNamed(
       totalVentasPorUsuario,
@@ -387,6 +499,47 @@ export function computeCierreTotals(
       }
     }
   }
+
+  // Collections by transfer land in the bank too, so the per-destination breakdown — which
+  // is the reconciliation against the bank statement — includes them. Runs after the sales
+  // loop so the destinations of the sales are already in.
+  //
+  // Deliberate asymmetry, worth knowing before painting the two together: the
+  // totalTransferencia COLUMN does not change, it stays a sales figure. From here on the
+  // two stop adding up to the same number as soon as there is a collection by transfer.
+  const destinationNames = new Map(
+    input.transferDestinations.map((d) => [d.id, d.nombre] as const),
+  );
+  for (const valued of abonosValorados) {
+    for (const [destinationId, total] of Object.entries(
+      valued.transferBaseByDestination,
+    )) {
+      const nombre = destinationNames.get(destinationId);
+      if (nombre === undefined) continue;
+      accumulateNamed(totalTransferenciasByDestination, {
+        id: destinationId,
+        nombre,
+        total,
+      });
+    }
+  }
+
+  // What entered the drawer, never MovimientoCuentaPorCobrar.monto. NOT rounded: criterion
+  // 12 compares it against the unrounded sum of resumenMonedas.equivalenteBase, and a
+  // round2 here would open a gap of up to half a cent in the equation.
+  const totalCobrosCredito = abonosValorados.reduce(
+    (sum, a) => sum + a.totalBase,
+    0,
+  );
+
+  // A STOCK, not a flow: recomputed from scratch against the cutoff on every run, never
+  // added to the previous period's. The cutoff that decides the figure is the one the
+  // loader already applied to each account's movements; `corteCierre` here only drives
+  // `dias`/`bucket`, which F-032 neither exposes nor stores.
+  const totalPorCobrarAlCierre = buildCuentasPorCobrarSnapshot(
+    input.cuentasPorCobrar,
+    corteCierre,
+  ).total;
 
   // Discounts reduce profit by their full amount; they are prorated between
   // own and consigned goods by each bucket's share of the gross sales.
@@ -494,11 +647,20 @@ export function computeCierreTotals(
               monedaBase,
             )
           : (m.montoReembolso ?? 0));
+      // The SAME ratio applyComprasYDevolucionesToResumenMap takes off the drawer, so the
+      // panel line and the total agree on what left it. ADR 0112 reads
+      // `reembolsosEnEfectivo` of the reconciliation equation from this very entry, and a
+      // refund applied in full against the debt has to show 0 here: the profit went down,
+      // the cash did not.
+      const reembolsoBase =
+        m.montoReembolso ??
+        convertToBase(montoEnMoneda, moneda, tasasCierre, monedaBase);
       pushCaja(moneda, {
         id: m.id,
         tipo: "DEVOLUCION",
         label: m.productoNombre,
-        monto: montoEnMoneda,
+        monto:
+          montoEnMoneda * refundCashRatio(reembolsoBase, m.montoAplicadoADeuda),
         motivo: m.motivo,
       });
     }
@@ -519,8 +681,17 @@ export function computeCierreTotals(
     tipDetail: v.sale.tipDetail,
     tasaSnapshot: v.tasas,
   }));
+  // Collections enter the drawer through the SAME call as the sales: one definition of
+  // "money in the drawer" for a sale and for the collection of an old debt. No adapter is
+  // needed — buildResumenMonedas asks for pagosDetalle, vueltoDetalle and tasaSnapshot
+  // structurally, and each abono carries its OWN resolved rates, not the closing ones.
+  const abonosConTasas = abonosValorados.map((a) => ({
+    pagosDetalle: a.abono.pagosDetalle,
+    vueltoDetalle: null,
+    tasaSnapshot: a.tasas,
+  }));
   const resumenMap = buildResumenMonedas(
-    ventasConTasas,
+    [...ventasConTasas, ...abonosConTasas],
     monedaBase,
     tasasCierre,
   ).reduce<
@@ -563,6 +734,8 @@ export function computeCierreTotals(
     tasasCierre,
   );
 
+  // ONLY the sales, never the abonos: a collection generates no tip. Passing them would
+  // change nothing today, but it would make valid a shape that tomorrow would tip.
   const propinas = Object.fromEntries(
     buildResumenPropinas(ventasConTasas, monedaBase, tasasCierre).map((p) => [
       p.monedaCode,
@@ -604,6 +777,9 @@ export function computeCierreTotals(
       totalMerma,
       totalDevoluciones,
       totalTips: totalPropinasBase(input.ventas),
+      totalCreditoOtorgado,
+      totalCobrosCredito,
+      totalPorCobrarAlCierre,
     },
     resumenMonedas,
     liquidaciones: Array.from(liquidacionesMap.values()),

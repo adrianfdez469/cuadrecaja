@@ -6,9 +6,9 @@ import {
 import { saleReportedAt } from "@/lib/venta/saleTime";
 
 /**
- * F-031 — contract § "Lista de testabilidad" (`.agents/specs/F-031.md`).
+ * F-047 — contract § "Lista de testabilidad" (`.agents/specs/F-047.md`).
  *
- * `toSaleTimestamps` is the ONLY new pure symbol F-031 adds. It is a boundary
+ * `toSaleTimestamps` is the ONLY new pure symbol F-047 adds. It is a boundary
  * adapter: `IVenta.createdAt` and `IVenta.frontendCreatedAt` are typed `Date`
  * by the Zod schema, but the client never parses the GET response through
  * that schema (`getSells` hands it through unparsed) — at runtime both fields

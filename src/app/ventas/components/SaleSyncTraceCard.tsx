@@ -23,11 +23,11 @@ import type { ISaleSyncTraceReason } from "@/constants/venta";
  * missing, instead of painting a blank line (E-035).
  *
  * The count of attempts is NEVER rendered, in any shape: every write path now
- * counts failed attempts (F-034), but the rows written before that alignment
+ * counts failed attempts (F-050), but the rows written before that alignment
  * declare no convention at all, so for them a figure next to a label claiming
  * what it counts would still be an unknown presented as a quantity. The day it
  * is shown, the condition is restricting it to rows whose
- * syncAttemptsAreFailures is true. ADR 0112, ADR 0113.
+ * syncAttemptsAreFailures is true. ADR 0148, ADR 0149.
  */
 const SYNC_TRACE_REASON_TEXT: Record<ISaleSyncTraceReason, string> = {
   OFFLINE: "Se hizo sin conexión.",

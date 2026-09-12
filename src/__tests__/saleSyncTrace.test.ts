@@ -14,7 +14,7 @@ import {
 } from "@/constants/venta";
 
 /**
- * F-034 — contract § "Firmas públicas" > 4 (ADR 0113, amending ADR 0112).
+ * F-050 — contract § "Firmas públicas" > 4 (ADR 0149, amending ADR 0148).
  *
  * The threshold that decides whether a sale's syncAttempts evidences a retry
  * is NO LONGER a constant: it is `saleSyncTraceMinAttempts(sale)`, a pure
@@ -23,7 +23,7 @@ import {
  * (absent, `undefined`, `null` or explicit `false` — all four collapse into
  * ONE "undeclared" branch, never three-state logic — E-036).
  *
- * THE PAIR THAT DECIDES WHETHER THIS SUITE IS WORTH ANYTHING (ADR 0113, spec
+ * THE PAIR THAT DECIDES WHETHER THIS SUITE IS WORTH ANYTHING (ADR 0149, spec
  * § "Lista de testabilidad"): `{wasOffline: false, syncAttempts: 1,
  * syncAttemptsAreFailures: true}` → has a trace, vs.
  * `{wasOffline: false, syncAttempts: 1, syncAttemptsAreFailures: null}` → does
@@ -34,9 +34,9 @@ import {
  * is asserted explicitly below, not only through the two threshold constants
  * (E-008).
  *
- * NOTE ON THE TWO RENAMED TESTS BELOW: F-032's suite had two tests whose name
+ * NOTE ON THE TWO RENAMED TESTS BELOW: F-048's suite had two tests whose name
  * justified `{wasOffline: false, syncAttempts: 1}` with "the literal value the
- * online POS path writes on a first-try sale". After F-034 that justification
+ * online POS path writes on a first-try sale". After F-050 that justification
  * is FALSE — criterion 1 makes the online path stop writing that literal. The
  * CASE itself is still required (it is exactly the ambiguous legacy row of
  * criterion 6: a row that never declared what its counter counts), so it is
@@ -44,13 +44,13 @@ import {
  */
 
 describe("SALE_SYNC_TRACE_MIN_ATTEMPTS", () => {
-  it("is pinned to 2 — the threshold for a row that does NOT declare syncAttemptsAreFailures (ADR 0113 keeps the name and value of the ADR 0112 constant)", () => {
+  it("is pinned to 2 — the threshold for a row that does NOT declare syncAttemptsAreFailures (ADR 0149 keeps the name and value of the ADR 0148 constant)", () => {
     expect(SALE_SYNC_TRACE_MIN_ATTEMPTS).toBe(2);
   });
 });
 
 describe("SALE_SYNC_TRACE_MIN_FAILED_ATTEMPTS", () => {
-  it("is pinned to 1 — the threshold for a row that DOES declare syncAttemptsAreFailures === true (ADR 0113)", () => {
+  it("is pinned to 1 — the threshold for a row that DOES declare syncAttemptsAreFailures === true (ADR 0149)", () => {
     expect(SALE_SYNC_TRACE_MIN_FAILED_ATTEMPTS).toBe(1);
   });
 
@@ -62,7 +62,7 @@ describe("SALE_SYNC_TRACE_MIN_FAILED_ATTEMPTS", () => {
 });
 
 describe("SALE_SYNC_ATTEMPTS_ARE_FAILURES", () => {
-  it("is true — what every write path in this repository declares about its own counter after F-034", () => {
+  it("is true — what every write path in this repository declares about its own counter after F-050", () => {
     expect(SALE_SYNC_ATTEMPTS_ARE_FAILURES).toBe(true);
   });
 });
@@ -116,7 +116,7 @@ describe("saleSyncTraceMinAttempts", () => {
   });
 });
 
-describe("saleSyncTraceReasons — the pair that decides whether this suite is worth anything (ADR 0113)", () => {
+describe("saleSyncTraceReasons — the pair that decides whether this suite is worth anything (ADR 0149)", () => {
   it('returns ["RETRIES"] for {wasOffline: false, syncAttempts: 1, syncAttemptsAreFailures: true} — a declared row where one stored unit IS one failed attempt (criterion 4: a NEW sale with exactly one real retry)', () => {
     const sale: SaleSyncTrace = {
       wasOffline: false,
@@ -217,8 +217,8 @@ describe("saleSyncTraceReasons — the four inhabitants of 'undeclared' collapse
   });
 });
 
-describe("saleSyncTraceReasons — the legacy ambiguous row (renamed from F-032's suite, ADR 0113)", () => {
-  it("returns empty for wasOffline: false, syncAttempts: 1 with syncAttemptsAreFailures ABSENT — the row this feature can never resolve: after F-034 no producer in this repo writes this shape on purpose, but a row that already exists (or a stale bundle that omits the field) must keep classifying as NO trace, forever (criterion 6)", () => {
+describe("saleSyncTraceReasons — the legacy ambiguous row (renamed from F-048's suite, ADR 0149)", () => {
+  it("returns empty for wasOffline: false, syncAttempts: 1 with syncAttemptsAreFailures ABSENT — the row this feature can never resolve: after F-050 no producer in this repo writes this shape on purpose, but a row that already exists (or a stale bundle that omits the field) must keep classifying as NO trace, forever (criterion 6)", () => {
     const sale: SaleSyncTrace = { wasOffline: false, syncAttempts: 1 };
     expect(saleSyncTraceReasons(sale)).toEqual([]);
   });

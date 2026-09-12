@@ -18,6 +18,8 @@ export interface SaleHistorySearchFields extends VentaTimestampSource {
   id?: string;
   productos?: { name?: string }[];
   usuario?: { nombre?: string };
+  /** The debtor of a credit sale, searchable since F-037 (criterion 4). */
+  clienteNombre?: string;
 }
 
 /**
@@ -41,6 +43,12 @@ export interface SaleHistorySearchFields extends VentaTimestampSource {
  * The date fields are matched as the user READS them, so the comparison runs
  * against formatDate/formatDateTime output and inherits their locale and their
  * granularity — never against a hand-written date literal.
+ *
+ * `clienteNombre` is the one field added AFTER the move: F-037 made the debtor
+ * of a credit sale searchable, and its predicate (matchesVentaSearch in
+ * src/app/ventas/utils/ventaSearch.ts) delegates here so the screen has ONE
+ * definition of what a term matches, and that definition reads the reported
+ * instant the rows display, not the sync stamp.
  */
 export function matchesSaleSearchTerm(
   sale: SaleHistorySearchFields,
@@ -54,13 +62,15 @@ export function matchesSaleSearchTerm(
   const ventaProductos =
     sale.productos?.map((p) => p.name?.toLowerCase()).join(" ") || "";
   const ventaUsuario = (sale.usuario?.nombre || "").toLocaleLowerCase();
+  const ventaCliente = (sale.clienteNombre || "").toLowerCase();
 
   return (
     ventaId.includes(searchLower) ||
     ventaDate.includes(searchLower) ||
     ventaTime.includes(searchLower) ||
     ventaProductos.includes(searchLower) ||
-    ventaUsuario.includes(searchLower)
+    ventaUsuario.includes(searchLower) ||
+    ventaCliente.includes(searchLower)
   );
 }
 

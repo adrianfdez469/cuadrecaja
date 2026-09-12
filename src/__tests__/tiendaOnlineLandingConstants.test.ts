@@ -37,18 +37,31 @@ describe("TIENDA_ONLINE_ORDER_LANDING_SKIP_REASONS", () => {
 });
 
 describe("TIENDA_ONLINE_ORDER_LANDING_BLOCKERS", () => {
-  it("has exactly the three local reasons DELIVERED can be refused before calling QAB", () => {
+  // F-038 (contract § 2.1, § 8.5): gains a FOURTH local reason, UNKNOWN_CLIENTE,
+  // appended at the end — this array's order is a vocabulary, not semantic
+  // (unlike CREDIT_INVARIANT_VIOLATIONS), so the new member is not inserted.
+  it("has exactly the four local reasons DELIVERED can be refused before calling QAB", () => {
     expect(TIENDA_ONLINE_ORDER_LANDING_BLOCKERS).toEqual([
       "NO_OPEN_PERIOD",
       "UNKNOWN_TRANSFER_DESTINATION",
       "MISSING_EXCHANGE_RATE",
+      "UNKNOWN_CLIENTE",
     ]);
   });
 });
 
 describe("TIENDA_ONLINE_PAYMENT_METHODS", () => {
-  it("has exactly the two payment methods ADR 0073 allows", () => {
-    expect(TIENDA_ONLINE_PAYMENT_METHODS).toEqual(["EFECTIVO", "TRANSFERENCIA"]);
+  // F-038 (contract § 2.1, ADR 0137 amending ADR 0073): gains CREDITO as the
+  // third and LAST method — its position is observable (contract § 2.1):
+  // PedidoPagoFields walks this array in order to paint rows and to move
+  // focus with the arrow keys, so putting CREDITO first would move two rows
+  // F-014's own design criteria already fixed (E-018).
+  it("has exactly the three payment methods ADR 0073 (amended by ADR 0137) allows, CREDITO last", () => {
+    expect(TIENDA_ONLINE_PAYMENT_METHODS).toEqual([
+      "EFECTIVO",
+      "TRANSFERENCIA",
+      "CREDITO",
+    ]);
   });
 });
 

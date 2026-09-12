@@ -2,6 +2,8 @@ import { prisma } from "@/lib/prisma";
 import { convertToBase, buildTasaSnapshot } from "@/lib/currency";
 import { applyGastosToResumenMap } from "@/lib/gastos";
 import { buildResumenPropinas } from "@/lib/tips";
+import { UNKNOWN_PAYMENT_LINE_TYPE_WARNING } from "@/constants/pago";
+import { netCollectionRows } from "@/lib/cuentasPorCobrar/cobrosNetos";
 import type { ITasaSnapshot } from "@/schemas/tasaCambio";
 import type { IPagoLinea, IVueltoLinea } from "@/schemas/pago";
 import type { Prisma } from "@prisma/client";
@@ -26,6 +28,8 @@ export type MovimientoCajaRelevante = {
   monedaOriginal?: string | null;
   montoOriginal?: number | null;
   montoEfectivoCaja?: number | null;
+  /** DEVOLUCION_VENTA on a credit sale: how much of montoReembolso went to the debt. */
+  montoAplicadoADeuda?: number | null;
 };
 
 export type TotalesMovimientosPeriodo = {
@@ -84,6 +88,32 @@ export function calcularTotalesMovimientosPeriodo(
 }
 
 /**
+ * Share of a DEVOLUCION_VENTA refund that actually left the drawer, in [0, 1].
+ *
+ * A refund on a credit sale can be applied against the customer's debt instead of being
+ * handed back in cash (MovimientoStock.montoAplicadoADeuda, in base currency). What left
+ * the drawer is montoReembolso - montoAplicadoADeuda, and callers apply that as a RATIO
+ * over the figures they already compute, so the currency the refund was recorded in never
+ * has to be reconciled against the base currency the debt is denominated in.
+ *
+ * Returns 1 when there is no debt portion, which is every row recorded before the column
+ * existed and every refund of a non-credit sale: the caller then subtracts exactly what it
+ * subtracts today.
+ */
+export function refundCashRatio(
+  montoReembolsoBase: number,
+  montoAplicadoADeuda: number | null | undefined,
+): number {
+  const debt = Number(montoAplicadoADeuda);
+  if (!Number.isFinite(debt) || debt <= 0) return 1;
+  const refund = Number(montoReembolsoBase);
+  // A refund applied entirely to a debt that cannot be measured against anything: the
+  // conservative reading is that the drawer does not go down.
+  if (!Number.isFinite(refund) || refund <= 0) return 0;
+  return Math.min(1, Math.max(0, (refund - debt) / refund));
+}
+
+/**
  * Descuenta de la caja del período (por moneda) las compras de mercancía pagadas
  * con efectivo de caja (total o parcialmente, ver formaPago = MIXTO) y los
  * reembolsos por devolución de venta. No toca ganancia (eso se calcula aparte
@@ -130,8 +160,14 @@ export function applyComprasYDevolucionesToResumenMap(
           equivalenteBase: 0,
         };
       }
-      map[moneda].totalEfectivo -= montoEnMoneda;
-      map[moneda].equivalenteBase -= enBase;
+      // Only the part that really left the drawer comes off the cash. The ratio is
+      // computed entirely in base currency and applied to BOTH figures, so a refund
+      // applied in full against the debt takes exactly 0 off each of them — converting
+      // montoAplicadoADeuda into the refund's currency with the closing rates (which
+      // need not be the ones of the original sale) would leave a non-zero residue.
+      const cashRatio = refundCashRatio(enBase, m.montoAplicadoADeuda);
+      map[moneda].totalEfectivo -= montoEnMoneda * cashRatio;
+      map[moneda].equivalenteBase -= enBase * cashRatio;
     }
   }
 }
@@ -159,6 +195,13 @@ export function buildResumenMonedas(
       ...((venta.tasaSnapshot ?? {}) as ITasaSnapshot),
     };
     for (const pago of pagos) {
+      // The guard goes BEFORE the currency bucket is created: an unknown line must not
+      // add a row of zeros either. pagosDetalle comes from a Json column and the cast
+      // above validates nothing, so this branch is reachable at runtime.
+      if (pago.tipo !== "cash" && pago.tipo !== "transfer") {
+        console.warn(UNKNOWN_PAYMENT_LINE_TYPE_WARNING);
+        continue;
+      }
       if (!map[pago.moneda])
         map[pago.moneda] = {
           totalEfectivo: 0,
@@ -262,6 +305,10 @@ export type ResumenCajaMoneda = {
   // expone aparte para que el cajero sepa cuánto de la gaveta no es del
   // negocio, sin alterar el total contra el que se cuenta el efectivo.
   tipCash: number;
+  // Debt collected in cash during this open period, net of nothing. Already included in
+  // totalEsperado; kept apart from ventasEfectivo because the drawer widget has to be able
+  // to tell a sale from the collection of an old debt.
+  cobrosCreditoEfectivo: number;
 };
 
 /**
@@ -287,6 +334,7 @@ async function construirResumenCajaAbierta(
     movimientosPeriodo,
     tiendaConNegocio,
     initialFundAmounts,
+    abonos,
   ] = await Promise.all([
     client.venta.findMany({
       where: { cierrePeriodoId: periodoAbierto.id },
@@ -310,6 +358,30 @@ async function construirResumenCajaAbierta(
       select: { negocio: { select: { id: true } } },
     }),
     getCurrentInitialCashFundAmounts(periodoAbierto.id, client),
+    client.movimientoCuentaPorCobrar.findMany({
+      // Same tenant posture as the movimientoStock query above it: this function receives a
+      // tiendaId its callers already resolved against the session's negocioId, and a Tienda
+      // belongs to exactly one Negocio, so the hop through cuentaPorCobrar is the tenant edge.
+      //
+      // ABONO and REVERSION_ABONO, and only those two: CONDONACION and AJUSTE_DEVOLUCION move
+      // no physical money and carry a null pagosDetalle. F-035 started writing REVERSION_ABONO,
+      // so undoing a collection has to take the money back OUT of the drawer (ADR 0128) —
+      // `netCollectionRows` below turns each reversal into a mirror with the amounts negated,
+      // which is what makes `buildResumenMonedas` subtract without changing a line.
+      where: {
+        tipo: { in: ["ABONO", "REVERSION_ABONO"] },
+        cuentaPorCobrar: { tiendaId },
+        fecha: { gte: periodoAbierto.fechaInicio },
+      },
+      select: {
+        id: true,
+        tipo: true,
+        fecha: true,
+        pagosDetalle: true,
+        tasaSnapshot: true,
+        revierte: { select: { pagosDetalle: true, tasaSnapshot: true } },
+      },
+    }),
   ]);
 
   const negocioId = tiendaConNegocio?.negocio?.id;
@@ -322,22 +394,52 @@ async function construirResumenCajaAbierta(
     : [];
   const tasas = buildTasaSnapshot(tasasCambio);
 
-  const resumenMonedaMap = buildResumenMonedas(
-    ventas,
-    monedaBase,
-    tasas,
-  ).reduce<Record<string, ResumenEntry>>((acc, r) => {
-    acc[r.monedaCode] = { ...r };
-    return acc;
-  }, {});
+  const toResumenMap = (
+    rows: Array<{ monedaCode: string } & ResumenEntry>,
+  ): Record<string, ResumenEntry> =>
+    rows.reduce<Record<string, ResumenEntry>>((acc, r) => {
+      acc[r.monedaCode] = {
+        totalEfectivo: r.totalEfectivo,
+        totalTransfer: r.totalTransfer,
+        equivalenteBase: r.equivalenteBase,
+      };
+      return acc;
+    }, {});
 
-  // Snapshot de ventas en efectivo (netas de vuelto) antes de mezclar el
-  // fondo inicial y las deducciones — es la línea "ventas reales" del
-  // desglose de caja.
-  const ventasEfectivoPorMoneda: Record<string, number> = {};
-  for (const [moneda, vals] of Object.entries(resumenMonedaMap)) {
-    ventasEfectivoPorMoneda[moneda] = vals.totalEfectivo;
-  }
+  // Sales and collections are aggregated by the SAME function: there is one definition of
+  // "money in the drawer" for a sale and for the collection of an old debt. The two
+  // breakdown figures are computed with separate passes and NEVER derived by subtracting
+  // one from the other: (a + b) - b does not give back `a` in floating point, and
+  // ventasEfectivo has to keep giving exactly today's number when there are no abonos.
+  // A reversal arrives here as the MIRROR of the collection it undoes: the origin's lines with
+  // the amounts negated, so the only-adding engine below subtracts them (ADR 0128).
+  const abonosNetos = netCollectionRows(
+    abonos.map((a) => ({
+      id: a.id,
+      tipo: a.tipo as "ABONO" | "REVERSION_ABONO",
+      fecha: a.fecha,
+      tasaSnapshot: (a.tasaSnapshot as ITasaSnapshot | null) ?? null,
+      pagosDetalle: (a.pagosDetalle as IPagoLinea[] | null) ?? null,
+      revierte: a.revierte
+        ? {
+            pagosDetalle:
+              (a.revierte.pagosDetalle as IPagoLinea[] | null) ?? null,
+            tasaSnapshot:
+              (a.revierte.tasaSnapshot as ITasaSnapshot | null) ?? null,
+          }
+        : null,
+    })),
+  );
+
+  const ventasPorMoneda = toResumenMap(
+    buildResumenMonedas(ventas, monedaBase, tasas),
+  );
+  const cobrosPorMoneda = toResumenMap(
+    buildResumenMonedas(abonosNetos, monedaBase, tasas),
+  );
+  const resumenMonedaMap = toResumenMap(
+    buildResumenMonedas([...ventas, ...abonosNetos], monedaBase, tasas),
+  );
 
   applyInitialFundToResumenMap(
     resumenMonedaMap,
@@ -364,10 +466,11 @@ async function construirResumenCajaAbierta(
   return Object.entries(resumenMonedaMap).map(([monedaCode, vals]) => ({
     monedaCode,
     fondoInicial: initialFundAmounts[monedaCode] ?? 0,
-    ventasEfectivo: ventasEfectivoPorMoneda[monedaCode] ?? 0,
+    ventasEfectivo: ventasPorMoneda[monedaCode]?.totalEfectivo ?? 0,
     totalEsperado: vals.totalEfectivo,
     equivalenteBase: vals.equivalenteBase,
     tipCash: tipCashPorMoneda[monedaCode] ?? 0,
+    cobrosCreditoEfectivo: cobrosPorMoneda[monedaCode]?.totalEfectivo ?? 0,
   }));
 }
 

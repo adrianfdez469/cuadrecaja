@@ -17,7 +17,9 @@ import {
 } from "@/app/pos/components/checkout/AddPaymentSheet";
 import { ChangeSheet } from "@/app/pos/components/checkout/ChangeSheet";
 import { ChangeBlock } from "@/app/pos/components/checkout/ChangeBlock";
+import { CreditBlock } from "@/app/pos/components/checkout/CreditBlock";
 import { MissingBlock } from "@/app/pos/components/checkout/MissingBlock";
+import { ClienteSheet } from "@/components/clientes/ClienteSheet";
 import { UndeliverableChangeNote } from "@/app/pos/components/checkout/UndeliverableChangeNote";
 import { TipChip, TipLink } from "@/app/pos/components/checkout/TipControls";
 import { TipSheet } from "@/app/pos/components/checkout/TipSheet";
@@ -47,7 +49,20 @@ import {
   convertToBase,
   roundBaseToAnchorCents,
 } from "@/lib/currency";
+import {
+  buildCreditExtras,
+  canSellOnCredit,
+  creditoBaseFor,
+  type ICreditSelection,
+} from "@/app/pos/utils/creditSale";
 import { DENOMINACIONES } from "@/constants/billDenominations";
+import {
+  CREDIT_CHECKOUT_COPY,
+  CREDIT_DOM,
+} from "@/constants/creditoVenta";
+import { normalizeClienteNombre } from "@/lib/clientes/clienteNombre";
+import { hasControlCharacters } from "@/utils/printableText";
+import { useMessageContext } from "@/context/MessageContext";
 import { formatChangeSplit, formatMontoEnMoneda } from "@/utils/formatters";
 import type { SaleReceipt } from "@/app/pos/components/checkout/saleReceipt";
 import type { IMultimonedaExtras, IPagoLinea } from "@/schemas/pago";
@@ -138,6 +153,7 @@ export function CheckoutView({
   onSaleFailed,
 }: CheckoutViewProps) {
   const { monedasNegocio, tasasVigentes, monedaBase } = useAppContext();
+  const { showMessage } = useMessageContext();
   const { unitCount } = useCartTotals();
   const cartName = useCartStore(
     (state) => state.carts.find((c) => c.id === state.activeCartId)?.name,
@@ -170,6 +186,13 @@ export function CheckoutView({
    * paid with, and it can be split across several.
    */
   const [explicitTip, setExplicitTip] = useState<TipAmounts>({});
+  /**
+   * The customer this sale is going on credit to, or null for an ordinary sale. It is the
+   * explicit flag the credit block and the CTA read: neither is ever derived from
+   * subtracting the payment from the total (E-013).
+   */
+  const [creditSelection, setCreditSelection] =
+    useState<ICreditSelection | null>(null);
 
   // Memoized because the whole checkout hangs off this: it is recomputed on
   // every keystroke, and `amountDue` below — plus everything derived from
@@ -316,7 +339,8 @@ export function CheckoutView({
     () => paidBase(lines, tasasVigentes, monedaBase),
     [lines, tasasVigentes, monedaBase],
   );
-  const missing = useMemo(
+  // The memo exactly as it was, renamed and nothing else: `missing` below wraps it.
+  const rawMissing = useMemo(
     () =>
       amountDue === 0
         ? false
@@ -324,6 +348,13 @@ export function CheckoutView({
     [paid, amountDue, tasasVigentes, monedaBase],
   );
   const missingAmount = Math.max(0, amountDue - paid);
+  const creditoBase = creditoBaseFor(creditSelection, amountDue, paid);
+  // Credit covers whatever the payment does not, so nothing is missing and the sale can be
+  // committed. Governed by `creditoBase > 0` and not by `creditSelection`: the two give the
+  // very same value — with a customer chosen and the payment covering, `creditoBase` is 0 and
+  // `rawMissing` is false too — and this leaves ONE rule for everything the screen says about
+  // the money.
+  const missing = creditoBase > 0 ? false : rawMissing;
   const change = useMemo(
     () => changeBase(paid, amountDue, tasasVigentes, monedaBase),
     [paid, amountDue, tasasVigentes, monedaBase],
@@ -378,6 +409,7 @@ export function CheckoutView({
   });
 
   const [addOpen, setAddOpen] = useState(false);
+  const [clienteOpen, setClienteOpen] = useState(false);
   const [changeOpen, setChangeOpen] = useState(false);
   const [tipOpen, setTipOpen] = useState(false);
   // The exit transition keeps this view mounted for ~200 ms after a sale is
@@ -545,9 +577,18 @@ export function CheckoutView({
   const undeliverableChange = !missing && change > 0 && !hasChange ? change : 0;
   const changeLabel = formatChangeSplit(distribution);
 
-  /** «Pagado 13,00 USD» — or what the payment came to, as the bar says it. */
+  /**
+   * «Pagado 13,00 USD» — or what the payment came to, as the bar says it.
+   *
+   * `creditSelection` is the first term because without it the bar would read «Pago exacto
+   * 0,00» on a fully credited sale, and on a partial one of 600 too, where it is plainly
+   * false. It is governed by `creditSelection` and not by `creditoBase > 0` on purpose: in
+   * the overpayment of criterion 7 `hasChange` already produces «Pagado …», so the two
+   * conditions agree there, and `creditSelection` is the one that also covers an exact
+   * payment with a customer chosen. WITHOUT credit the string is byte for byte today's.
+   */
   const paidLabel =
-    missing || hasChange || undeliverableChange > 0
+    creditSelection || missing || hasChange || undeliverableChange > 0
       ? `Pagado ${formatMontoEnMoneda(paid, monedaBase)}`
       : `Pago exacto ${formatMontoEnMoneda(0, monedaBase)}`;
 
@@ -559,6 +600,64 @@ export function CheckoutView({
   const clearTip = () => {
     setTipFromChange(null);
     setExplicitTip({});
+  };
+
+  /**
+   * What would go on credit if the cashier picked the row right now, with the SAME
+   * arithmetic that already feeds the other rows of the sheet — `pendingInCurrency` over
+   * `monedaBase`, ignoring the base cash line while it is still untouched, which is the very
+   * `excludeId` `paymentOptions` uses today — floored at zero.
+   *
+   * `paymentMath.ts` is not touched: it is CALLED, as the rest of this screen already calls it.
+   */
+  const creditAmount = Math.max(
+    0,
+    pendingInCurrency(
+      lines,
+      amountDue,
+      monedaBase,
+      tasasVigentes,
+      monedaBase,
+      !dirty && baseCashLine ? baseCashLine.id : undefined,
+    ),
+  );
+
+  const activateCredit = (selection: ICreditSelection) => {
+    // A tip on a credit sale would be lending the customer money to tip with (ADR 0111), and
+    // the server rejects it with a 400. Cleared here, before the block appears.
+    clearTip();
+    // Mirrors what picking any other form of payment does: while the base cash line is still
+    // untouched it stands for the whole total, so credit has to carve its amount out of it —
+    // otherwise the total paid would silently double. Credit takes the whole remainder, so
+    // the line goes to zero (criterion 2).
+    if (!dirty && baseCashLine && baseCashLine.amount > 0) {
+      updateLine(baseCashLine.id, { amount: 0 });
+    }
+    setCreditSelection(selection);
+  };
+
+  /**
+   * A name typed with no connection, for a customer that has no row yet.
+   *
+   * The name is validated HERE and not on syncing. The schema rejects it with a 400, but that
+   * 400 would land hours later on a sale the cashier already charged and the queue would park
+   * it: the place where the rejection is of any use is the moment of typing. The realistic
+   * trigger is not a person typing bytes — it is the barcode scanner in keyboard mode
+   * (`src/utils/hardwareScanner.ts`), whose `isEditableTarget` hands the keys to the field
+   * when the focus is inside an input.
+   *
+   * THIS component closes the customer sheet, and only on the branch that accepts (D6): on a
+   * rejection the sheet stays open, the term stays typed and the create action stays in front
+   * of the cashier.
+   */
+  const handleNameOnly = (nombre: string) => {
+    const limpio = normalizeClienteNombre(nombre);
+    if (!limpio || hasControlCharacters(limpio)) {
+      showMessage(CREDIT_CHECKOUT_COPY.nombreInvalido, "error");
+      return;
+    }
+    activateCredit({ clienteId: null, clienteNombre: limpio });
+    setClienteOpen(false);
   };
 
   const handleSell = async () => {
@@ -581,11 +680,11 @@ export function CheckoutView({
         .filter((p) => p.tipo === kind)
         .reduce((sum, p) => sum + p.equivalenteBase, 0);
 
-    // The aggregates stand for the sale's own money, so the tip comes out of
-    // them — `Venta.totalcash + totaltransfer` must still add up to `total`,
-    // and a tip settled by transfer would otherwise push totaltransfer past
-    // it. The untouched `pagosDetalle` keeps the full amount handed over, so
-    // the drawer is unaffected.
+    // The aggregates stand for the sale's own money, so the tip comes out of them, and so
+    // does the credit: `Venta.totalcash + totaltransfer + creditoBase` must add up to
+    // `total`. A tip settled by transfer would otherwise push totaltransfer past it, and a
+    // debt would be booked as cash in the drawer. The untouched `pagosDetalle` keeps the
+    // full amount handed over, so the drawer is unaffected (ADR 0111).
     const totalCashBase =
       sumBase(pagosDetalle, "cash") - sumBase(tipDetail, "cash");
     const totalTransferBase =
@@ -601,6 +700,7 @@ export function CheckoutView({
       tasaSnapshot: tasasVigentes,
       ...(discountTotal > 0 ? { discountTotal } : {}),
       ...(tipTotal > 0 ? { tipTotal, tipDetail } : {}),
+      ...buildCreditExtras(creditSelection, creditoBase),
     };
 
     // The parent moves on to «Cobro registrado» and remounts this view for
@@ -632,7 +732,7 @@ export function CheckoutView({
   };
 
   return (
-    <Box sx={ROOT_SX}>
+    <Box sx={ROOT_SX} className={CREDIT_DOM.checkout}>
       <CheckoutTopBar
         title="Cobrar"
         subtitle={`${cartName ?? "Cuenta"} · ${itemCount} ${itemCount === 1 ? "producto" : "productos"}`}
@@ -701,12 +801,16 @@ export function CheckoutView({
           );
         })}
 
-        {paymentOptions.length > 0 && (
-          <ButtonBase onClick={() => setAddOpen(true)} sx={ADD_SX}>
-            <AddIcon fontSize="small" />
-            Agregar forma de pago
-          </ButtonBase>
-        )}
+        {/* Unconditional, where it used to be gated on `paymentOptions.length > 0`. In a
+            single-currency business `paymentOptions` is ALWAYS empty — every currency with a
+            card of its own is filtered out and the base one always has one — so that gate
+            meant such a business could never reach the sheet where credit is chosen, and
+            therefore could never lend. The button is not redesigned: same ADD_SX, so a
+            two-currency business notices nothing at all (design § 1). */}
+        <ButtonBase onClick={() => setAddOpen(true)} sx={ADD_SX}>
+          <AddIcon fontSize="small" />
+          Agregar forma de pago
+        </ButtonBase>
 
         {/* What the payment leaves over: the change, the shortfall, the tip.
             The tip sits next to the change and not among the cards — it is
@@ -714,6 +818,27 @@ export function CheckoutView({
             «quédate con el vuelto». */}
         {missing && (
           <MissingBlock amount={missingAmount} currency={monedaBase} />
+        )}
+        {/* Sibling of MissingBlock, in the same place of the tree and MOUNTED conditionally
+            rather than hidden: `textContent` goes through `display: none`, so a criterion of
+            absence would fail against a visually correct screen.
+
+            Governed by `creditoBase > 0`, not by `creditSelection`: in the overpayment of
+            criterion 7 it disappears and the screen goes back to its cash shape — change
+            block, CTA «VENDER» — while the sheet's row still remembers the customer in case
+            the cashier undoes the overpayment. */}
+        {creditoBase > 0 && creditSelection && (
+          <CreditBlock
+            amount={creditoBase}
+            currency={monedaBase}
+            clienteNombre={creditSelection.clienteNombre}
+            clienteEsNuevo={creditSelection.clienteId === null}
+            onChangeCliente={() => setClienteOpen(true)}
+            // Turning credit off does NOT restore the cash line: it stayed at zero and the
+            // cashier types it again, the same as removing any other form of payment. The
+            // red block coming back right after is correct — the sale is not paid.
+            onClear={() => setCreditSelection(null)}
+          />
         )}
         {hasChange && (
           <ChangeBlock
@@ -765,27 +890,44 @@ export function CheckoutView({
             currency={monedaBase}
           />
         )}
-        {tipTotal > 0 ? (
-          <TipChip
-            amountBase={tipTotal}
-            base={monedaBase}
-            onOpen={() => setTipOpen(true)}
-            onClear={clearTip}
-          />
-        ) : (
-          !hasChange && <TipLink onOpen={() => setTipOpen(true)} />
-        )}
+        {/* With a customer chosen NEITHER tip control is rendered — not dimmed, not hidden:
+            not mounted (criterion 4). Governed by `creditSelection` and not by
+            `creditoBase > 0`: while there is a customer the tip is out, even if the cashier
+            overpaid. That is the literal reading of criterion 4 and it avoids one more branch
+            nobody would exercise (E-032). */}
+        {!creditSelection &&
+          (tipTotal > 0 ? (
+            <TipChip
+              amountBase={tipTotal}
+              base={monedaBase}
+              onOpen={() => setTipOpen(true)}
+              onClear={clearTip}
+            />
+          ) : (
+            !hasChange && <TipLink onOpen={() => setTipOpen(true)} />
+          ))}
       </Box>
 
       <CheckoutPayBar
+        // `status` does NOT change: saying it twice in the same bar, 11.5 px above a button
+        // that already says it, would also make «A crédito» exist twice in the document with
+        // the same own text (E-016). That is why there is no `payBarStatus` copy key.
         status={cartName ? `A cobrar · ${cartName}` : "A cobrar"}
         detail={paidLabel}
+        // The big figure does not change either: it is still the sale's total, which is what
+        // the customer owes, paid now or lent. What changes owner is the money, and the
+        // credit block is what says so.
         amount={amountDue}
         currency={monedaBase}
         conversions={conversions}
         canSell={canSell}
         submitting={submitting}
         onConfirm={handleSell}
+        // Not passed without credit, so the prop's default leaves «VENDER» untouched
+        // (criterion 1).
+        {...(creditoBase > 0
+          ? { ctaLabel: CREDIT_CHECKOUT_COPY.ctaWithCredit }
+          : {})}
       />
 
       <AddPaymentSheet
@@ -793,6 +935,19 @@ export function CheckoutView({
         options={paymentOptions}
         base={monedaBase}
         covered={!missing}
+        creditAmount={creditAmount}
+        // `canSellOnCredit(amountDue)`, NOT `creditAmount > 0`: criterion 7 needs credit on
+        // BEFORE the overpayment, so a payment that already covers the total must still
+        // leave the row pickable.
+        creditEnabled={canSellOnCredit(amountDue)}
+        creditClienteNombre={creditSelection?.clienteNombre ?? null}
+        // Chained, never stacked: a Drawer over a Drawer at 320 px is a modal on top of a
+        // modal, with its zIndex fight and its second exit to find. Both in the same handler,
+        // and therefore in the same React batch.
+        onPickCredit={() => {
+          setAddOpen(false);
+          setClienteOpen(true);
+        }}
         onClose={() => setAddOpen(false)}
         onPick={(option) => {
           // Mirrors the exclusion above: while the base cash line is still
@@ -817,6 +972,26 @@ export function CheckoutView({
           addLine(option.kind, option.currency, option.suggested);
           setAddOpen(false);
         }}
+      />
+
+      {/* F-033's selector, mounted as it ships, with the one prop the contract § 7.1 adds.
+          `ClienteAutocomplete` is NOT mounted at any width: the checkout is the same touch
+          column of 369-400 px on a desktop as on a phone.
+
+          Closing the selector without picking does not go back to the payment sheet: it
+          leaves the checkout as it was, with no credit. Getting back is «Agregar forma de
+          pago». */}
+      <ClienteSheet
+        open={clienteOpen}
+        onClose={() => setClienteOpen(false)}
+        selectedId={creditSelection?.clienteId ?? null}
+        onSelect={(cliente) => {
+          activateCredit({
+            clienteId: cliente.id,
+            clienteNombre: cliente.nombre,
+          });
+        }}
+        onNameOnly={handleNameOnly}
       />
 
       <TipSheet

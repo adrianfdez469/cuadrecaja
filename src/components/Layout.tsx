@@ -51,6 +51,7 @@ import {
   LocalShipping,
   PointOfSale,
   Receipt,
+  RequestQuote,
   Security,
   Summarize,
   Lock,
@@ -100,6 +101,12 @@ import { StoreStatus } from "@/components/nav/StoreStatus";
 import { NotificationBell } from "@/components/nav/NotificationBell";
 import { PeriodBadge } from "@/components/nav/PeriodBadge";
 import { usePermisos } from "@/utils/permisos_front";
+import {
+  CLIENTES_PERMISO_CONFIGURACION,
+  CUENTAS_POR_COBRAR_PERMISO,
+} from "@/constants/clientes";
+import { buildClienteCacheOwner } from "@/lib/clientes/clienteCacheOwner";
+import { useClientesStore } from "@/store/clientesStore";
 import { Avatar } from "@mui/material";
 import LocalOffer from "@mui/icons-material/LocalOffer";
 import CurrencyExchangeIcon from "@mui/icons-material/CurrencyExchange";
@@ -183,6 +190,12 @@ const CONFIGURATION_MENU_ITEMS = [
     path: "/configuracion/proveedores",
     icon: LocalShipping,
     permission: "configuracion.proveedores.acceder",
+  },
+  {
+    label: "Clientes",
+    path: "/configuracion/clientes",
+    icon: GroupsIcon,
+    permission: CLIENTES_PERMISO_CONFIGURACION,
   },
   {
     label: "Destinos de Transferencia",
@@ -304,6 +317,12 @@ const RESUMEN_MENU_ITEMS = [
     path: "/proveedores",
     icon: Handshake,
     permission: "recuperaciones.proveedoresconsignación.acceder",
+  },
+  {
+    label: "Cuentas por Cobrar",
+    path: "/cuentas-por-cobrar",
+    icon: RequestQuote,
+    permission: CUENTAS_POR_COBRAR_PERMISO,
   },
   {
     label: "Reportes",
@@ -893,6 +912,19 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
     cambiandoNegocio,
     negocioRecienCambiado,
   ]);
+
+  // Whose the persisted cliente cache is (F-033, amendment S2 / ADR 0115). ONE hook that
+  // watches the identity of the session, instead of hanging a call off each `signOut()`:
+  // there is more than one in the tree, and none of them covers the case that matters most
+  // — a DIFFERENT user signing in on the same counter tablet.
+  const clienteCacheOwner = buildClienteCacheOwner({
+    usuarioId: session?.user?.id,
+    negocioId: session?.user?.negocio?.id,
+  });
+
+  useEffect(() => {
+    useClientesStore.getState().syncOwner(clienteCacheOwner);
+  }, [clienteCacheOwner]);
 
   useEffect(() => {
     // Solo verificar expiración si hay sesión

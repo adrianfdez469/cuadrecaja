@@ -119,6 +119,11 @@ export const movimientoCreateSchema = z.object({
   tasaUsada: z.number().positive().finite().optional(),
   // Solo DEVOLUCION_VENTA: monto reembolsado al cliente, en moneda base
   montoReembolso: z.number().nonnegative().finite().optional(),
+  // Solo DEVOLUCION_VENTA: la parte de ese reembolso que se aplicó contra la deuda del
+  // cliente, en moneda base. The SERVER derives it with splitRefundBetweenDebtAndCash and
+  // hands it to CreateMoviento; no route of F-037 reads it from a request body, and
+  // devolucionVentaCreateSchema gains no field (security report, requirement 7).
+  montoAplicadoADeuda: z.number().nonnegative().finite().optional(),
 });
 
 export const movimientoDataSchema = z.object({

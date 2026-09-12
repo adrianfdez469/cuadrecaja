@@ -1,0 +1,318 @@
+# F-032 — Auditoría de seguridad del contrato (previa a implementación)
+
+> Escrito por el agente `security-guardian`, paso 4 del pipeline. No toca
+> `.agents/specs/F-032.md`, `docs/adr/` ni código. **El código de F-032 todavía no existe:**
+> esta auditoría es sobre el contrato de interfaces (`.agents/specs/F-032.md`, spec líneas
+> 1-334 y contrato §0-14, líneas 337-1387) y el ADR 0112, no sobre una implementación.
+
+## Alcance auditado
+
+- `.agents/specs/F-032.md` completo — spec y contrato de interfaces §0-14.
+- `.agents/cuentas-por-cobrar.md` — dosier completo, con foco en §3, §6, §7 y §8.
+- `docs/adr/0112-la-ecuacion-de-reconciliacion-de-caja.md` completo.
+- `.agents/specs/F-031.md` §6 (vía `src/constants/tenantScope.ts` y el propio contrato de
+  F-032 §10, que la cita) y `.agents/F-031-seguridad.md` completo.
+- Código real: `src/lib/movimiento/caja.ts` (418 líneas), `src/lib/cierre/loadCierreInput.ts`
+  (199 líneas), `src/lib/cierre/computeCierreTotals.ts` (líneas 1-120, tipos y cabecera),
+  `src/constants/tenantScope.ts`, `src/lib/tenantScope.ts`,
+  `src/utils/permisos_back.ts`, `src/app/api/cierre/[tiendaId]/[cierreId]/route.ts`,
+  `.../recalculate/route.ts`, `.../cash-balance/route.ts`,
+  `src/app/api/movimiento/[tiendaId]/caja-disponible/route.ts` y `.../caja-resumen/route.ts`.
+- `prisma/schema.prisma`: `Cliente` (1383-1403), `CuentaPorCobrar` (1407-1459),
+  `MovimientoCuentaPorCobrar` (1460-1500) — para verificar que las anotaciones que
+  `.agents/F-031-seguridad.md` pidió (B1, B2) están de verdad escritas en el schema y no solo
+  prometidas.
+- `src/constants/permisos/permisos.json` (líneas 105-115) y los cuatro puntos donde
+  `operaciones.cierre.gananciascostos` gatea la UI (`src/app/cierre/page.tsx`,
+  `src/app/resumen_cierre/page.tsx`, `CierreTotalsCard.tsx`) — para entender qué protege hoy
+  ese permiso y qué no.
+- `src/constants/routeGuards/routeGuards.json` (entradas de `cierre/**`) — para confirmar el
+  estado de autorización ya aceptado de las rutas que F-032 toca.
+- `.agents/COMMON_ERRORS.md` → E-042, E-043, E-049, E-051, E-040 (fichas completas).
+
+Todo lo citado abajo se leyó, no se dedujo.
+
+---
+
+## 🔴 Hallazgos que bloquean el paso 5
+
+**Ninguno.** No hay ningún modelo mal formado, ninguna entrada de `TENANT_RELATION_PATH`
+incorrecta, ninguna consulta cuyo `where` sea una mención en vez de un filtro (E-042), y
+ninguna decisión de producto que reabrir. Los dos `where` de crédito (§4.1 del contrato) atan
+la fila a la tienda por un camino real —FK verificada, no columna homónima— y están
+diseñados para ser auditables sin ejecutar nada (funciones exportadas + criterio 9). Ver
+«Confirmaciones» para el detalle punto por punto.
+
+---
+
+## 🟠 Alta severidad — no bloquean que `implementer`/`dev-tester` empiecen, pero el `arch-guardian` debe cerrarlas en el contrato
+
+### H1 — Las tres cifras de crédito no tienen una decisión de autorización escrita, y amplían en silencio un patrón de autorización solo-de-frontend ya existente
+
+**Pregunta del encargo (punto 6), respondida con el código real, no con lo que parecía.**
+
+Verificado en `src/app/api/cierre/[tiendaId]/[cierreId]/route.ts:158-183`: `canViewCostos`
+(`operaciones.cierre.gananciascostos`) se usa **únicamente** para decidir qué clave de
+agrupación usa `buildProductosVendidos` (si el precio/costo por producto entra en la clave o
+no). El objeto `cierreData` que se devuelve arma sus totales con `...totals` (línea ~168), y
+`totals` **no se filtra por permiso en ningún punto** — incluye `totalGanancia`,
+`totalGananciaFinal` y `totalInversion` sin condición. La ruta en sí **no exige ningún
+permiso** para ser alcanzada (confirmado en `routeGuards.json:885-889`: *"sin permiso,
+justificado: el detalle del cierre es del flujo del cajero (el permiso de costos solo recorta
+campos)"*).
+
+Es decir: **hoy ya existe un patrón donde `operaciones.cierre.gananciascostos` es una
+guarda solo de UI** — `src/app/cierre/page.tsx:411,465,570,593` y
+`CierreTotalsCard.tsx:24` la usan para **ocultar** «Total Ganancia» en pantalla, pero el
+backend ya se lo manda a cualquier usuario con acceso al cierre, permiso o no. Esto
+contradice literalmente `AGENTS.md` § Seguridad («validar permisos en el backend, nunca
+confiar únicamente en la comprobación del frontend»), pero es una deuda **preexistente**, no
+introducida por F-032, y no es una decisión de producto que este informe pueda reabrir.
+
+**Lo que sí es nuevo y lo que este informe pide:** el contrato de F-032 (§1.1, §6.2, §3.1)
+añade `totalCreditoOtorgado`, `totalCobrosCredito` y `totalPorCobrarAlCierre` al mismo
+`select`/spread sin permiso, **sin que ningún punto del contrato diga si eso es intencional**.
+El dosier §6 sí señala que `operaciones.cierre.gananciascostos` "cambia qué campos ve un
+usuario", pero el contrato de F-032 no llega a decidir si el saldo por cobrar y el crédito
+otorgado son de la misma familia que costos/ganancias (información que un cajero no debería
+poder ver) o de la misma familia que `totalVentas`/`totalTransferencia` (aritmética del
+cuadre que todo el que opera la caja necesita ver). Las dos lecturas son defendibles —
+`totalPorCobrarAlCierre` es, en esencia, una cifra de deuda del negocio con terceros, tan
+sensible como el margen— pero ninguna de las dos está escrita.
+
+**No es un hallazgo bloqueante:** seguir el patrón ya existente (visible en el JSON,
+eventualmente oculto en la UI que construya F-036) es consistente con cómo se trata
+`totalGanancia` hoy, y no introduce una clase de vulnerabilidad nueva — solo la extiende.
+Pero es exactamente el tipo de vacío que `.agents/F-031-seguridad.md` (B1, B2) ya señaló que
+hay que cerrar por escrito la primera vez que alguien mira el archivo con lupa, no dejar que
+lo decida F-036 por su cuenta mientras diseña la pantalla.
+
+**Cambio concreto pedido al `arch-guardian`, en el contrato § 6.2** (justo debajo de la
+explicación de por qué el cambio de `route.ts` GET es obligatorio), añadir una decisión
+explícita, con una de estas dos formas:
+
+```
+Las tres cifras nuevas viajan en el JSON sin condicionar por permiso, siguiendo EL MISMO
+patrón que totalGanancia/totalInversion hoy: el backend las envía a cualquier sesión con
+acceso al cierre, y es la pantalla (F-036) quien decide si las oculta detrás de
+operaciones.cierre.gananciascostos. No es una guarda nueva que este feature deba escribir.
+```
+
+o, si el humano decide lo contrario:
+
+```
+totalPorCobrarAlCierre y totalCreditoOtorgado se consideran información de la misma
+sensibilidad que el margen, y F-036 DEBE gatearlas en la pantalla detrás de
+operaciones.cierre.gananciascostos cuando construya la vista. F-032 no cambia el backend
+porque no le corresponde (F-032 no toca ninguna pantalla), pero deja escrita la obligación
+para que F-036 no la decida sin este contexto.
+```
+
+Cualquiera de las dos cierra el hueco; dejarlo implícito es lo que este hallazgo no permite.
+
+### H2 — El §11 (cómo se siembra un abono) no acota el impacto sobre inventario compartido ni especifica la limpieza de las filas que crea
+
+**Pregunta del encargo (punto 4), respondida.** El paso 2 del §11.2 dice: *"Las ventas se
+crean por la ruta real de venta (POST `/api/venta/[tiendaId]/[cierreId]`)... Así se generan
+`VentaProducto`, `MovimientoStock` de `VENTA`... sin tener que replicarlos a mano."* Esto es
+correcto como principio («todo lo que ya tiene una puerta que funciona se crea por esa
+puerta»), pero tiene dos huecos que `.agents/COMMON_ERRORS.md` ya documenta como incidentes
+reales de este mismo proyecto:
+
+1. **E-051** («probar la puerta ejecuta la cosa entera») es exactamente esta forma: crear una
+   venta real por la ruta real **decrementa `ProductoTienda.existencia` de verdad**, en una
+   base de desarrollo **compartida** (dosier, y el propio §11.1 lo dice: "no en `/tmp`... la
+   base es compartida"). El §11 no dice **qué tienda ni qué producto** usar — si se ejecuta
+   contra una tienda/producto que otras verificaciones también usan (el precedente exacto de
+   E-051 fue "Tienda Principal"), el stock queda decrementado permanentemente y ninguna
+   verificación posterior de otro feature lo sabrá.
+2. **El §11 nunca dice qué se borra al terminar.** El §11.1 solo fija que el **script** se
+   borra (`git status --porcelain` limpio); no dice si las filas que sembró en la base
+   (`Venta`, `Cliente`, `CuentaPorCobrar`, `MovimientoCuentaPorCobrar`, `MovimientoStock` de
+   `VENTA`) se eliminan después de verificar. El prefijo (`F030-<timestamp>`) está pensado
+   para que **una limpieza posterior pueda encontrarlas**, pero el paso de limpieza en sí no
+   está escrito — a diferencia de, por ejemplo, la limpieza descrita en el incidente E-051
+   ("se restauraron los 21 valores... se borraron las 3 filas... se verificó la distribución
+   final exacta"). Sin ese paso escrito, dos corridas sucesivas de verificación (o una
+   verificación de F-033/F-034 que reutilice la misma tienda) pueden encontrar cuentas y
+   ventas fantasma con el prefijo `F030-` de una corrida anterior, y confundir un conteo real
+   con uno viejo (**E-040**, colisión de fixtures).
+
+No bloquea a `implementer`/`dev-tester`: ninguno de los dos lee el §11 (dev-tester no escribe
+tests de base de datos por decisión propia de §0.1, e implementer no toca `src/__tests__/` ni
+scripts). **Sí bloquea, en la práctica, que el `qa` pueda ejecutar el paso 6 de forma segura**
+tal como está escrito hoy.
+
+**Cambio concreto pedido al `arch-guardian`, en el contrato § 11.1 y § 11.2:**
+
+- § 11.1: fijar explícitamente la tienda/negocio de prueba a usar (una tienda de test
+  dedicada, nunca una compartida por otros features en curso), y si no existe una, instruir
+  crear una `Tienda`/`Producto`/`ProductoTienda` propios del prefijo `F030-` para que las dos
+  ventas reales no toquen inventario de nadie más.
+- § 11.2: añadir un paso 7 explícito de limpieza, en el orden que las FK exigen —
+  `movimientoCuentaPorCobrar.deleteMany` (o confiar en el cascade desde `CuentaPorCobrar`),
+  luego `venta.delete` (que cascadea a `CuentaPorCobrar` por `onDelete: Cascade`, verificado
+  en `prisma/schema.prisma:1411`, y de ahí a `MovimientoCuentaPorCobrar` por
+  `onDelete: Cascade`, verificado en `prisma/schema.prisma:1466`), y `cliente.delete` filtrado
+  por el prefijo. Y una nota de que si la tienda/producto son dedicados de F030 (no
+  compartidos), no hace falta restaurar `existencia` — solo si se reutilizó inventario ajeno,
+  en cuyo caso el §11 tiene que decir cómo se restaura.
+
+### H3 — No hay un camino de reparación escrito para `totalPorCobrarAlCierre` si quedara persistido con datos de otro tenant
+
+**Pregunta del encargo (punto 3), respondida.** El contrato (§5, `persistCierreTotals.ts`) y
+el ADR 0112 («Reversibilidad») explican qué pasa si se **revierte el feature entero**
+(las columnas quedan en su último valor, un recálculo posterior las sobrescribe), pero
+ninguno de los dos dice qué hacer si el **criterio 13 fallara en producción** — es decir, si
+`openReceivablesWhere`/`periodCollectionsWhere` tuvieran un defecto que dejara pasar una
+cuenta o un abono de otro negocio, y esa cifra ya se hubiera escrito en `CierrePeriodo` de un
+período **cerrado** vía `close`/`recalculate`.
+
+La respuesta correcta **ya existe en el propio sistema** —no hace falta inventar nada—: un
+período **abierto** se autocorrige solo, porque sus cifras se calculan en vivo en cada GET
+(nunca se persisten hasta el cierre); un período **cerrado** se repara ejecutando
+`POST .../recalculate` sobre él una vez el bug esté corregido, porque `computeCierreTotals`
+es la única función que produce el número y no hay un segundo camino de escritura que
+recalcular pueda pasar por alto (F-032 no toca `applyMovimientoCuentaPorCobrar`, así que no
+hay caché a resincronizar aparte). Pero esto **no está escrito en ningún sitio del contrato
+de F-032**, y es exactamente la clase de nota que `.agents/F-031-seguridad.md` (B1/B2) dejó
+para que el siguiente feature no la reinventara — aquí es al revés: F-032 es quien introduce
+el primer escritor real de `totalPorCobrarAlCierre`, y es quien debería dejar la nota para
+quien lo use después (soporte, o un futuro F-03x).
+
+**Cambio concreto pedido al `arch-guardian`, en el contrato § 10** (o en el ADR 0112, sección
+«Impacto en seguridad»), una frase:
+
+```
+Si el criterio 13 llegara a fallar en producción — una CuentaPorCobrar o un abono de otro
+negocio contaminando totalPorCobrarAlCierre —, el período ABIERTO se autocorrige en el
+siguiente GET (las cifras nunca se persisten hasta el cierre). Un período YA CERRADO se
+repara ejecutando POST .../recalculate sobre él una vez corregido el where: no hay una
+segunda caché que resincronizar, porque computeCierreTotals es la única función que produce
+la cifra y persistCierreTotals no la deriva de ningún otro lado.
+```
+
+---
+
+## 🟡 Media severidad
+
+### M1 — El criterio 13 no menciona `caja-resumen`, aunque comparte código con `caja-disponible`
+
+**Pregunta del encargo (punto 7), respondida con franqueza.** El criterio 13 (spec, líneas
+104-109 y §13 fila 13) verifica el GET del cierre y `caja-disponible` byte a byte antes y
+después de sembrar en N2. **No menciona** `GET /api/movimiento/[tiendaId]/caja-resumen`, que
+también llama a `construirResumenCajaAbierta` (vía `calcularResumenCajaPorMoneda`) y que es la
+otra ruta que F-032 modifica (§6.1: gana `cobrosCreditoEfectivo` en cada fila). Como las tres
+rutas (`cash-balance`, `caja-disponible`, `caja-resumen`) comparten la misma función privada,
+demostrar el aislamiento de una de las dos que usan `calcularEfectivoDisponiblePorMoneda`
+prueba el aislamiento del código compartido — no es una laguna real de cobertura, pero el
+criterio, tal como está escrito, no deja constancia de que `caja-resumen` quedó cubierto por
+la misma prueba. **No pido un criterio 14**: es barato, y suficiente, que el `qa` (o el propio
+criterio 13) anote explícitamente que `caja-resumen` se da por probado por compartir función
+con `caja-disponible`, para que nadie la vuelva a auditar por separado creyendo que falta.
+
+### M2 — Ningún criterio ejercita el aislamiento entre dos tiendas del **mismo** negocio
+
+Los doce criterios originales y el 13 prueban aritmética y aislamiento **entre negocios**.
+Ninguno siembra una segunda `CuentaPorCobrar`/abono en una **segunda tienda del mismo
+negocio** (T1 y T2 de N1) para confirmar que el filtro por `tiendaId` —que es el eje real,
+según §10 del contrato, más estrecho que `negocioId`— también excluye correctamente a una
+tienda hermana. Arquitectónicamente esto ya está cubierto: `openReceivablesWhere` y
+`periodCollectionsWhere` filtran por igualdad exacta de `tiendaId`, así que la protección no
+depende de si las dos tiendas comparten negocio o no. **No es un hallazgo que exija un
+criterio nuevo** —sería redundante con lo que el criterio 13 ya prueba, solo con un `tiendaId`
+distinto en vez de un `negocioId` distinto—, pero vale la pena decir con franqueza, ya que el
+encargo lo pregunta directamente: el criterio 13, interpretado literalmente, prueba una cosa
+más estrecha («aislamiento entre negocios») que lo que el §10 del contrato afirma
+("las cuatro consultas... acotadas a una tienda ya autorizada, que es un eje más estrecho").
+Si el `arch-guardian` quiere que el criterio cubra literalmente lo que afirma el prosa de §10,
+la forma más barata es anotar en §13 que el mismo seed de T2/N2 sirve también como control de
+tienda-hermana con un ajuste de una línea (mismo negocio, tienda distinta) — no es
+obligatorio, es una mejora de cobertura barata sobre algo que el diseño ya protege.
+
+---
+
+## 🟢 Confirmaciones — lo que el contrato ya hace bien y no requiere cambios
+
+1. **Los dos `where` de crédito atan la fila a la tienda por un camino real, verificado contra
+   el schema, no por columna homónima (E-042).** `CuentaPorCobrar.tiendaId` es una columna
+   propia con FK a `Tienda` (`prisma/schema.prisma:1425-1426`), así que
+   `openReceivablesWhere({tiendaId, ...})` filtra sobre esa columna directamente.
+   `MovimientoCuentaPorCobrar` no tiene `tiendaId` propio: `periodCollectionsWhere` llega a
+   ella por `cuentaPorCobrar: { tiendaId }`, que Prisma traduce en un JOIN real sobre
+   `cuentaPorCobrarId → CuentaPorCobrar.id` (FK real, `prisma/schema.prisma:1466`). Ninguno de
+   los dos es una mención de `tiendaId` en un comentario o una guarda de nulidad — los dos son
+   valores dentro de la cláusula `where` que Prisma ejecuta.
+2. **El filtro de cuentas abiertas al corte combina correctamente `tiendaId` y el `OR`
+   temporal.** `{ tiendaId, fechaVenta: {...}, OR: [...] }` es un `AND` implícito entre las
+   tres claves de nivel superior: una cuenta **saldada de otra tienda** no puede colarse por
+   la rama `settledAt: { gt: corte }` del `OR`, porque `tiendaId` ya la excluye antes de que el
+   `OR` se evalúe. La trampa que el dosier §7 y el criterio 9 señalan es temporal (simplificar
+   el `OR`), no de tenant — y el contrato no confunde las dos cosas.
+3. **F-032 no escribe en `MovimientoCuentaPorCobrar` ni en `CuentaPorCobrar`** (§0.1 del
+   contrato, razones 1-3): recalcula `totalPorCobrarAlCierre` con `buildCuentasPorCobrarSnapshot`
+   sobre el ledger, nunca lee `saldoPendiente` (el caché denormalizado), así que un
+   desincronizado de esa columna no puede filtrarse a la cifra del cierre. Esto reduce la
+   superficie de la auditoría: no hay un segundo escritor que revisar.
+4. **F-032 no añade ni cambia ninguna ruta** (§6.1): cero entradas nuevas en
+   `routeGuards.json`, y las tres respuestas que cambian de contenido (GET cierre, recalculate,
+   caja-resumen) ya estaban dentro del alcance auditado de features anteriores por su tenant y
+   su permiso (o la ausencia justificada de uno, ver H1).
+5. **Las anotaciones de invariante que `.agents/F-031-seguridad.md` pidió (B1, B2) están
+   escritas de verdad en el schema**, no solo prometidas: `CuentaPorCobrar.tiendaId`
+   (`prisma/schema.prisma:1417-1424`) lleva el comentario `INVARIANT: this MUST equal the
+   tiendaId of the Venta...`, y `MovimientoCuentaPorCobrar.revierteId`
+   (`prisma/schema.prisma:1492-1497`) lleva `the database only checks that the target row
+   EXISTS... The check lives in applyMovimientoCuentaPorCobrar`. El contrato de F-032 §10
+   hereda correctamente este riesgo residual («no lo introduce, no lo empeora») en vez de
+   ignorarlo.
+6. **La consulta de `construirResumenCajaAbierta` para los abonos del período abierto no
+   tiene ventana entre "período" y "tienda".** El `tiendaId` que acota `cuentaPorCobrar:
+   { tiendaId }` es el mismo parámetro de función que ya usan `movimientoStock` y `venta` en el
+   mismo `Promise.all`, resuelto por los tres llamadores (`cash-balance`, `caja-disponible`,
+   `caja-resumen`) contra `negocioId` de sesión **antes** de invocar la función — es la misma
+   postura que ya tenía la consulta de `movimientoStock`, no una relajación nueva.
+7. **`withTenantScope` deliberadamente no se usa aquí, y la razón está bien fundada**: las
+   cuatro consultas nuevas ya están acotadas a una tienda concreta y autorizada, un eje más
+   estrecho que `negocioId`. Añadir `withTenantScope` sería un salto de relación redundante,
+   no una guarda adicional real.
+8. **El criterio 13 es del tipo correcto de prueba**: siembra en un negocio ajeno de verdad
+   (no un mock), con la **misma** `fechaVenta` y el abono en el **mismo** rango de fechas del
+   período de T1 —control positivo real, no un caso trivial que pasaría con cualquier
+   implementación (E-008)—, y compara el JSON **byte a byte**, no solo un campo.
+9. **Reversibilidad de la feature**: no hay migración, no hay escritura nueva en ninguna
+   tabla más allá de las tres columnas de `CierrePeriodo` que ya existían con `@default(0)`.
+   Revertir el feature no deja residuo.
+
+---
+
+## Veredicto
+
+**Se puede abrir el paso 5.** Ningún hallazgo de esta auditoría encuentra una fuga de datos
+entre tenants alcanzable, un modelo mal formado, o una decisión de producto que reabrir. Los
+dos `where` nuevos (`openReceivablesWhere`, `periodCollectionsWhere`) filtran de verdad por
+tienda a través de relaciones FK reales, la trampa del `OR` está documentada, exportada y
+protegida por un criterio que la ejercita con un control positivo, y F-032 no abre ningún
+escritor nuevo sobre las tablas de crédito.
+
+Lo que pido, antes de que el `qa` ejecute el paso 6 (y en paralelo a que `implementer`/
+`dev-tester` trabajen, porque ninguno de los dos lee las secciones afectadas):
+
+- **H1** — que el `arch-guardian` decida y escriba, en § 6.2, si las tres cifras de crédito
+  siguen el patrón "visible en el JSON, oculto solo en la pantalla" de `totalGanancia`, o si
+  deben quedar reservadas para cuando F-036 las gatee explícitamente.
+- **H2** — que el §11 fije una tienda/producto de prueba dedicados (no compartidos con otras
+  verificaciones en curso) y un paso de limpieza explícito, en el orden de cascade correcto.
+- **H3** — una frase en §10 (o en el ADR 0112) sobre cómo se repara `totalPorCobrarAlCierre`
+  si el criterio 13 fallara en producción: período abierto se autocorrige, período cerrado se
+  repara con `recalculate`.
+
+Ninguna de las tres cambia una firma, un tipo o una decisión ya cerrada del contrato — las
+tres caben como texto adicional, igual que las anotaciones que `.agents/F-031-seguridad.md`
+pidió para F-031. M1 y M2 son observaciones de cobertura, no exigen ni un criterio nuevo ni un
+cambio de contrato.
+
+**Resumen numérico:** 0 bloqueantes · 3 de alta severidad (documentación de contrato, no
+alcance ni código) · 2 de media severidad (cobertura, no exigen cambio) · 9 confirmaciones
+explícitas de que el diseño de aislamiento multi-tenant ya es correcto en los puntos que el
+encargo pedía verificar.

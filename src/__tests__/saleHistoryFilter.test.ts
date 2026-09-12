@@ -14,9 +14,9 @@ import { saleReportedAt } from "@/lib/venta/saleTime";
 import { toSaleTimestamps } from "@/lib/venta/ventaTimestamps";
 
 /**
- * F-033 — contract § "Firmas públicas" (`src/lib/venta/saleHistoryFilter.ts`,
+ * F-049 — contract § "Firmas públicas" (`src/lib/venta/saleHistoryFilter.ts`,
  * not yet written by the implementer at the time this file was written: this
- * suite is authored against `.agents/specs/F-033.md`'s interface contract,
+ * suite is authored against `.agents/specs/F-049.md`'s interface contract,
  * without seeing any implementation).
  *
  * `matchesSaleSearchTerm` is moved BYTE FOR BYTE out of
@@ -32,7 +32,7 @@ import { toSaleTimestamps } from "@/lib/venta/ventaTimestamps";
  * `.tsx`). Its whole content is a precedence among five inputs, spelled out in
  * the contract's own table, reproduced here.
  *
- * Trap this suite exists to catch (E-016, adenda F-031, 6th appearance):
+ * Trap this suite exists to catch (E-016, adenda F-047, 6th appearance):
  * `formatDateTime` returns `dd/mm/yyyy` + `" • "` + `HH:mm:ss` — its own JSDoc
  * says `HH:mm` and LIES. Every expected date/time value below is built by
  * CALLING formatDate/formatDateTime, never by writing a literal like "14:30".

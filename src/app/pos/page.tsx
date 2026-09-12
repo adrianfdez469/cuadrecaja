@@ -47,6 +47,12 @@ import {
   isPermanentSyncError,
   shouldRetrySyncFailure,
 } from "./utils/syncErrors";
+import {
+  coversSaleTotal,
+  persistedCashBase,
+} from "./utils/creditSale";
+import { buildSyncMultimoneda } from "./utils/syncPayload";
+import { refreshClientesCache } from "@/store/clientesStore";
 import { useDiscountRulesStore } from "@/store/discountRulesStore";
 import { useCashBalanceStore } from "@/store/cashBalanceStore";
 import { useStockSnapshotStore } from "@/store/stockSnapshotStore";
@@ -638,17 +644,10 @@ export default function POSInterface() {
     for (const sale of salesNotSynced) {
       try {
         markSyncing(sale.identifier); // Marcar como sincronizando
-        const multimonedaSync = sale.pagosDetalle
-          ? {
-              monedaCobro: sale.monedaCobro ?? "CUP",
-              pagosDetalle: sale.pagosDetalle,
-              vueltoDetalle: sale.vueltoDetalle ?? [],
-              tasaSnapshot: sale.tasaSnapshot ?? {},
-              ...(sale.tipTotal && sale.tipTotal > 0
-                ? { tipTotal: sale.tipTotal, tipDetail: sale.tipDetail ?? [] }
-                : {}),
-            }
-          : undefined;
+        // THE ONE place that rebuilds this payload, shared with the two manual re-sends of
+        // the sales drawer: a field added to a sale and not to all three arrives as a sale
+        // that never had it.
+        const multimonedaSync = buildSyncMultimoneda(sale);
         const ventaDb = await createSell(
           sale.tiendaId,
           sale.cierreId,
@@ -924,9 +923,11 @@ export default function POSInterface() {
       // Comparación en céntimos para tolerar ruido de punto flotante: sin esto,
       // un total fraccionado podía dar `false` por diferencias ~1e-13 y la venta
       // se descartaba en silencio.
-      if (
-        Math.round(total * 100) <= Math.round((totalCash + totalTransfer) * 100)
-      ) {
+      //
+      // Bug 1 of the dossier: the comparison left the credit out, so a credit sale was
+      // always short and was dropped with a message blaming the cashier.
+      const creditoBase = multimoneda?.creditoBase ?? 0;
+      if (coversSaleTotal(total, totalCash, totalTransfer, creditoBase)) {
         const tiendaId = user.localActual.id;
         const cierreId = periodo.id;
         const identifier =
@@ -956,7 +957,10 @@ export default function POSInterface() {
           };
         });
 
-        const cash = total - totalTransfer;
+        // Bug 2 of the dossier: this is what travels to `newSale.totalcash` and to the
+        // online `createSell`, and without the credit term the debt was booked as cash in
+        // the drawer. The variable keeps its name so the diff is the minimum that fixes it.
+        const cash = persistedCashBase(total, totalTransfer, creditoBase);
 
         const newSale: Sale = {
           identifier: identifier,
@@ -989,6 +993,17 @@ export default function POSInterface() {
               ? {
                   tipTotal: multimoneda.tipTotal,
                   tipDetail: multimoneda.tipDetail ?? [],
+                }
+              : {}),
+            ...(multimoneda.creditoBase != null && multimoneda.creditoBase > 0
+              ? {
+                  creditoBase: multimoneda.creditoBase,
+                  ...(multimoneda.clienteId
+                    ? { clienteId: multimoneda.clienteId }
+                    : {}),
+                  ...(multimoneda.clienteNombre
+                    ? { clienteNombre: multimoneda.clienteNombre }
+                    : {}),
                 }
               : {}),
           }),
@@ -1458,6 +1473,22 @@ export default function POSInterface() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOnline, pendingSalesCount, periodo]);
+
+  // The customer cache is what makes selling on credit possible with no connection
+  // (criterion 10). F-033 leaves it to be filled by whatever the cashier searches; this is
+  // the background refresh its contract reserved for F-034 (ADR 0113).
+  //
+  // Its own effect, NEXT to the sweep above and not inside it: that one only runs with
+  // `pendingSalesCount > 0`, and the cache has to be refreshed even with no pending sales.
+  // Same `shouldDeferPosBackgroundOperations` guard, and for the same reason: not to compete
+  // with the POS start-up.
+  useEffect(() => {
+    if (shouldDeferPosBackgroundOperations(periodo)) return;
+    if (!isOnline || !periodo || periodo.fechaFin) return;
+    refreshClientesCache().catch((error) => {
+      console.error("No se pudo refrescar el cache de clientes", error);
+    });
+  }, [isOnline, periodo]);
 
   // Verificación periódica de timeouts de sincronización
   useEffect(() => {

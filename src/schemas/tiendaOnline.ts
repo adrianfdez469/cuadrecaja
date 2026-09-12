@@ -30,6 +30,10 @@ import {
   TIENDA_ONLINE_ORDER_LANDING_EFFECTS,
   TIENDA_ONLINE_ORDER_LANDING_SKIP_REASONS,
   TIENDA_ONLINE_ORDER_PAGE_SIZE_MAX,
+  TIENDA_ONLINE_PAYMENT_EXTRA_FIELDS,
+  TIENDA_ONLINE_PAYMENT_FIELD_MESSAGES,
+  TIENDA_ONLINE_PAYMENT_FIELD_RULES,
+  TIENDA_ONLINE_PAYMENT_METHOD_FIELDS,
   TIENDA_ONLINE_PAYMENT_METHODS,
 } from "@/constants/tiendaOnline";
 import {
@@ -661,9 +665,9 @@ export type ITiendaOnlineOrdersQuery = z.infer<
 /* F-012 — reporting an order's progress                                       */
 /* -------------------------------------------------------------------------- */
 
-/** The method that needs a destination. Typed against the constant of § 2.2. */
-const TRANSFER_METHOD =
-  "TRANSFERENCIA" satisfies (typeof TIENDA_ONLINE_PAYMENT_METHODS)[number];
+/** Typed against the constant so a typo does not compile. */
+const FIELD_REQUIRED =
+  "REQUIRED" satisfies (typeof TIENDA_ONLINE_PAYMENT_FIELD_RULES)[number];
 
 /**
  * The ONE destination that turns an order into a sale, and the only place this
@@ -677,24 +681,33 @@ const DELIVERED_STATUS =
 /**
  * How an online order was collected, declared by the person marking it DELIVERED.
  * ONE method for the whole amount: `pagosDetalle` is an array and will accept a
- * split the day a criterion asks for one (ADR 0073).
+ * split the day a criterion asks for one (ADR 0073, ADR 0137).
  */
 export const pedidoEntrantePagoSchema = z
   .object({
     metodo: z.enum(TIENDA_ONLINE_PAYMENT_METHODS),
-    /** REQUIRED for TRANSFERENCIA, FORBIDDEN for EFECTIVO. */
+    /** REQUIRED for TRANSFERENCIA, FORBIDDEN for the other two. */
     transferDestinationId: z.string().uuid().optional(),
+    /**
+     * The debtor. REQUIRED for CREDITO, FORBIDDEN for the other two. Shape only:
+     * that it exists and belongs to THIS business is a database question, and it
+     * is answered in `findOrderLandingBlocker` before QAB is called (ADR 0137).
+     */
+    clienteId: z.string().uuid().optional(),
   })
   .strict()
   .superRefine((value, ctx) => {
-    const needsDestination = value.metodo === TRANSFER_METHOD;
-    if (needsDestination === (value.transferDestinationId === undefined)) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["transferDestinationId"],
-        message:
-          "transferDestinationId is required for TRANSFERENCIA and forbidden otherwise",
-      });
+    const rules = TIENDA_ONLINE_PAYMENT_METHOD_FIELDS[value.metodo];
+    for (const field of TIENDA_ONLINE_PAYMENT_EXTRA_FIELDS) {
+      const present = value[field] !== undefined;
+      const required = rules[field] === FIELD_REQUIRED;
+      if (present !== required) {
+        ctx.addIssue({
+          code: "custom",
+          path: [field],
+          message: TIENDA_ONLINE_PAYMENT_FIELD_MESSAGES[field],
+        });
+      }
     }
   });
 export type IPedidoEntrantePago = z.infer<typeof pedidoEntrantePagoSchema>;

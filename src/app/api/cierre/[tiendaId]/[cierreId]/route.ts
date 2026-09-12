@@ -225,6 +225,9 @@ async function loadStored(cierreId: string): Promise<{
       totalMerma: true,
       totalDevoluciones: true,
       totalTips: true,
+      totalCreditoOtorgado: true,
+      totalCobrosCredito: true,
+      totalPorCobrarAlCierre: true,
       resumenMonedas: {
         select: {
           monedaCode: true,

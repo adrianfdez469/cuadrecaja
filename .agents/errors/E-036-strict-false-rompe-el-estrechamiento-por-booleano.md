@@ -1,7 +1,7 @@
 # E-036: `strict: false` rompe el estrechamiento de una unión discriminada por booleano
 
 **Área:** build
-**Apariciones:** 1 — F-009
+**Apariciones:** 2 — F-009, F-041 (`zoneTariffPrecedence.ts`)
 
 ## Síntoma
 
@@ -58,3 +58,31 @@ Dos notas de proceso, porque aquí funcionaron:
 - **`npm test` estaba en verde con este error sin corregir**, porque Vitest no comprueba tipos. Es
   [E-026](E-026-la-suite-en-verde-no-implica-tsc-limpio.md) en directo: `npx tsc --noEmit` no es
   opcional.
+
+
+---
+
+## Adenda F-041 — la dirección contraria, y es la peligrosa
+
+En F-009 `strict: false` hizo que `tsc` **fallara** sobre código correcto: el estrechamiento no
+ocurría y el compilador se quejaba. Molesto, pero ruidoso: hay un error, se ve, se arregla.
+
+F-041 dio con el reverso, que no hace ruido ninguno. La primera versión de `resolveZoneTariff`
+calculaba el veredicto de un escalón en una función auxiliar y, ya de vuelta en el llamador, leía
+`row.deliveryFee` para formatearlo — confiando en un estrechamiento que había ocurrido **dentro de
+la otra función** y que no viaja de vuelta. Con `strict: false`, `row` posiblemente `undefined` y
+`deliveryFee` posiblemente `undefined` son ambos asignables, así que **`tsc --noEmit` dio exit 0**
+sobre código que en una de sus ramas habría llamado a `toFixed` sobre `undefined`.
+
+El fallo no habría sido de tipos: habría sido un `TypeError` en ejecución, en la rama menos
+transitada, mucho después.
+
+**Cómo se cerró:** que el auxiliar devuelva también el importe (`amount: number | null`) junto al
+veredicto que lo autoriza, de modo que el dato viaje con la decisión que lo justifica y no haya
+ninguna lectura que dependa de un estrechamiento perdido en el camino.
+
+**La regla que deja:** con el modo estricto desactivado, **el compilador no es una red bajo un
+refactor que parte una función en dos**. Exit 0 no significa que el refactor conservó las
+garantías; significa que el compilador dejó de mirar. Si al extraer un auxiliar el llamador sigue
+leyendo un campo que solo era seguro por una comprobación que ahora vive dentro del auxiliar, el
+dato tiene que salir del auxiliar, no volverse a leer fuera.

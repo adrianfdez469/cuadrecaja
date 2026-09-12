@@ -1,7 +1,7 @@
 # E-035: La lista de testabilidad del contrato se cierra antes de que el diseño añada sus símbolos
 
 **Área:** build
-**Apariciones:** 2 — F-011 · F-012
+**Apariciones:** 4 — F-011 · F-012 · F-021 · F-036
 
 ## Síntoma
 
@@ -76,3 +76,25 @@ sabe qué valores existen de verdad.
 
 Es la misma forma que esta ficha describe —un vocabulario que se cierra antes de que exista lo que
 tiene que nombrar— aplicada al contenido de un censo en vez de a una lista de símbolos.
+
+## Adenda F-036 — la lista dio por testable un símbolo que no estaba exportado
+
+El contrato listó `cierreStoredTotalsSchema` en su lista de testabilidad, y el `dev-tester` escribió
+tests que lo importaban. Era `const` **sin `export`**.
+
+Lo que hace que valga una adenda es **dónde iba a aparecer el síntoma**: no en la implementación,
+que compila exactamente igual con o sin el `export`, sino en el otro lado del paso 5, como un
+**import roto que tumba el archivo de tests entero en la fase de colección**
+([E-019](E-019-it-each-con-un-simbolo-que-aun-no-existe.md)) — incluidos los tests que estaban en
+verde. Un fallo lejos de su causa, en la frontera del agente que no lo provocó.
+
+La forma es la misma que la de la ficha: **la lista de testabilidad se cierra sin ejecutar nada
+contra el árbol real.** Antes era el diseño el que llegaba tarde; aquí es que nadie comprobó que
+los símbolos prometidos se pudieran importar.
+
+### La regla
+
+Cerrar una lista de testabilidad cuesta un comando: por cada símbolo que promete, un `import` real
+—`npx tsx -e "import('@/…').then(m => console.log(Object.keys(m)))"`— o un `grep` de `export`. Un
+símbolo que el contrato promete y el módulo no exporta no es un descuido de redacción: es un
+archivo de tests entero caído en el agente de al lado.

@@ -29,13 +29,13 @@ export type ISaleOrigin = (typeof SALE_ORIGINS)[number];
  * DECLARE WHAT ITS COUNTER COUNTS — that is, when syncAttemptsAreFailures is
  * absent.
  *
- * 2 and not 1, and this is NOT a rounding choice: before F-034 the online POS
+ * 2 and not 1, and this is NOT a rounding choice: before F-050 the online POS
  * path stored a literal 1 for a sale that synced on its first try, so a stored
  * 1 on an undeclared row is indistinguishable — FOREVER, that datum is gone —
  * between "no retry at all" and "one real retry". 2 is the lowest value no
  * first attempt of THIS REPO'S POS OR THE APK could have produced; a client
  * that counted from 2 would still light the section on its first try, and that
- * caveat is ADR 0112's, kept here on purpose. ADR 0112, ADR 0113.
+ * caveat is ADR 0148's, kept here on purpose. ADR 0148, ADR 0149.
  */
 export const SALE_SYNC_TRACE_MIN_ATTEMPTS = 2;
 
@@ -44,7 +44,7 @@ export const SALE_SYNC_TRACE_MIN_ATTEMPTS = 2;
  * that its counter counts failed attempts (syncAttemptsAreFailures === true).
  *
  * 1, because under that convention one stored unit IS one failed attempt: there
- * is nothing to discount. ADR 0113.
+ * is nothing to discount. ADR 0149.
  */
 export const SALE_SYNC_TRACE_MIN_FAILED_ATTEMPTS = 1;
 
@@ -52,7 +52,7 @@ export const SALE_SYNC_TRACE_MIN_FAILED_ATTEMPTS = 1;
  * What every sale POSTed by THIS bundle declares about its own counter.
  *
  * It is a property of the code that sends, not of the sale: every write path in
- * this repository counts failed attempts after F-034, so the value is fixed and
+ * this repository counts failed attempts after F-050, so the value is fixed and
  * lives in one place instead of being typed at each call site.
  */
 export const SALE_SYNC_ATTEMPTS_ARE_FAILURES = true;

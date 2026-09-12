@@ -2,6 +2,7 @@ import { z } from "zod";
 import { usuarioSchema } from "./usuario";
 import { pagoLineaSchema, tipDetalleSchema, vueltoLineaSchema } from "./pago";
 import { tasaSnapshotSchema } from "./tasaCambio";
+import { ventaCreditoResumenSchema } from "./ventaCredito";
 
 export const ventaProductoSchema = z.object({
   id: z.string().uuid(),
@@ -62,6 +63,22 @@ export const ventaSchema = z.object({
   // Propina — parte de pagosDetalle que no es del negocio. Nunca entra en `total`.
   tipTotal: z.number().optional(),
   tipDetail: tipDetalleSchema.optional(),
+  // Credit sale. `creditoBase` is the part of `total` NOT paid at the counter, in base
+  // currency. It is NEVER a line of pagosDetalle (ADR 0111).
+  creditoBase: z.number().nonnegative().optional(),
+  clienteId: z.string().uuid().nullable().optional(),
+  // Denormalized for reading only: the debtor's name as the server has it at the moment of
+  // the GET. It exists so a sale reloaded from the server can reprint its ticket with the
+  // customer on it without another request. Never written from here, which is why it carries
+  // no character bound: ventaSchema is a READ model, and a row stored before the bound
+  // existed has to remain readable (contract § 3.3).
+  clienteNombre: z.string().optional(),
+  /**
+   * The debt of this sale, or null when it has none. READ-ONLY and server-built: the credit state
+   * of the list is read from HERE and from `creditoBase`, never deduced from
+   * `totalcash + totaltransfer < total` (E-013, criterion 2).
+   */
+  credito: ventaCreditoResumenSchema.nullable().optional(),
 });
 
 /**

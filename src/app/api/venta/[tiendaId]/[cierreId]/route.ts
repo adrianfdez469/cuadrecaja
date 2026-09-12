@@ -27,6 +27,24 @@ import {
   withTenantScope,
   type ITenantScope,
 } from "@/lib/tenantScope";
+import { creditoExtrasSchema } from "@/schemas/pago";
+import {
+  checkCreditInvariant,
+  CREDIT_INVARIANT_HTTP_STATUS,
+} from "@/lib/cuentasPorCobrar/creditInvariant";
+import {
+  resolveCreditCustomer,
+  type ICreditCustomerResolution,
+} from "@/lib/cuentasPorCobrar/creditCustomer";
+import { normalizeClienteNombre } from "@/lib/clientes/clienteNombre";
+import { buildVentaCreditoResumen } from "@/lib/ventaMapper";
+import {
+  CREDIT_CUSTOMER_CONFLICT_CODE,
+  CREDIT_CUSTOMER_CONFLICT_MESSAGE,
+  CREDIT_CUSTOMER_UPSERT_RETRIES,
+  CREDIT_EXTRAS_INVALID_MESSAGE,
+  CREDIT_INVARIANT_ERROR_MESSAGE,
+} from "@/constants/creditoVenta";
 
 // El vuelto solicitado en una venta en tiempo real supera el efectivo
 // realmente disponible en esa moneda. Ver la validación dentro de la
@@ -133,6 +151,11 @@ export async function POST(
       // (es una decisión del cajero), solo validar que tenga respaldo en caja.
       tipTotal,
       tipDetail,
+      // Credit sale (F-034). Validated by creditoExtrasSchema below, before anything reads
+      // the numbers.
+      creditoBase,
+      clienteId,
+      clienteNombre,
     } = await req.json();
 
     syncId = syncIdBody;
@@ -228,6 +251,22 @@ export async function POST(
         { status: 400 },
       );
     }
+
+    // The credit fields, parsed before anything reads the numbers. This is what closes the
+    // negative-creditoBase hole that checkCreditInvariant leaves explicitly to its caller.
+    // The Zod detail is NOT echoed: it quotes the value that failed (E-031).
+    const creditExtras = creditoExtrasSchema.safeParse({
+      creditoBase,
+      clienteId,
+      clienteNombre,
+    });
+    if (!creditExtras.success) {
+      return NextResponse.json(
+        { error: CREDIT_EXTRAS_INVALID_MESSAGE },
+        { status: 400 },
+      );
+    }
+    const creditoBasePersistido = Number(creditExtras.data.creditoBase) || 0;
 
     // ----------------------------------------------------------------------
     // Lecturas y cálculos FUERA de la transacción.
@@ -424,8 +463,19 @@ export async function POST(
       return NextResponse.json({ error: tipCheck.error }, { status: 400 });
     }
 
+    // The debtor of this sale, and what has to be written for it to exist. It stays null
+    // for a cash sale because it is INITIALISED null and the only block that can change it
+    // sits entirely behind `creditoBasePersistido > 0` — that is what sustains the
+    // `Venta.clienteId NULL <=> creditoBase = 0` invariant F-031 wrote on the column.
+    let clienteIdEfectivo: string | null = null;
+    let resolution: ICreditCustomerResolution = {
+      action: "NONE",
+      clienteId: null,
+      nombre: null,
+    };
+
     // **TRANSACCIÓN ATÓMICA: Todo o nada (SOLO escrituras)**
-    const result = await prisma.$transaction(
+    const ejecutarVentaTx = () => prisma.$transaction(
       async (tx) => {
         // 0. Validar que el vuelto solicitado esté cubierto por el efectivo
         // realmente disponible en caja (fondo inicial + ventas - vueltos -
@@ -476,6 +526,62 @@ export async function POST(
           }
         }
 
+        // 2.5 The customer of a credit sale, written inside the SAME transaction as the
+        // sale. Only for CREATE and REACTIVATE; with EXISTING nothing is written to
+        // Cliente, and with NONE there is no customer at all.
+        //
+        // `createOrReactivateCliente` is deliberately NOT reused here: it talks to the
+        // global `prisma`, not to `tx`, and opens its own read/write cycle outside any
+        // transaction (ADR 0114). Calling it from inside this $transaction would ask the
+        // pooler for a second connection and answer "Transaction already closed". What IS
+        // reused is its pure half, `decideClienteUpsert`, through resolveCreditCustomer.
+        if (
+          resolution.action === "CREATE" ||
+          resolution.action === "REACTIVATE"
+        ) {
+          // Read again INSIDE the transaction before writing. This is the half of E-038
+          // that resolves the sequential case — the same sale re-sent, a name another sale
+          // created a moment ago — without violating anything. The other half, the retry,
+          // lives outside the transaction: a P2002 aborts the whole transaction in Postgres
+          // and cannot be recovered from in here.
+          const yaExiste = await tx.cliente.findFirst({
+            where: withTenantScope(
+              "cliente",
+              { nombre: resolution.nombre },
+              negocioId,
+            ),
+            select: { id: true, deletedAt: true },
+          });
+
+          if (yaExiste) {
+            clienteIdEfectivo = yaExiste.id;
+            if (yaExiste.deletedAt) {
+              await tx.cliente.update({
+                // The tenant clause is repeated in the write, not only in the read that
+                // resolved the id: one composite `where`, never a check held in memory.
+                where: withTenantScope(
+                  "cliente",
+                  { id: yaExiste.id },
+                  negocioId,
+                ),
+                data: { deletedAt: null },
+              });
+            }
+          } else {
+            const creado = await tx.cliente.create({
+              data: {
+                // The id resolveCreditCustomer already handed to checkCreditInvariant, so
+                // the row that gets written is the row the invariant was checked against.
+                id: resolution.clienteId,
+                nombre: resolution.nombre,
+                negocioId,
+              },
+              select: { id: true },
+            });
+            clienteIdEfectivo = creado.id;
+          }
+        }
+
         // 3. Crear la venta
         const venta = await tx.venta.create({
           data: {
@@ -499,6 +605,8 @@ export async function POST(
             syncAttemptsAreFailures:
               syncAttemptsAreFailures === true ? true : null,
             discountTotal: discountTotalCalc || 0,
+            creditoBase: creditoBasePersistido,
+            clienteId: clienteIdEfectivo,
             productos: {
               create: productosMegrados.map((p) => ({
                 productoTiendaId: p.productoTiendaId,
@@ -529,6 +637,41 @@ export async function POST(
             productos: true,
           },
         });
+
+        // 3.0.1 The debt, in the SAME transaction as the sale and immediately after it. If
+        // anything later fails — insufficient stock, for instance — the debt is undone with
+        // everything else.
+        //
+        // ZERO rows in MovimientoCuentaPorCobrar: creating a debt is not a movement of the
+        // ledger, there is no TipoMovimientoCuentaPorCobrar for "opened". The first writer
+        // of that ledger is F-035.
+        if (creditoBasePersistido > 0) {
+          await tx.cuentaPorCobrar.create({
+            data: {
+              ventaId: venta.id,
+              clienteId: clienteIdEfectivo,
+              // The SAME variable already persisted as Venta.tiendaId. Never re-read from
+              // the body, from a route param, or from anywhere else: TENANT_RELATION_PATH
+              // reaches negocioId through this column alone, so a row born with a
+              // different tiendaId would hang from the wrong tenant with a correct path.
+              tiendaId,
+              // The moment the sale happened, not the moment it arrived: a sale synced
+              // three days late would otherwise be born with the wrong age, and aging is
+              // measured from this column. The `?? new Date()` is unreachable today — the
+              // route already answers 400 without `createdAt` — and is here so the
+              // expression has a type.
+              fechaVenta: createdAt ? new Date(createdAt) : new Date(),
+              // Both from the SAME variable and unrounded: rounding here and not in
+              // Venta.creditoBase would drift the two figures apart by a cent.
+              montoOriginal: creditoBasePersistido,
+              saldoPendiente: creditoBasePersistido,
+              settledAt: null,
+              // monedaDeudaCode and montoDeudaMonedaOriginal are left null: the checkout
+              // denominates the whole sale in base, so there is no second currency to note
+              // (contract § 5.5, decision 8). The first feature with one is F-038.
+            },
+          });
+        }
 
         // The date every stock movement of THIS sale is stamped with: the hour
         // the sale reports, not the hour it reached the server, so an offline
@@ -888,6 +1031,130 @@ export async function POST(
       },
     );
 
+    let result: Awaited<ReturnType<typeof ejecutarVentaTx>> = null;
+
+    // The credit path and the transaction, retried AT MOST ONCE and only for the one
+    // failure a retry can resolve: the race two DIFFERENT sales naming the same brand-new
+    // customer lose against each other — two syncIds, two devices, one name. The sale's own
+    // idempotency does not cover it; it protects against re-sending the SAME sale (E-038).
+    //
+    // What is NOT repeated, and it matters: products, monedaBase, resolveSaleTasaSnapshot,
+    // discounts, reconcileSaleTotal and validateTip. None of them depends on the customer,
+    // none of them changes between the two passes, and repeating them would cost five more
+    // queries for a race that does not affect them (contract § 5.6).
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        // Only when there IS credit (decision 3). checkCreditInvariant is stricter than
+        // what the server does today, and calling it unguarded would turn cash sales that
+        // are registered today into 400s — exactly the degradation criterion 1 forbids.
+        if (creditoBasePersistido > 0) {
+          const extras = creditExtras.data;
+          // Both lookups are read-only, run OUTSIDE the transaction and are scoped with the
+          // negocioId assertTiendaTenant resolved — never one read from the body. Neither
+          // filters by deletedAt, on purpose (contract § 5.1). Only one of the two runs.
+          const byId = extras.clienteId
+            ? await prisma.cliente.findFirst({
+                where: withTenantScope(
+                  "cliente",
+                  { id: extras.clienteId },
+                  negocioId,
+                ),
+                select: { id: true, deletedAt: true },
+              })
+            : null;
+
+          const nombreNormalizado = normalizeClienteNombre(
+            extras.clienteNombre ?? "",
+          );
+          const byNombre =
+            !extras.clienteId && nombreNormalizado
+              ? await prisma.cliente.findFirst({
+                  where: withTenantScope(
+                    "cliente",
+                    { nombre: nombreNormalizado },
+                    negocioId,
+                  ),
+                  select: { id: true, deletedAt: true },
+                })
+              : null;
+
+          resolution = resolveCreditCustomer({
+            creditoBase: creditoBasePersistido,
+            clienteId: extras.clienteId,
+            clienteNombre: extras.clienteNombre,
+            byId,
+            byNombre,
+            nuevoClienteId: crypto.randomUUID(),
+          });
+          clienteIdEfectivo = resolution.clienteId;
+
+          // The RECONCILED total, never the client's: validating against the client's
+          // figure would void the only defence against a debt the client invented
+          // (criterion 13).
+          const check = checkCreditInvariant({
+            total: ventaTotal,
+            tipTotal,
+            creditoBase: creditoBasePersistido,
+            clienteId: resolution.clienteId,
+            pagosDetalle: pagosLineas,
+            vueltoDetalle: vueltosLineas,
+            tasaSnapshot: tasaSnapshotResuelto,
+            monedaBase,
+          });
+          if (!check.ok) {
+            return NextResponse.json(
+              {
+                error: CREDIT_INVARIANT_ERROR_MESSAGE[check.violation],
+                code: check.violation,
+              },
+              { status: CREDIT_INVARIANT_HTTP_STATUS[check.violation] },
+            );
+          }
+        }
+
+        result = await ejecutarVentaTx();
+        break;
+      } catch (error: unknown) {
+        const esCarreraDeAlta =
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === "P2002" &&
+          (resolution.action === "CREATE" ||
+            resolution.action === "REACTIVATE");
+        if (!esCarreraDeAlta) throw error;
+
+        // The syncId recovery keeps its priority: if the sale is already there, it is
+        // returned as it is with a 200.
+        const ventaYaCreada = await prisma.venta.findFirst({
+          where: withTenantScope("venta", { syncId }, negocioId),
+          include: { productos: true },
+        });
+        if (ventaYaCreada) {
+          return NextResponse.json(ventaYaCreada, { status: 200 });
+        }
+
+        // The transaction is already aborted and nothing of it committed, so re-running the
+        // whole path is safe: on the second pass the pre-transaction read finds the row the
+        // winner created and the resolution comes back EXISTING, writing no Cliente at all.
+        if (attempt < CREDIT_CUSTOMER_UPSERT_RETRIES) continue;
+
+        // 409 and not 500: `isPermanentSyncError` parks a 409 instead of spinning on it.
+        // The sale is not lost — it stays visible as pending and the drawer's re-send button
+        // sends it again, and on that send the pre-transaction read already finds the
+        // customer. A 500 would have made it retry alone up to MAX_SYNC_ATTEMPTS.
+        console.error(
+          "❌ [POST /api/venta] Carrera irresoluble en el alta del cliente a credito:",
+          syncId,
+        );
+        return NextResponse.json(
+          {
+            error: CREDIT_CUSTOMER_CONFLICT_MESSAGE,
+            code: CREDIT_CUSTOMER_CONFLICT_CODE,
+          },
+          { status: 409 },
+        );
+      }
+    }
+
     return NextResponse.json(result, { status: 201 });
   } catch (error: unknown) {
     // 409, no 500: la venta es correcta, es la tienda la que no la cubre. Un
@@ -995,6 +1262,27 @@ export async function GET(
         transferDestination: {
           select: { id: true, nombre: true },
         },
+        // The debtor's name, so a sale reloaded into the POS can reprint its ticket with the
+        // customer on it. It opens no leak: the findMany is already scoped with
+        // withTenantScope, and Venta.cliente can only point at a Cliente of the same
+        // business because it is this route that writes it, resolved under scope.
+        cliente: {
+          select: { id: true, nombre: true },
+        },
+        // F-037, by written delegation: the credit state of the list is read from an EXPLICIT
+        // field of the serialized sale, never deduced from `totalcash + totaltransfer < total`
+        // (E-013, criterion 2). It is an `include` over a @unique relation — one row per sale,
+        // no N+1 — and the ledger travels only as a COUNT, through summarizeVentaCobros. The
+        // POST of this same file is NOT touched.
+        cuentaPorCobrar: {
+          select: {
+            id: true,
+            saldoPendiente: true,
+            settledAt: true,
+            montoOriginal: true,
+            movimientos: { select: { tipo: true, monto: true } },
+          },
+        },
       },
       where: withTenantScope(
         "venta",
@@ -1070,6 +1358,13 @@ export async function GET(
         tipTotal: Number(venta.tipTotal ?? 0),
         tipDetail:
           (venta.tipDetail as unknown as IVenta["tipDetail"]) ?? undefined,
+        creditoBase: Number(venta.creditoBase ?? 0),
+        clienteId: venta.clienteId ?? undefined,
+        clienteNombre: venta.cliente?.nombre ?? undefined,
+        // IMPORTED from src/lib/ventaMapper.ts, never a second assembly of the same block: if each
+        // caller built it its own way, the chip of /ventas and the chip of the mobile app could
+        // disagree about the very same sale (F-037, contract § 5).
+        credito: buildVentaCreditoResumen(venta.cuentaPorCobrar),
       }));
 
     return NextResponse.json(ventas);

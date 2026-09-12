@@ -1,10 +1,19 @@
 "use client";
 
-import { Alert, Chip, Stack } from "@mui/material";
+import { Alert, Box, Chip, Stack, Typography } from "@mui/material";
 import { ContentCard } from "@/components/ContentCard";
 import { ReportDataTable } from "@/components/reports/ReportDataTable";
 import type { ReportColumn } from "@/components/reports/ReportDataTable";
 import { formatCurrency, formatNumber } from "@/utils/formatters";
+import { PAYMENT_MIX_CREDIT_TYPE } from "@/constants/reportes";
+import {
+  REPORTS_CREDIT_COPY,
+  REPORTS_CREDIT_TEST_IDS,
+} from "@/constants/reportesCredito";
+import {
+  hasCreditKpi,
+  sumMixCredit,
+} from "@/app/reportes/utils/creditoReportes";
 import type {
   IPaymentMixRow,
   ITransferDestinationRow,
@@ -20,7 +29,11 @@ type PaymentMixChartProps = {
 const TYPE_LABELS: Record<string, string> = {
   cash: "Efectivo",
   transfer: "Transferencia",
+  [PAYMENT_MIX_CREDIT_TYPE]: REPORTS_CREDIT_COPY.mixRowLabel,
 };
+
+const isCreditRow = (row: IPaymentMixRow) =>
+  row.tipo === PAYMENT_MIX_CREDIT_TYPE;
 
 /**
  * Payment-method and currency mix, plus reconciliation by transfer destination.
@@ -34,11 +47,22 @@ export function PaymentMixChart({
   ventasEstimadas,
   format,
 }: PaymentMixChartProps) {
+  const showCreditNote = hasCreditKpi(sumMixCredit(mix));
+
   const mixColumns: ReportColumn<IPaymentMixRow>[] = [
     {
       key: "tipo",
       label: "Método",
-      render: (row) => TYPE_LABELS[row.tipo] ?? row.tipo,
+      render: (row) => {
+        const label = TYPE_LABELS[row.tipo] ?? row.tipo;
+        return isCreditRow(row) ? (
+          <span data-testid={REPORTS_CREDIT_TEST_IDS.mixCreditType}>
+            {label}
+          </span>
+        ) : (
+          label
+        );
+      },
       sortValue: (row) => row.tipo,
     },
     {
@@ -51,21 +75,55 @@ export function PaymentMixChart({
       key: "original",
       label: "Monto cobrado",
       align: "right",
-      render: (row) => `${formatCurrency(row.montoOriginal)} ${row.moneda}`,
+      render: (row) =>
+        isCreditRow(row) ? (
+          <Box
+            component="span"
+            data-testid={REPORTS_CREDIT_TEST_IDS.mixCreditOriginal}
+            sx={{ whiteSpace: "nowrap", color: "text.secondary" }}
+          >
+            {REPORTS_CREDIT_COPY.mixNotCollectedCell}
+          </Box>
+        ) : (
+          `${formatCurrency(row.montoOriginal)} ${row.moneda}`
+        ),
       sortValue: (row) => row.montoOriginal,
+      // Mandatory: the export falls back to `sortValue` when this is absent or
+      // returns null, and the spreadsheet would carry the credited amount under a
+      // header that reads "Monto cobrado" (ReportDataTable.tsx:115).
+      exportValue: (row) =>
+        isCreditRow(row)
+          ? REPORTS_CREDIT_COPY.mixNotCollectedCell
+          : row.montoOriginal,
     },
     {
       key: "base",
       label: "Equivalente",
       align: "right",
-      render: (row) => format(row.montoBase),
+      render: (row) =>
+        isCreditRow(row) ? (
+          <span data-testid={REPORTS_CREDIT_TEST_IDS.mixCreditBase}>
+            {format(row.montoBase)}
+          </span>
+        ) : (
+          format(row.montoBase)
+        ),
       sortValue: (row) => row.montoBase,
     },
     {
       key: "participacion",
       label: "Participación",
       align: "right",
-      render: (row) => `${row.participacionPorcentaje.toFixed(1)}%`,
+      render: (row) => {
+        const share = `${row.participacionPorcentaje.toFixed(1)}%`;
+        return isCreditRow(row) ? (
+          <span data-testid={REPORTS_CREDIT_TEST_IDS.mixCreditShare}>
+            {share}
+          </span>
+        ) : (
+          share
+        );
+      },
       sortValue: (row) => row.participacionPorcentaje,
     },
     {
@@ -128,6 +186,16 @@ export function PaymentMixChart({
             initialSortKey="base"
             emptyMessage="No hay cobros registrados en el período"
           />
+
+          {showCreditNote && (
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              data-testid={REPORTS_CREDIT_TEST_IDS.mixNote}
+            >
+              {REPORTS_CREDIT_COPY.mixNote}
+            </Typography>
+          )}
         </Stack>
       </ContentCard>
 

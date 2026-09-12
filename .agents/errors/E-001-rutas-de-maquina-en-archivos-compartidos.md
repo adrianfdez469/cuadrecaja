@@ -1,7 +1,7 @@
 # E-001: Rutas del sistema de archivos de una máquina concreta en archivos compartidos por git
 
 **Área:** build
-**Apariciones:** 2 — generación original de `.claude/agents/`, backlog inicial de `.agents/features.json`
+**Apariciones:** 3 — los 6 agentes originales, el backlog inicial, y F-041 (informe de `qa`)
 
 ## Síntoma
 
@@ -57,3 +57,29 @@ grep -rnE '(/Users/|/home/|~/|[A-Z]:\\\\)' .agents/ .claude/ --include='*.md' --
 ```
 
 El agente `qa` ya comprueba esto para `.claude/agents/`; el mismo grep cubre `.agents/`.
+
+
+---
+
+## Adenda F-041 — la tercera, y la escribió un agente que TENÍA la regla en su encargo
+
+Las dos primeras fueron rutas de **otra** máquina heredadas al generar archivos. La tercera es
+distinta y por eso vale: el agente `qa` de F-041 abrió su informe `.agents/F-041-qa.md` con una
+línea de contexto perfectamente razonable —**Verificado en:** más la ruta del worktree— y esa ruta
+era la de la máquina donde corría.
+
+Lo que la hace instructiva:
+
+- **El encargo del agente incluía E-001 explícitamente**, y aun así la escribió. No por
+  desobediencia: la regla se lee como «no escribas rutas en las **instrucciones**», y esto era
+  metadato de cabecera, el sitio donde una ruta parece información honesta sobre dónde se verificó.
+- **El propio informe ejecutaba el `grep` de E-001 y lo daba por limpio.** El comando apuntaba a los
+  ficheros del feature —spec, ADRs, código— y no a sí mismo. Un chequeo que no se incluye en su
+  propio alcance siempre pasa.
+- Lo cazó el coordinador en el paso 7, al correr el `grep` sobre **todo lo nuevo del feature,
+  incluido el informe de QA**.
+
+**La regla que deja:** el `grep` de E-001 se corre sobre **todos** los archivos que el feature
+añadió a `.agents/`, y el informe de QA es uno de ellos. Y para quien escriba un informe: la
+cabecera «verificado en» no necesita una ruta — la rama y el hecho de que sea un worktree son toda
+la información que le sirve a quien lo lea desde otro disco.

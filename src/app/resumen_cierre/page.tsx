@@ -64,6 +64,13 @@ import { convertFromBase } from "@/lib/currency";
 import StoreIcon from "@mui/icons-material/Store";
 import HandshakeIcon from "@mui/icons-material/Handshake";
 import { usePermisos } from "@/utils/permisos_front";
+import { CUENTAS_POR_COBRAR_PERMISO } from "@/constants/clientes";
+import {
+  readCreditFlow,
+  shouldShowCreditColumns,
+  CREDIT_TEST_IDS,
+} from "@/app/cierre/utils/creditoCierre";
+import { CREDIT_COPY } from "@/app/cierre/utils/creditoCierreCopy";
 import { TasasBanner } from "@/components/TasasBanner";
 import GananciaCard from "@/app/cierre/components/GananciaCard";
 import CajaPorMonedaHistorico from "./components/CajaPorMonedaHistorico";
@@ -159,6 +166,14 @@ export default function ResumenCierrePage() {
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const isTablet = useMediaQuery(theme.breakpoints.down("md"));
   const { verificarPermiso } = usePermisos();
+
+  // Permission AND data, resolved once for both branches: a per-row condition
+  // only on mobile would be a branch no criterion walks. The permission is the
+  // one that names the debt portfolio, never `operaciones.cierre.gananciascostos`.
+  const showCreditColumns = shouldShowCreditColumns(
+    verificarPermiso(CUENTAS_POR_COBRAR_PERMISO),
+    data,
+  );
 
   // Derived: currencies available for display
   const availableCurrencies = [
@@ -1147,6 +1162,51 @@ export default function ResumenCierrePage() {
                                 {fmtS(row.totalVentasConsignacion || 0)}
                               </Typography>
                             </Grid>
+                            {/* Las dos últimas celdas de la rejilla, con el
+                                label largo: en táctil no hay hover que pueda
+                                desplegar una abreviatura. */}
+                            {showCreditColumns && (
+                              <Grid
+                                item
+                                xs={6}
+                                data-testid={CREDIT_TEST_IDS.historyGranted}
+                              >
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                >
+                                  {CREDIT_COPY.cardGrantedLabel}
+                                </Typography>
+                                <Typography
+                                  variant="body2"
+                                  fontWeight="medium"
+                                  color="semantic.money.neutral.main"
+                                >
+                                  {fmtS(row.totalCreditoOtorgado ?? 0)}
+                                </Typography>
+                              </Grid>
+                            )}
+                            {showCreditColumns && (
+                              <Grid
+                                item
+                                xs={6}
+                                data-testid={CREDIT_TEST_IDS.historyCollected}
+                              >
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                >
+                                  {CREDIT_COPY.cardCollectedLabel}
+                                </Typography>
+                                <Typography
+                                  variant="body2"
+                                  fontWeight="medium"
+                                  color="semantic.money.neutral.main"
+                                >
+                                  {fmtS(row.totalCobrosCredito ?? 0)}
+                                </Typography>
+                              </Grid>
+                            )}
                           </Grid>
                         </Stack>
                       </CardContent>
@@ -1202,6 +1262,31 @@ export default function ResumenCierrePage() {
                         />
                         V. Consignación
                       </TableCell>
+                      {/* Crédito y Cobros — justo antes de la celda sticky de
+                          acciones, para que se desplacen por debajo de ella.
+                          El Tooltip va sobre el TableCell, no sobre un span
+                          interno, para que su texto propio siga siendo la
+                          palabra abreviada. */}
+                      {showCreditColumns && (
+                        <Tooltip title={CREDIT_COPY.cardGrantedLabel}>
+                          <TableCell
+                            align="right"
+                            data-testid={CREDIT_TEST_IDS.historyGranted}
+                          >
+                            {CREDIT_COPY.historyGrantedHeader}
+                          </TableCell>
+                        </Tooltip>
+                      )}
+                      {showCreditColumns && (
+                        <Tooltip title={CREDIT_COPY.cardCollectedLabel}>
+                          <TableCell
+                            align="right"
+                            data-testid={CREDIT_TEST_IDS.historyCollected}
+                          >
+                            {CREDIT_COPY.historyCollectedHeader}
+                          </TableCell>
+                        </Tooltip>
+                      )}
                       <TableCell sx={stickyActionsCellSx.head}>
                         Acciones
                       </TableCell>
@@ -1322,6 +1407,36 @@ export default function ResumenCierrePage() {
                             {fmtS(row.totalVentasConsignacion || 0)}
                           </Typography>
                         </TableCell>
+                        {showCreditColumns && (
+                          <TableCell
+                            align="right"
+                            data-testid={CREDIT_TEST_IDS.historyGranted}
+                          >
+                            {/* Tinta neutra: estas dos cifras no tienen signo
+                                — no son una entrada ni una salida de caja. */}
+                            <Typography
+                              variant="body2"
+                              fontWeight="medium"
+                              color="semantic.money.neutral.main"
+                            >
+                              {fmtS(row.totalCreditoOtorgado ?? 0)}
+                            </Typography>
+                          </TableCell>
+                        )}
+                        {showCreditColumns && (
+                          <TableCell
+                            align="right"
+                            data-testid={CREDIT_TEST_IDS.historyCollected}
+                          >
+                            <Typography
+                              variant="body2"
+                              fontWeight="medium"
+                              color="semantic.money.neutral.main"
+                            >
+                              {fmtS(row.totalCobrosCredito ?? 0)}
+                            </Typography>
+                          </TableCell>
+                        )}
                         <TableCell sx={stickyActionsCellSx.body}>
                           <AccionesCierreCell
                             desactualizado={
@@ -1453,6 +1568,30 @@ export default function ResumenCierrePage() {
                           {fmtS(data?.sumTotalVentasConsignacion || 0)}
                         </Typography>
                       </TableCell>
+                      {/* Sin estas dos celdas la fila entera se desalinea y
+                          las doce cifras de totales se corren dos columnas. */}
+                      {showCreditColumns && (
+                        <TableCell align="right">
+                          <Typography
+                            variant="body2"
+                            fontWeight="bold"
+                            color="semantic.money.neutral.main"
+                          >
+                            {fmtS(data?.sumTotalCreditoOtorgado || 0)}
+                          </Typography>
+                        </TableCell>
+                      )}
+                      {showCreditColumns && (
+                        <TableCell align="right">
+                          <Typography
+                            variant="body2"
+                            fontWeight="bold"
+                            color="semantic.money.neutral.main"
+                          >
+                            {fmtS(data?.sumTotalCobrosCredito || 0)}
+                          </Typography>
+                        </TableCell>
+                      )}
                       <TableCell sx={stickyActionsCellSx.totals} />
                     </TableRow>
                   </TableBody>
@@ -1719,6 +1858,9 @@ export default function ResumenCierrePage() {
                       cajaDeducciones={
                         cierreProducData.ciereData.cajaDeducciones
                       }
+                      creditFlow={readCreditFlow(
+                        cierreProducData.ciereData,
+                      )}
                     />
                   )}
 

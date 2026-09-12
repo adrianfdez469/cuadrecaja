@@ -61,8 +61,11 @@ const cierreLine = (over: Partial<CierreSaleLine> = {}): CierreSaleLine => ({
 const cierreSale = (over: Partial<CierreSale> = {}): CierreSale => ({
   id: "v",
   createdAt: new Date("2026-09-08T10:00:00"),
-  // F-030: CierreSale now requires frontendCreatedAt alongside createdAt.
+  // F-032: CierreSale now requires frontendCreatedAt alongside createdAt.
   frontendCreatedAt: null,
+  // F-031: every sale declares what part of it was sold on credit. Zero here:
+  // these fixtures are about expenses, and no credit must leak into them.
+  creditoBase: 0,
   discountTotal: 0,
   tipTotal: 0,
   totaltransfer: 0,
@@ -157,6 +160,11 @@ describe("computePercentageBaseTotals", () => {
       gastos: [],
       movimientos: [],
       initialFundAmounts: {},
+      // F-031/F-032: the three receivable-side inputs, all empty on purpose —
+      // this suite compares expense arithmetic and must stay free of credit.
+      abonos: [],
+      cuentasPorCobrar: [],
+      transferDestinations: [],
     };
 
     const { totalGanancia: grossGanancia } = computePercentageBaseTotals(

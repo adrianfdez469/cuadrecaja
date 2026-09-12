@@ -9,7 +9,7 @@ import {
  *
  * All are optional because IVenta declares them optional, and IVenta declares
  * them optional because most producers of that type still do not copy them:
- * F-032 fixes exactly one endpoint (the period sales GET), not all of them.
+ * F-048 fixes exactly one endpoint (the period sales GET), not all of them.
  * An absent field therefore means "this producer says nothing", and the
  * predicate below reads that as NOT traced — never as unknown.
  */
@@ -43,7 +43,7 @@ export interface SaleSyncTrace {
  *
  * An undeclared row gets the conservative threshold: a stored 1 with no
  * declaration is NOT read as a retry, which is exactly today's classification
- * and the only reading that invents nothing. ADR 0113.
+ * and the only reading that invents nothing. ADR 0149.
  */
 export function saleSyncTraceMinAttempts(sale: SaleSyncTrace): number {
   return sale.syncAttemptsAreFailures === true
@@ -60,11 +60,11 @@ export function saleSyncTraceMinAttempts(sale: SaleSyncTrace): number {
  * saleSyncTraceMinAttempts gives for THIS row upwards. It is NOT
  * `syncAttempts > 0`, and that is not a rounding choice: a row that declares
  * nothing may carry a stored 1 that no longer distinguishes "one real retry"
- * from "synced on the first try", because before F-034 the online POS path
+ * from "synced on the first try", because before F-050 the online POS path
  * wrote that literal. The undeclared branch therefore keeps the conservative 2
  * — the same defect as deriving the signal from the gap between
  * frontendCreatedAt and createdAt, which the POS produces on every sale
- * including the online ones. ADR 0112 has the original threshold; ADR 0113 has
+ * including the online ones. ADR 0148 has the original threshold; ADR 0149 has
  * why it became a function of the row.
  *
  * It is NOT derived from the two timestamps, under any threshold.

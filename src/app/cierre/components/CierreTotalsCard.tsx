@@ -3,6 +3,11 @@
 import { ReactNode } from "react";
 import { Box, Typography } from "@mui/material";
 import { formatCurrency } from "@/utils/formatters";
+import {
+  CREDIT_FIGURE_EPSILON,
+  CREDIT_TEST_IDS,
+} from "@/app/cierre/utils/creditoCierre";
+import { CREDIT_COPY } from "@/app/cierre/utils/creditoCierreCopy";
 
 export interface ITransferenciaDestino {
   id: string;
@@ -26,6 +31,11 @@ interface Props {
    * Defaults to hidden: a caller that forgets to pass this must not leak profit.
    */
   canViewGanancia?: boolean;
+  /**
+   * Credit granted inside `totalVenta`, base currency. Painted as a footnote
+   * under the net sales cell; it adds NO cell (criterion 7).
+   */
+  creditGranted?: number;
 }
 
 interface CellProps {
@@ -33,6 +43,12 @@ interface CellProps {
   value: number;
   tone?: string;
   note?: string;
+  /**
+   * A plain secondary line under the figure. Not `note`: `note` is painted
+   * struck through, which reads as "this value was replaced", and on the net
+   * sales cell it is already taken by the pre-discount gross.
+   */
+  footnote?: string;
   extra?: ReactNode;
   borderRight?: boolean;
   borderTop?: boolean;
@@ -46,6 +62,7 @@ function Cell({
   value,
   tone,
   note,
+  footnote,
   extra,
   borderRight,
   borderTop,
@@ -54,6 +71,7 @@ function Cell({
   if (isMobile) {
     return (
       <Box
+        data-testid={CREDIT_TEST_IDS.totalsCell}
         sx={{
           display: "flex",
           alignItems: "baseline",
@@ -92,6 +110,18 @@ function Cell({
               {note}
             </Typography>
           )}
+          {footnote && (
+            <Typography
+              data-testid={CREDIT_TEST_IDS.totalsFootnote}
+              sx={{
+                fontSize: "0.75rem",
+                color: "text.secondary",
+                fontVariantNumeric: "tabular-nums",
+              }}
+            >
+              {footnote}
+            </Typography>
+          )}
           {extra}
         </Box>
       </Box>
@@ -100,6 +130,7 @@ function Cell({
 
   return (
     <Box
+      data-testid={CREDIT_TEST_IDS.totalsCell}
       sx={{
         py: 2,
         px: 3,
@@ -136,6 +167,20 @@ function Cell({
       >
         {formatCurrency(value)}
       </Typography>
+      {/* Under the value in both branches, not above: `note` is painted above
+          the figure on desktop, and criterion 7 asks for the note BELOW. */}
+      {footnote && (
+        <Typography
+          data-testid={CREDIT_TEST_IDS.totalsFootnote}
+          sx={{
+            fontSize: "0.8125rem",
+            color: "text.secondary",
+            fontVariantNumeric: "tabular-nums",
+          }}
+        >
+          {footnote}
+        </Typography>
+      )}
       {extra}
     </Box>
   );
@@ -162,8 +207,16 @@ export default function CierreTotalsCard({
   totalVentasConsignacion = 0,
   isMobile = false,
   canViewGanancia = false,
+  creditGranted,
 }: Props) {
   const hasDescuento = (totalDescuentos || 0) > 0;
+
+  // Absolute value, like every other credit gate (ADR 0129): for this figure
+  // both forms coincide, because `Venta.creditoBase` is non-negative, and
+  // writing it the same way everywhere keeps anyone from "simplifying" the
+  // one gate whose sign does matter.
+  const hasCreditGranted =
+    Math.abs(creditGranted ?? 0) > CREDIT_FIGURE_EPSILON;
 
   // El desglose por destino vivía en la banda de totales vieja de
   // TablaProductosCierre; se muda acá para no perderlo al reemplazarla.
@@ -203,6 +256,9 @@ export default function CierreTotalsCard({
         ? formatCurrency(
             totalVentasBrutas ?? totalVenta + (totalDescuentos || 0),
           )
+        : undefined,
+      footnote: hasCreditGranted
+        ? CREDIT_COPY.totalsFootnote(formatCurrency(creditGranted))
         : undefined,
     },
     ...(canViewGanancia

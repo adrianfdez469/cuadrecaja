@@ -1,4 +1,5 @@
 import { convertToBase } from "@/lib/currency";
+import { UNKNOWN_PAYMENT_LINE_TYPE_WARNING } from "@/constants/pago";
 import type { IPagoLinea, IVueltoLinea } from "@/schemas/pago";
 import type { ITasaSnapshot } from "@/schemas/tasaCambio";
 
@@ -141,6 +142,13 @@ export function buildResumenPropinas(
     };
 
     for (const line of lines) {
+      // The guard goes BEFORE the currency bucket is created: an unknown line must not
+      // add a row of zeros either. tipDetail comes from a Json column and the cast above
+      // validates nothing, so this branch is reachable at runtime.
+      if (line.tipo !== "cash" && line.tipo !== "transfer") {
+        console.warn(UNKNOWN_PAYMENT_LINE_TYPE_WARNING);
+        continue;
+      }
       if (!map[line.moneda]) {
         map[line.moneda] = {
           monedaCode: line.moneda,

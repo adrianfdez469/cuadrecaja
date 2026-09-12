@@ -2,6 +2,7 @@ import { IProductoVenta } from "@/schemas/producto";
 import { IPagoLinea, IVueltoLinea } from "@/schemas/pago";
 import { ITasaSnapshot } from "@/schemas/tasaCambio";
 import { IFaltanteExistencia } from "@/schemas/venta";
+import type { IVentaCreditoResumen } from "@/schemas/ventaCredito";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
@@ -42,6 +43,29 @@ export interface Sale {
   // sync offline. El servidor no la puede recalcular.
   tipTotal?: number;
   tipDetail?: IPagoLinea[];
+  /**
+   * Credit sale — persisted like the rest of the payment so the offline queue can re-send
+   * it. `creditoBase` is the part of `total` left as debt, in base currency; the server
+   * cannot recompute it (ADR 0111).
+   *
+   * The three are optional, so a sale queued before this feature rehydrates without them and
+   * reads as 0/undefined, which is correct: the persist version and its `migrate` are NOT
+   * touched.
+   */
+  creditoBase?: number;
+  clienteId?: string;
+  /**
+   * The debtor's name. Present even when `clienteId` is, so a queued sale is readable with
+   * no catalogue at hand and its ticket prints without going to the network.
+   */
+  clienteNombre?: string;
+  /**
+   * The debt of this sale as the server serialized it, or null when it has none. Optional like
+   * the three credit fields above, and for the same reason: the `persist` version and its
+   * `migrate` are NOT touched, so a sale queued before this feature rehydrates without the field
+   * and reads as "no account" — which is correct, because its account does not exist yet.
+   */
+  credito?: IVentaCreditoResumen | null;
   /**
    * Las líneas que el servidor no pudo cubrir la última vez que se intentó
    * enviar esta venta.

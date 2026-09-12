@@ -20,6 +20,9 @@
   "configuracion.productos.generar_codigo": {
     "descripcion": "Permite generar códigos de barra a productos que no lo tienen"
   },
+  "configuracion.clientes.acceder": {
+    "descripcion": "Permite realizar configuraciones de clientes"
+  },
   "configuracion.proveedores.acceder": {
     "descripcion": "Permite realizar configuraciones de proveedores"
   },
@@ -52,6 +55,9 @@
   },
   "recuperaciones.analisiscpp.acceder": {
     "descripcion": "Permite acceder a las recuperaciones de los análisis de costo y costo promedio ponderado (CPP) de los productos"
+  },
+  "recuperaciones.cuentasporcobrar.acceder": {
+    "descripcion": "Permite consultar las cuentas por cobrar del negocio"
   },
   "recuperaciones.proveedoresconsignación.acceder": {
     "descripcion": "Permite acceder y realizar todas las funciones disponibles en la recuperacion de los proveedores y productos en consignación."
@@ -145,6 +151,15 @@
   },
   "operaciones.movimientos.crear.devolucion_venta": {
     "descripcion": "Permite registrar que un cliente devolvió un producto ya vendido"
+  },
+  "operaciones.cuentasporcobrar.cobrar": {
+    "descripcion": "Permite registrar cobros contra las cuentas por cobrar del negocio"
+  },
+  "operaciones.cuentasporcobrar.perdonar": {
+    "descripcion": "Permite perdonar una deuda, dandola por saldada sin cobrarla"
+  },
+  "operaciones.cuentasporcobrar.revertir": {
+    "descripcion": "Permite revertir un abono ya registrado, devolviendolo al saldo"
   },
   "operaciones.gastos.ver": {
     "descripcion": "Permite ver los gastos de la tienda y el historial de gastos por cierre"

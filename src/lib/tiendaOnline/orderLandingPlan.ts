@@ -246,16 +246,34 @@ export interface IOnlineSaleAmounts {
   total: number;
   totalcash: number;
   totaltransfer: number;
+  /**
+   * The part of `total` handed over on credit. `total` for CREDITO, 0 for the
+   * other two. This is `Venta.creditoBase`, and it is a COLUMN and never a line
+   * of `pagosDetalle` (ADR 0111).
+   */
+  creditoBase: number;
   /** The order's own currency: what the buyer agreed to pay in. */
   monedaCobro: string;
-  /** Exactly one line, or NONE when the order total is 0. */
+  /** Exactly one line, or NONE for CREDITO and for a zero-total order. */
   pagosDetalle: IPagoLinea[];
   /** Only for TRANSFERENCIA. `Venta.transferDestinationId`. */
   transferDestinationId?: string;
+  /**
+   * Informative only, and present ONLY for CREDITO: the order's own denomination
+   * of the debt, so the customer can be told "you owe 20 USD". NO arithmetic
+   * reads these — the debt is denominated in base currency. They are the two
+   * columns `CuentaPorCobrar` reserved and that F-031 left for this feature to
+   * be the first to write.
+   */
+  monedaDeudaCode?: string;
+  montoDeudaMonedaOriginal?: number;
 }
 
 /** The declared method that moves the amount to the transfer column. */
 const PAYMENT_TRANSFER = "TRANSFERENCIA";
+
+/** The declared method whose amount is a debt and not money in the drawer. */
+const PAYMENT_CREDIT = "CREDITO";
 
 /**
  * PURE. The money of the sale an online order becomes.
@@ -277,6 +295,14 @@ const PAYMENT_TRANSFER = "TRANSFERENCIA";
  * it exactly like a POS sale. A `pedidoTotal` of 0 yields `pagosDetalle: []`,
  * because `pagoLineaSchema.monto` is `positive()` and a zero line would not
  * validate.
+ *
+ * CREDITO is the third branch (ADR 0137) and it invents NO arithmetic: `total`
+ * is the same `convertToBase` as the other two, and everything else is a zero
+ * or an absence — `totalcash: 0`, `totaltransfer: 0`, `pagosDetalle: []` and
+ * the whole `total` in `creditoBase`. No line of payment is what keeps the
+ * period's cash untouched without the closing engine knowing anything about
+ * credit: `buildResumenMonedas` walks `pagosDetalle` and there is nothing to
+ * walk.
  */
 export function buildOnlineSaleAmounts(args: {
   pedidoTotal: number;
@@ -294,12 +320,13 @@ export function buildOnlineSaleAmounts(args: {
     monedaBase,
   );
   const isTransfer = pago.metodo === PAYMENT_TRANSFER;
+  const isCredit = pago.metodo === PAYMENT_CREDIT;
   const transferDestinationId = isTransfer
     ? pago.transferDestinationId
     : undefined;
 
   const pagosDetalle: IPagoLinea[] =
-    pedidoTotal > 0
+    pedidoTotal > 0 && !isCredit
       ? [
           {
             tipo: isTransfer ? "transfer" : "cash",
@@ -315,11 +342,16 @@ export function buildOnlineSaleAmounts(args: {
 
   return {
     total,
-    totalcash: isTransfer ? 0 : total,
+    totalcash: isTransfer || isCredit ? 0 : total,
     totaltransfer: isTransfer ? total : 0,
+    creditoBase: isCredit ? total : 0,
     monedaCobro: pedidoCurrencyCode,
     pagosDetalle,
     ...(transferDestinationId !== undefined && { transferDestinationId }),
+    ...(isCredit && {
+      monedaDeudaCode: pedidoCurrencyCode,
+      montoDeudaMonedaOriginal: pedidoTotal,
+    }),
   };
 }
 
