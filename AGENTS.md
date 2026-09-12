@@ -26,29 +26,17 @@ Prisma 6 · PostgreSQL · Axios · Zod 4 · Vitest 4
 ## Comandos
 
 ```bash
-npm run dev          # Servidor de desarrollo con Turbopack
-npm run dev:https    # Desarrollo con HTTPS vía servidor propio (server.mjs)
-npm run build        # Build de producción
-npm start            # Levanta la aplicación compilada
-npm run lint         # ESLint — ejecutar antes de cada commit
+npm run dev          # Turbopack · dev:https levanta HTTPS con server.mjs
+npm run verify       # lint + tsc --noEmit + test, en serie y sin pipes (E-045)
+npm run harness:check # prefijo, rutas, ADR, copy de diseño, backlog, índice de errores
+npm test             # Vitest una pasada · test:watch · test:ui
+npx prisma generate  # OBLIGATORIO tras tocar el schema, o el cliente miente (E-002)
+npm run seed         # seed:dev para datos de desarrollo
+node scripts/harness/next-id.mjs adr|error|feature   # siguiente identificador, prefijado
 ```
 
-```bash
-npm test             # Suite Vitest (una sola pasada)
-npm run test:watch   # Modo watch
-npm run test:ui      # Interfaz web de Vitest
-npx tsc --noEmit     # Chequeo de tipos (obligatorio para cambios de UI)
-```
-
-```bash
-npx prisma generate                    # Regenerar el cliente tras cambios de schema
-npx prisma migrate dev --name <name>   # Crear y aplicar una migración
-npx prisma studio                      # Explorador visual de la BD
-npm run seed                           # Poblar la BD
-npm run seed:dev                       # Poblar con datos de desarrollo (SEED_DEV=true)
-```
-
-> `postinstall` ejecuta `prisma generate && prisma migrate deploy` automáticamente.
+`npm run build`, `npm start`, `npm run lint`, `npx prisma migrate dev --name <n>` y
+`npx prisma studio` son los estándar. `postinstall` ya corre `prisma generate && migrate deploy`.
 
 ## Arquitectura por Capas
 
@@ -69,9 +57,8 @@ npm run seed:dev                       # Poblar con datos de desarrollo (SEED_DE
 | Middleware | `src/middleware.ts`, `src/middleware/` | Auth por JWT, CORS, chequeo de suscripción |
 | Tipos ambiente | `src/types/` | Solo declaraciones `.d.ts` de ambiente |
 
-> **Los tipos compartidos viven en `src/schemas/`**, no en `src/types/`. Se definen como
-> schemas Zod y se derivan con `export type IAlgo = z.infer<typeof algoSchema>`. Nunca
-> dupliques una interfaz entre la vista y la capa de servicio: importa la de `src/schemas/`.
+> **Los tipos compartidos viven en `src/schemas/`**, no en `src/types/`: schemas Zod derivados
+> con `export type IAlgo = z.infer<typeof algoSchema>`.
 
 ## Modelo de Datos
 
@@ -120,32 +107,24 @@ El resto puede crearse manualmente (`TIPOS_MOVIMIENTO_MANUAL`).
 - El middleware bloquea el login de usuarios no `SUPER_ADMIN` cuando la suscripción está
   vencida o suspendida.
 
-## Convenciones de Código
+## Convenciones y prohibiciones
 
-- **Idioma: todo el código nuevo se escribe en inglés** — identificadores, comentarios,
-  JSDoc, códigos de error y mensajes de log. El chat y la documentación markdown siguen
-  en español. Parte del código arrastra nombres en español (`Producto`, `CreateMoviento`,
-  `verificarPermisoUsuario`): mantenlos donde ya existen, pero **nunca introduzcas
-  identificadores ni comentarios nuevos en español**.
-- **Nomenclatura:** componentes en PascalCase (`ProductCard.tsx`); funciones y variables
-  en camelCase (`getProductos()`); interfaces en PascalCase con prefijo `I` (`IProducto`).
-- **Imports:** usar el alias `@/` para todo lo que venga de `src/`.
-- **TypeScript:** evitar `any`; si es inevitable, justificarlo con un comentario. El modo
-  estricto está desactivado.
-- **`"use client"`:** solo en archivos que realmente necesitan hooks de navegador o interactividad.
-- **Clean Code:** componentes pequeños, reutilizables y con una sola responsabilidad.
-  Fragmentar la lógica en vez de acumularla en un único archivo.
-- **UI:** todo con MUI v6, personalizado a través del theme global (`src/theme/`), no con
-  estilos inline ad-hoc.
-
-## Prohibiciones
-
-- **Prop drilling:** no pasar props por múltiples niveles; usar Zustand o Context.
-- **Prisma en componentes:** el acceso a base de datos vive en las API routes y en `src/lib/`.
-- **Hardcoding:** nada de strings ni números mágicos; usar `src/constants/`.
-- **Duplicidad:** si una lógica se repite en dos o más lugares, extraerla a un hook o servicio.
-- **Interfaces duplicadas:** nunca redefinir un tipo que ya existe en `src/schemas/`.
-- **Directivas innecesarias:** no usar `"use client"` en archivos que no lo requieren.
+- **Idioma: el código nuevo se escribe en inglés** — identificadores, comentarios, JSDoc, códigos
+  de error y logs. El chat y el markdown siguen en español. Hay nombres en español heredados
+  (`Producto`, `CreateMoviento`, `verificarPermisoUsuario`): mantenlos donde ya están, pero
+  **nunca introduzcas identificadores ni comentarios nuevos en español**.
+- **Nomenclatura:** componentes `PascalCase.tsx`; funciones y variables `camelCase`; interfaces
+  con prefijo `I` (`IProducto`), **derivadas de Zod, nunca redefinidas** — si el tipo ya está en
+  `src/schemas/`, se importa.
+- **Imports:** alias `@/` para todo lo que venga de `src/`.
+- **TypeScript:** evita `any`; si es inevitable, justifícalo en un comentario. El modo estricto
+  está **desactivado** (ojo: no estrecha uniones por booleano, E-036).
+- **`"use client"`: solo** donde hagan falta hooks de navegador o interactividad.
+- **UI:** MUI v6 personalizado por el theme global (`src/theme/`), nunca estilos inline ad-hoc.
+- **Nada de prop drilling:** para estado compartido, Zustand o Context.
+- **Nada de Prisma en componentes:** la base de datos vive en las API routes y en `src/lib/`.
+- **Nada de hardcoding:** ni strings ni números mágicos; van a `src/constants/`.
+- **Nada de duplicar lógica:** si se repite en dos sitios, sale a un hook o a un servicio.
 
 ## Testing
 
@@ -154,8 +133,7 @@ El proyecto **sí tiene** pruebas automatizadas.
 - **Runner:** Vitest, configurado en `vitest.config.ts` — entorno `node`, `globals: true`,
   alias `@/`, incluye `src/**/*.test.ts` y `src/**/*.spec.ts`.
 - **Ubicación:** `src/__tests__/`, un archivo por símbolo o por área. La suite entera corre en
-  segundos, así que ejecútala siempre: `npx vitest run`. No se anota aquí cuántos archivos ni
-  cuántos casos hay — cambia con cada feature y un número escrito se queda viejo en silencio.
+  segundos: ejecútala siempre.
 - **Alcance:** cubren **lógica pura** — `src/lib/`, `src/app/pos/utils/`, `src/utils/` y
   `src/schemas/`. La aritmética de dinero (`currency`, `changeMath`, `paymentMath`,
   `tipMath`, `billMath`, `discountEngine`) es la parte mejor cubierta.
@@ -181,41 +159,9 @@ Al agregar lógica pura nueva, acompáñala de su test en `src/__tests__/`.
 
 ## Variables de Entorno
 
-Requeridas para levantar el proyecto:
-
-```env
-DATABASE_URL="postgresql://..."
-DIRECT_URL="postgresql://..."   # Conexión directa sin pooling, requerida por Prisma
-NEXTAUTH_SECRET="..."           # Mínimo 32 caracteres
-NEXTAUTH_URL="http://localhost:3000"
-INIT_SECRET="..."               # Bootstrap del primer superadmin vía /api/init-superadmin
-```
-
-Opcionales:
-
-```env
-NODE_ENV="development"
-
-# JWT de enlaces por correo
-ACTIVATION_JWT_SECRET="..."      # Activación desde la landing (vigencia 48h)
-USER_ACCOUNT_JWT_SECRET="..."    # Invitación 48h, reset 24h, cambio de correo 24h
-
-# Webhooks de envío de correos (n8n)
-N8N_USER_INVITE_WEBHOOK="..."
-N8N_USER_INVITE_API_KEY="..."
-N8N_USER_PASSWORD_RESET_WEBHOOK="..."
-N8N_USER_PASSWORD_RESET_API_KEY="..."
-N8N_USER_EMAIL_CHANGE_WEBHOOK="..."
-N8N_USER_EMAIL_CHANGE_API_KEY="..."
-
-PURGE_LANDING_NEGOCIOS_API_KEY="..."  # Purga de negocios freemium vencidos vía API externa
-ELTOQUE_API_TOKEN="..."               # Tasas de referencia elTOQUE (TRMI)
-```
-
-Sin `ELTOQUE_API_TOKEN` la vista de tasas de cambio funciona igual: solo oculta el panel
-de referencia.
-
-**`.env.example` es la lista completa y actualizada** — consúltalo antes de agregar una variable.
+**`.env.example` es la fuente**: lleva las 25 variables con su comentario y distingue las
+obligatorias de las opcionales. La lista no se duplica aquí — la copia que había ya se había
+quedado en 16.
 
 ## Workflow, Commits y PRs
 
@@ -234,12 +180,15 @@ que cualquier trabajo a medias pueda retomarse en otra sesión. Ver [ADR 0001](d
 
 ### Antes de tocar código — siempre
 
-1. Lee **[`.agents/COMMON_ERRORS.md`](.agents/COMMON_ERRORS.md)**. Es un índice corto de errores ya
-   resueltos; abre solo la ficha de tu área. Es bibliografía, no burocracia: evita repetir fallos
-   que ya costaron tiempo.
+1. Lee **[`.agents/COMMON_ERRORS.md`](.agents/COMMON_ERRORS.md)**. Es un índice de una línea por
+   error; abre solo la ficha de tu área. Es bibliografía, no burocracia: evita repetir fallos que
+   ya costaron tiempo. Las lecciones que se pueden comprobar solas ya no dependen de que las leas:
+   `npm run harness:check` las ejecuta.
 2. Comprueba si hay un progreso abierto en `.agents/progress/`. Si existe, **retómalo desde su
    sección "Próximo paso concreto"** en vez de empezar de cero.
-3. Consulta `.agents/features.json` para saber qué está hecho y qué falta.
+3. Consulta `.agents/features.json` para saber qué falta. Solo contiene los features **abiertos**;
+   los cerrados están en `.agents/features-archive.json`, que no se lee salvo para resolver un
+   `depends_on` ausente del activo.
 
 ### El pipeline
 
@@ -248,100 +197,87 @@ arrastrar seis agentes. La skill coordinadora vive en `.claude/skills/feature/SK
 
 ```
 /feature
-  └─ 1. spec           → .agents/specs/F-###.md   (el QUÉ)
-     2. arch-guardian  → contrato de interfaces + docs/adr/  (el CÓMO técnico)
-     3. ui-designer    → .agents/designs/F-###.md (el CÓMO visual; solo si hay pantalla)
+  └─ 1. spec              → .agents/specs/F-###.md      (el QUÉ: alcance y criterios)
+     2. arch-guardian ─┐ EN PARALELO → .agents/contracts/F-###.md + docs/adr/
+        security-guard ─┘ (solo si toca auth/permisos/tenants) → .agents/security/F-###.md
+     3. ui-designer       → .agents/designs/F-###.md    (el CÓMO visual; solo si hay pantalla)
      4. implementer ─┐ EN PARALELO
-        dev-tester  ─┘
-     5. qa            → verifica ejecutando; único que autoriza passes:true
+        dev-tester  ─┘ (ambos contra el contrato, sin verse)
+     5. qa               → verifica ejecutando; único que autoriza passes:true
 ```
 
 | Rol | Agente | Escribe en | Nunca toca |
 |-----|--------|-----------|------------|
-| Especificación | `spec` | `.agents/specs/` | código |
-| Arquitectura | `arch-guardian` | contrato + `docs/adr/` | código |
+| Especificación | `spec` | `.agents/specs/` | código, `.agents/contracts/` |
+| Arquitectura | `arch-guardian` | `.agents/contracts/` + `docs/adr/` | código, `.agents/specs/` |
+| Seguridad | `security-guardian` | `.agents/security/` | código y tests |
 | Diseño de pantallas | `ui-designer` | `.agents/designs/` | código y `src/theme/` |
 | Implementación | `implementer` | `src/**` | `src/__tests__/**` |
 | Tests | `dev-tester` | `src/__tests__/**` | `src/**` |
 | Verificación | `qa` | informes | código y tests |
 
-Las fronteras de escritura son **disjuntas por diseño**: por eso implementación y tests pueden
-correr en paralelo sin colisionar. El dev-tester escribe contra el contrato **sin ver la
-implementación**, para que los tests verifiquen lo acordado y no lo que se acabó escribiendo.
+Las fronteras son **disjuntas por diseño**: por eso los dos últimos corren en paralelo sin
+colisionar, y el `dev-tester` escribe contra el contrato **sin ver la implementación**.
 
-Dos pasos son **obligatorios y condicionales**, no opcionales: `security-guardian` si el feature
-toca auth, permisos o datos entre tenants, y `ui-designer` si añade o cambia una pantalla, un
-formulario o un diálogo. **Consultores** invocables bajo demanda: `ux-ui-designer`,
+`security-guardian` y `ui-designer` son **obligatorios cuando aplican** —auth/permisos/tenants el
+primero, pantalla/formulario/diálogo el segundo—, no opcionales. Bajo demanda: `ux-ui-designer`,
 `react-ui-architect`, `code-refactorer`.
 
 ### Qué agente de UI toca
 
-Los tres existen y no se solapan. La duda de cuál invocar se resuelve por **qué produce cada uno**:
+Se resuelve por **qué produce cada uno**: `ui-designer` el contrato de una pantalla en
+`.agents/designs/` (no escribe código, y va **antes** del componente); `ux-ui-designer` el theme en
+sí (`src/theme/**`: tokens, contraste, dark mode); `react-ui-architect` el componente de
+producción (estado, Zod, `react-hook-form`, rendimiento). Si la pregunta es *"cómo se ve y cómo se
+usa esta pantalla"*, es del `ui-designer`.
 
-| Agente | Cuándo | Produce |
-|--------|--------|---------|
-| `ui-designer` | Las pantallas de un feature: layout, estados, responsive | Contrato en `.agents/designs/` — **no escribe código** |
-| `ux-ui-designer` | El theme en sí: `tokens.ts`, contraste, dark mode, deuda de hex | Código de `src/theme/**` |
-| `react-ui-architect` | Estado, Zod, `react-hook-form`, rendimiento y bundle | Componentes en `src/**` |
+### Todo identificador nuevo lleva tu prefijo delante
 
-Si la pregunta es *"cómo se ve y cómo se usa esta pantalla"*, es del `ui-designer`, y va **antes**
-de escribir el componente.
+Dos personas en paralelo cuentan «el último existente» y llegan al mismo número: así salieron dos
+ADR `0036` y cuatro features que hubo que renumerar. Un ADR, una ficha de error o un feature
+**nuevos** no se numeran a mano:
+
+```bash
+node scripts/harness/next-id.mjs adr|error|feature   # → ADRIAN-0151, con las rutas que le tocan
+```
+
+El prefijo abre el identificador (`ADRIAN-F-051`) y sale de `.agents/.local-prefix`, ignorado por
+git porque es de tu máquina. **Si falta, el comando dice qué hacer: parar y pedirle el prefijo al
+humano. Nunca lo inventes ni lo deduzcas del autor de los commits.**
+
+Lo heredado **no se renumera** —los checks aceptan las dos formas—, y aquí y en los prompts
+`F-###` significa el identificador completo, prefijo incluido.
 
 ### Nada de rutas de una máquina concreta
 
-Todo lo que vive en `.claude/` y en `.agents/` se comparte por git: es configuración del equipo,
-no de un disco. **Ningún archivo de esas dos carpetas puede contener una ruta absoluta ni una que
-empiece por `~`.**
+Todo lo que vive en `.claude/` y en `.agents/` se comparte por git. **Ningún archivo de esas dos
+carpetas puede contener una ruta absoluta ni una que empiece por `~`** (ver
+[E-001](.agents/errors/E-001-rutas-de-maquina-en-archivos-compartidos.md), 3 apariciones). Ya no se
+revisa a ojo: lo comprueba `npm run harness:check`, y su alcance incluye **los informes que los
+propios agentes escriben** — la tercera aparición entró justo por ahí.
 
-No es teórico, y ya pasó dos veces (ver [E-001](.agents/errors/E-001-rutas-de-maquina-en-archivos-compartidos.md)):
-
-- Los 6 agentes originales apuntaban a `/Users/kmilo/WebstormProjects/...`, la máquina de otro
-  desarrollador. El bloque de memoria debe referenciar `.claude/agent-memory/<agente>/` en
-  **relativo**.
-- El backlog inicial apuntaba a la carpeta de documentación de QAB en la máquina de quien lo
-  escribió.
-
-La ruta se hornea al generar el archivo y queda fija para todo el que clone el repo. Falla en
-silencio: no hay nada que compile ni que la valide.
-
-**Documentación que vive fuera de este repo** —el contrato de integración con queandabuscando, por
-ejemplo— se declara en `.agents/features.json`, en `references.external_docs`, con **el nombre de
-una variable de entorno** y la URL de su repositorio, nunca con una ruta. Cada desarrollador
-define esa variable en su `.env` (está en `.env.example`). Si no está definida, el agente **para y
-le pregunta al humano**: nunca adivina una ruta, y nunca sigue adelante sin haber leído el
-documento. Y no se guarda una copia versionada aquí: se queda vieja en silencio, y una copia vieja
-de un contrato es peor que no tenerla.
-
-**Esa documentación cambia, y la versión es el mecanismo para saber qué.** El contrato de QAB
-lleva su versión en la línea 3 de `sync-contract.md` (`**Versión N** · <fecha>`) y es el único de
-sus documentos que la lleva: es el reloj de toda la integración. Antes de empezar un feature se
-compara esa versión con `contrato.version_verificada` de `features.json`. Si subió, **no se relee
-el contrato entero**: el propio documento trae una sección `## Cambios respecto a la vN` por cada
-salto, y ahí está escrito qué cambió.
-
-Y lo que hay que tener presente: **un salto de versión de ese contrato no es aditivo por defecto**
-—tres de los cuatro rompieron compatibilidad, sin periodo de convivencia— así que puede invalidar
-un feature ya cerrado. `"passes": true` vale para la versión con la que se verificó, anotada en
-`contrato_version`. Cuando un salto lo afecta, no se edita ese feature: se abre uno de migración.
-
-**Revisa esto cada vez que crees o regeneres un agente, o que toques `.agents/`.** El agente `qa`
-lo verifica; a mano es un comando:
-
-```bash
-grep -rnE '(/Users/|/home/|~/|[A-Z]:\\)' .agents/ .claude/ --include='*.md' --include='*.json'
-```
+La documentación que vive fuera de este repo se declara en `references.external_docs` de
+`.agents/features.json` con **una variable de entorno**, nunca con una ruta. Las reglas de cuándo
+releerla y qué pasa cuando su contrato sube de versión son las `rules` de ese mismo archivo, que el
+coordinador lee entero: no se repiten aquí.
 
 ### Artefactos
 
 | Archivo | Qué es |
 |---------|--------|
-| `.agents/features.json` | Backlog y fuente de verdad de qué está hecho. **Lo define el humano**, no los agentes. |
+| `.agents/features.json` | Backlog **abierto**: solo lo pendiente. **Lo define el humano**, no los agentes. |
+| `.agents/features-archive.json` | Los features cerrados y deprecados. El pipeline no lo lee: al cerrar un feature, su entrada se mueve aquí. |
 | `.agents/progress/F-###.md` | Trabajo en curso. Uno por feature; en paralelo, archivos separados. Se borra al cerrar. |
-| `.agents/specs/F-###.md` | Spec del feature + contrato de interfaces. |
+| `.agents/specs/F-###.md` | Spec del feature: problema, alcance y criterios de aceptación. |
+| `.agents/contracts/F-###.md` | Contrato de interfaces, en su propio fichero. Lo escribe el `arch-guardian`; `implementer` y `dev-tester` programan contra él sin verse. Refleja el estado final, no su historial. |
+| `.agents/security/F-###.md` | Informe del `security-guardian`. Destino único: nunca en la raíz de `.agents/`. |
 | `.agents/designs/F-###.md` | Contrato de diseño de las pantallas. Solo si el feature toca UI. |
 | `.agents/COMMON_ERRORS.md` | Índice de errores conocidos. Los que llegan a 3 apariciones suben con su fix resumido. |
 | `.agents/errors/E-###-*.md` | Ficha por error: síntoma, causa raíz, solución, cómo evitarlo. |
-| `docs/adr/NNNN-*.md` | Decisiones técnicas: contexto, decisión, alternativas, consecuencias. |
+| `docs/adr/NNNN-*.md` | Decisiones técnicas: contexto, decisión, alternativas, consecuencias. El número lo asigna `node scripts/harness/check-adr.mjs`, no se cuenta a ojo. |
+| `.agents/designs/PATRONES.md` | Catálogo de patrones de pantalla vigentes. Lo lee el `ui-designer` en vez del árbol de componentes entero. |
+| `.agents/archive/` | Informes de un solo uso (qa, tests, implementación) de features ya cerrados. Nadie los relee; se conservan por trazabilidad. |
+| `.agents/.local-prefix` | Tu prefijo para los identificadores nuevos. **Ignorado por git**: es de tu máquina. Si falta, se pregunta y se crea. |
 
 ### La regla que sostiene todo esto
 
@@ -353,47 +289,11 @@ puede autorizarlo.
 
 ## Skills Disponibles
 
-El repositorio trae tres skills de terceros instaladas en `.agents/skills/`, fijadas por hash
-en `skills-lock.json`. **No se editan a mano**: se actualizan desde su origen. Las carpetas de
-`.junie/skills/` son symlinks a estas mismas rutas.
+Tres skills de terceros en `.agents/skills/`, fijadas por hash en `skills-lock.json`. **No se
+editan a mano**: se actualizan desde su origen. `.junie/skills/` son symlinks a estas rutas.
 
-| Skill | Ruta | Cuándo aplica |
-|-------|------|---------------|
-| `next-best-practices` | [`.agents/skills/next-best-practices/SKILL.md`](.agents/skills/next-best-practices/SKILL.md) | Al escribir o revisar código Next.js |
-| `vercel-react-best-practices` | [`.agents/skills/vercel-react-best-practices/SKILL.md`](.agents/skills/vercel-react-best-practices/SKILL.md) | Al optimizar rendimiento de React/Next |
-| `react-components` | [`.agents/skills/react-components/SKILL.md`](.agents/skills/react-components/SKILL.md) | Diseños de Stitch → React (**ver advertencia**) |
-
-### `next-best-practices`
-
-20 documentos temáticos sobre convenciones de archivos, límites RSC, APIs asíncronas de
-Next 15, metadata, error handling, hydration, Suspense y bundling. Los más relevantes aquí:
-
-- [`route-handlers.md`](.agents/skills/next-best-practices/route-handlers.md) — este repo
-  tiene ~152 route handlers en `src/app/api/`.
-- [`async-patterns.md`](.agents/skills/next-best-practices/async-patterns.md) — en Next 15
-  `params`, `searchParams`, `cookies()` y `headers()` son asíncronos.
-- [`rsc-boundaries.md`](.agents/skills/next-best-practices/rsc-boundaries.md) y
-  [`directives.md`](.agents/skills/next-best-practices/directives.md) — refuerzan la
-  prohibición de `"use client"` innecesario.
-- [`data-patterns.md`](.agents/skills/next-best-practices/data-patterns.md) — Server
-  Components vs Server Actions vs Route Handlers, y cómo evitar waterfalls.
-
-### `vercel-react-best-practices`
-
-62 reglas en 8 categorías priorizadas por impacto. Cada regla es un archivo suelto en
-`rules/<nombre>.md`; se leen individualmente, no de corrido. Las de mayor impacto son las
-de waterfalls y bundle size (ambas CRITICAL). Directamente aplicables a este POS:
-
-- [`client-localstorage-schema`](.agents/skills/vercel-react-best-practices/rules/client-localstorage-schema.md) — versionar y minimizar lo que persiste `cartStore`.
-- [`js-index-maps`](.agents/skills/vercel-react-best-practices/rules/js-index-maps.md) y [`js-set-map-lookups`](.agents/skills/vercel-react-best-practices/rules/js-set-map-lookups.md) — aplican a `buildProductIndex`.
-- [`bundle-barrel-imports`](.agents/skills/vercel-react-best-practices/rules/bundle-barrel-imports.md) — relevante con MUI, que es propenso a imports de barril pesados.
-- [`async-parallel`](.agents/skills/vercel-react-best-practices/rules/async-parallel.md) — `Promise.all` en las route handlers de reportes.
-
-### `react-components` — advertencia
-
-⚠️ Esta skill asume **Vite + Tailwind CSS**, un archivo `src/data/mockData.ts` y un servidor
-MCP de Stitch. **Este proyecto es Next.js + MUI v6 y no usa Tailwind**: la UI se personaliza
-mediante el theme global de MUI. **Sus reglas de estilo no aplican tal cual — no introduzcas
-Tailwind ni clases utilitarias en este repo por seguirla.** Solo son aprovechables sus
-principios generales: componentes modulares en archivos independientes, lógica extraída a
-hooks propios y props tipadas como `Readonly<[ComponentName]Props>`.
+| Skill | Cuándo aplica |
+|-------|---------------|
+| [`next-best-practices`](.agents/skills/next-best-practices/SKILL.md) | Escribir o revisar Next.js. 20 documentos temáticos; los que más se usan aquí son `route-handlers.md` (~152 handlers en `src/app/api/`) y `async-patterns.md` (en Next 15 `params`, `searchParams`, `cookies()` y `headers()` son asíncronos). |
+| [`vercel-react-best-practices`](.agents/skills/vercel-react-best-practices/SKILL.md) | Rendimiento de React/Next. 62 reglas en `rules/<nombre>.md`, **se leen de una en una**. ⚠️ No abras su `AGENTS.md`: es salida generada —la concatenación de las 62— y cuesta ~9.700 tokens sin aportar nada. |
+| [`react-components`](.agents/skills/react-components/SKILL.md) | ⚠️ **Asume Vite + Tailwind, y este proyecto es Next.js + MUI.** No introduzcas Tailwind ni clases utilitarias por seguirla. Solo sirven sus principios generales: componentes modulares, lógica en hooks propios, props `Readonly<...Props>`. |

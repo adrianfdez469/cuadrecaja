@@ -71,7 +71,7 @@ comprueba el chequeo 1 de abajo — verificado ejecutándolo contra el documento
 Es el patrón de [ADR 0048](0048-la-consulta-de-divergencia-se-ejecuta-en-sql-crudo-con-la-expresion-en-una-sola-constante.md),
 el mismo que `readDivergentAvailabilityRows` usa con `QAB_AVAILABILITY_CASE_SQL`. **`$queryRawUnsafe`
 no se usa**: una versión anterior de esta decisión lo prescribía para conservar el `$1`, y
-`security-guardian` lo objetó con razón en el paso 4 (C3 de `.agents/F-008-seguridad.md`); el corte
+`security-guardian` lo objetó con razón en el paso 4 (C3 de `.agents/security/F-008.md`); el corte
 en dos fragmentos consigue lo mismo sin salirse del patrón establecido.
 
 El `SELECT` proyecta esas cuatro columnas y ninguna más, ni para depurar: `existencia`, `umbralBajo`,

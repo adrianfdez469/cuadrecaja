@@ -127,7 +127,7 @@ Verificado leyendo su política completa, no la creencia popular sobre ella:
 
 ### El `Referer`: se arbitra contra el informe de seguridad, y el sentido es el contrario
 
-`.agents/F-025-seguridad.md` § 1.1 recomienda `no-referrer`, y lo argumenta así: «perfectamente
+`.agents/security/F-025.md` § 1.1 recomienda `no-referrer`, y lo argumenta así: «perfectamente
 compatible con pedir teselas — las teselas no necesitan saber de dónde vienen». **Esa premisa es
 falsa**, y arbitrar la discrepancia es del arquitecto, no del implementador (E-030). Con este
 proveedor no es una preferencia: es la diferencia entre que el mapa funcione y que no.

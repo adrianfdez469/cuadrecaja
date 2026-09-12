@@ -14,6 +14,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
+    "harness:check": "node scripts/harness/check-all.mjs",
+    "verify": "npm run lint && npx tsc --noEmit && npm test",
     "postinstall": "prisma generate && prisma migrate deploy",
     "seed": "npx tsx prisma/seed.ts",
     "seed:dev": "SEED_DEV=true npx tsx prisma/seed.ts"

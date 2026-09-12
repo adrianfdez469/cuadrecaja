@@ -1,4 +1,9 @@
-# ADR 0036: La lectura lateral del slug corre fuera de la transacción del drenaje, y su elegibilidad se consulta, no se recuerda
+# ADR 0150: La lectura lateral del slug corre fuera de la transacción del drenaje, y su elegibilidad se consulta, no se recuerda
+
+> **Renumerado de 0036 a 0150** el 2026-09-12 (pasó por 0147, que main ocupó entre medias): compartía número con
+> `0036-las-cifras-guardadas-de-un-cierre-son-la-fuente-de-verdad.md`. La colisión la produjo
+> la regla «numera correlativo al último existente» sin índice ni asignador; ahora la detecta
+> `npm run harness:check`. Se renumeró este por tener menos referencias entrantes.
 
 **Estado:** aceptado
 **Fecha:** 2026-09-04

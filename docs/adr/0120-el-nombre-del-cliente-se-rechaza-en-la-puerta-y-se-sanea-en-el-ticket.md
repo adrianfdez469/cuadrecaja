@@ -4,7 +4,7 @@
 **Fecha:** 2026-09-09
 **Feature:** F-034 (vender a crédito en el POS)
 
-> Cierra el hallazgo **H1** de `.agents/F-034-seguridad.md`, que bloqueaba el paso 5. Enmienda el
+> Cierra el hallazgo **H1** de `.agents/security/F-034.md`, que bloqueaba el paso 5. Enmienda el
 > **ADR 0119**, cuya evaluación de riesgo no contemplaba esta consecuencia, y amplía la delegación
 > escrita del **ADR 0118** para incluir `src/schemas/cliente.ts`.
 

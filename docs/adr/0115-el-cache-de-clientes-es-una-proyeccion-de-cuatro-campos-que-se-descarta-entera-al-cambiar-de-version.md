@@ -102,7 +102,7 @@ exige «sin romper la pantalla», y ese es el otro camino por el que se romperí
 
 ## Adenda del 2026-09-09 — el caché tampoco sobrevive a un cambio de usuario
 
-Levantado por `.agents/F-033-seguridad.md`, hallazgo 🔴-2, y aceptado. La versión original de este
+Levantado por `.agents/security/F-033.md`, hallazgo 🔴-2, y aceptado. La versión original de este
 ADR razonó sobre **el mismo usuario cambiando de negocio** y cerró esa ventana **del lado de la
 escritura**. Faltaba el escenario real del producto: una tableta de mostrador por la que pasan
 varios empleados, con cuentas distintas y a veces de locales distintos. Ahí el que llega no es el

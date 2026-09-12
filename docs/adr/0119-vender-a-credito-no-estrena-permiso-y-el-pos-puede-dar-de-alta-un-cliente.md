@@ -96,7 +96,7 @@ Lo que sí se hace, y es la contrapartida:
   asume al decir que dos nombres parecidos siguen creando dos clientes y que fusionarlos es deuda de
   F-033.
 
-  > **Enmienda del 2026-09-09** (hallazgo H1 de `.agents/F-034-seguridad.md`). Esa frase evaluaba
+  > **Enmienda del 2026-09-09** (hallazgo H1 de `.agents/security/F-034.md`). Esa frase evaluaba
   > la consecuencia **de menos**. En la misma operación en que F-034 abre este escritor sin permiso,
   > lleva el campo a un puerto con acceso a la impresora física, y la cadena que se escribe no era
   > texto inofensivo: era **una cadena que puede controlar hardware de caja**. La consecuencia no
@@ -123,7 +123,7 @@ Lo que sí se hace, y es la contrapartida:
   este ADR acepta es una **capacidad dentro del propio negocio**, no un cruce entre negocios.
 - La `CuentaPorCobrar` hereda su `tiendaId` de la misma variable ya persistida como `Venta.tiendaId`
   (ADR 0117): es la única vía por la que `TENANT_RELATION_PATH.cuentaPorCobrar` llega a `negocioId`.
-- **Este ADR tuvo su segunda lectura del `security-guardian`** (`.agents/F-034-seguridad.md`,
+- **Este ADR tuvo su segunda lectura del `security-guardian`** (`.agents/security/F-034.md`,
   2026-09-09), y valió la pena: la auditoría confirmó que el aislamiento entre negocios se sostiene
   y que ningún 409 filtra existencia, y encontró **lo que este ADR no había evaluado** — que el
   campo que esta ruta permite escribir sin permiso acaba en la impresora sin ningún escape. Es la

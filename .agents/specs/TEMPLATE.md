@@ -1,5 +1,7 @@
 # F-###: <título>
 
+> El identificador lo emite `node scripts/harness/next-id.mjs feature`, con tu prefijo delante.
+
 > Escrito por el agente `spec`. **Solo lo esencial que otros agentes necesiten.**
 > Sin diseño técnico ni pseudocódigo (eso es del arquitecto), y sin decisiones de UI, layout
 > ni responsive (eso es del `ui-designer`, en `.agents/designs/F-###.md`).
@@ -29,25 +31,7 @@ Cada uno debe ser **verificable ejecutando algo**, no leyendo código.
 
 ---
 
-# Contrato de interfaces
-
-> **Añadido por el agente `arch-guardian`, no por `spec`.** El agente `spec` nunca escribe aquí;
-> el arquitecto nunca reescribe lo de arriba.
-> `implementer` y `dev-tester` programan contra esta sección **sin verse entre ellos**.
-
-## Firmas públicas
-
-```ts
-// Schemas Zod en src/schemas/, tipos derivados, firmas de funciones y endpoints.
-```
-
-## Contratos de API
-
-| Método | Ruta | Body | Respuesta |
-|--------|------|------|-----------|
-
-## Notas de arquitectura
-
-- Capa donde vive cada pieza.
-- Aislamiento multi-tenant: cómo se filtra por `negocioId`.
-- ADRs emitidos: docs/adr/####
+> El **contrato de interfaces** de este feature no vive aquí: está en
+> `.agents/contracts/F-###.md`, lo escribe el `arch-guardian` y es un fichero aparte a propósito.
+> Así el `qa` verifica criterios sin cargar el contrato, y el `implementer` programa contra el
+> contrato sin cargar la justificación del alcance.

@@ -89,7 +89,7 @@ Por eso `qabAlertDescriptorSchema.negociosDestino` es `z.string().min(1)` —as�
 explícitamente en cada escritura, sin apoyarse nunca en el `data.negociosDestino || ""` del helper
 genérico de la clase, que es el camino por el que un campo ausente se vuelve «todos».
 
-Lo levantó `security-guardian` en el paso 4 (C2 de `.agents/F-008-seguridad.md`) y se adopta tal
+Lo levantó `security-guardian` en el paso 4 (C2 de `.agents/security/F-008.md`) y se adopta tal
 cual.
 
 ### `usuariosDestino` queda vacío, y es deliberado

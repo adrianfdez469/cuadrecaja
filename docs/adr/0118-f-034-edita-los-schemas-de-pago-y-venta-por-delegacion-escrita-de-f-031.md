@@ -50,7 +50,7 @@ primero de los dos cambios:
 **F-034 edita `src/schemas/pago.ts` y `src/schemas/venta.ts` directamente, con ediciones
 estrictamente aditivas, y crea `src/constants/creditoVenta.ts` para todo lo demás.**
 
-> **Enmienda del 2026-09-09**, al cerrar el hallazgo H1 de `.agents/F-034-seguridad.md`. La
+> **Enmienda del 2026-09-09**, al cerrar el hallazgo H1 de `.agents/security/F-034.md`. La
 > delegación se amplía a un tercer archivo, **`src/schemas/cliente.ts`** —de **F-033**, cerrado—,
 > para añadir la cota de juego de caracteres a `createClienteSchema.nombre`, y se crea
 > `src/utils/printableText.ts`. La razón es la del **ADR 0120**: `POST /api/clientes` es el **otro**
