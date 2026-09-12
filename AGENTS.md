@@ -28,7 +28,8 @@ Prisma 6 · PostgreSQL · Axios · Zod 4 · Vitest 4
 ```bash
 npm run dev          # Turbopack · dev:https levanta HTTPS con server.mjs
 npm run verify       # lint + tsc --noEmit + test, en serie y sin pipes (E-045)
-npm run harness:check # prefijo, rutas, ADR, copy de diseño, backlog, índice de errores
+npm run harness:check # prefijo, rutas, ADR, copy de diseño, backlog, errores, .opencode/
+npm run harness:sync # regenera .opencode/ desde .claude/ (agentes y comando de opencode)
 npm test             # Vitest una pasada · test:watch · test:ui
 npx prisma generate  # OBLIGATORIO tras tocar el schema, o el cliente miente (E-002)
 npm run seed         # seed:dev para datos de desarrollo
@@ -193,7 +194,8 @@ que cualquier trabajo a medias pueda retomarse en otra sesión. Ver [ADR 0001](d
 ### El pipeline
 
 Se invoca con **`/feature <F-### o descripción>`** y es **opt-in**: un arreglo pequeño no necesita
-arrastrar seis agentes. La skill coordinadora vive en `.claude/skills/feature/SKILL.md`.
+arrastrar seis agentes. La skill coordinadora vive en `.claude/skills/feature/SKILL.md`, y la leen
+los dos clientes soportados (ver «El mismo harness en opencode»).
 
 ```
 /feature
@@ -250,8 +252,8 @@ Lo heredado **no se renumera** —los checks aceptan las dos formas—, y aquí 
 
 ### Nada de rutas de una máquina concreta
 
-Todo lo que vive en `.claude/` y en `.agents/` se comparte por git. **Ningún archivo de esas dos
-carpetas puede contener una ruta absoluta ni una que empiece por `~`** (ver
+Todo lo que vive en `.claude/`, `.agents/` y `.opencode/` se comparte por git. **Ningún archivo de
+esas tres carpetas puede contener una ruta absoluta ni una que empiece por `~`** (ver
 [E-001](.agents/errors/E-001-rutas-de-maquina-en-archivos-compartidos.md), 3 apariciones). Ya no se
 revisa a ojo: lo comprueba `npm run harness:check`, y su alcance incluye **los informes que los
 propios agentes escriben** — la tercera aparición entró justo por ahí.
@@ -260,6 +262,46 @@ La documentación que vive fuera de este repo se declara en `references.external
 `.agents/features.json` con **una variable de entorno**, nunca con una ruta. Las reglas de cuándo
 releerla y qué pasa cuando su contrato sube de versión son las `rules` de ese mismo archivo, que el
 coordinador lee entero: no se repiten aquí.
+
+### El mismo harness en opencode
+
+El harness no es de Claude Code: casi todo él son markdown y JSON que lee el modelo, y `AGENTS.md`,
+`.agents/skills/` y `.claude/skills/` los carga opencode de forma nativa. Lo único que no viaja son
+**los agentes**: opencode busca sus definiciones solo en `.opencode/` (y en su config global), nunca
+en `.claude/agents/`. Sin ellas, `/feature` se cae en el paso 3.
+
+Por eso `.opencode/` existe y **está generado**:
+
+```bash
+npm run harness:sync    # .claude/agents/*.md  →  .opencode/agent/*.md + .opencode/command/feature.md
+```
+
+**La fuente sigue siendo `.claude/agents/`. `.opencode/` no se edita a mano** — cada archivo lo dice
+en su cabecera, y `npm run harness:check` falla si hay deriva. Ese check no es ceremonia: dos juegos
+de definiciones mantenidos a mano se desincronizan a la tercera edición y nadie se entera hasta que
+opencode corre un `implementer` con el prompt viejo.
+
+Qué hace la traducción, y por qué:
+
+| Campo | En `.opencode/` | Motivo |
+|-------|-----------------|--------|
+| `description`, cuerpo | **literal** | La `description` es lo que dispara al subagente. Si cambiara, dejaría de invocarse solo. El generador falla si no sale idéntica. |
+| `mode: subagent` | **añadido** | El default de opencode es `all`: sin esto, los diez salen como agentes primarios. |
+| `permission` | **añadido** | Ver abajo. |
+| `model` | **descartado** | El alias `opus` no existe en opencode, que quiere el id exacto de models.dev. Cada agente hereda el modelo de la sesión. **Se pierde el reparto por niveles** (`qa` en sonnet, `react-ui-architect` en haiku); el único requisito real —el coordinador necesita Opus— lo comprueba la skill en su paso 0. |
+| `color` | **descartado** | Decoración, y con otro juego de valores. Ojo: un color con nombre en opencode no es un aviso sino un **error de schema que deja al agente sin cargar, en silencio**. |
+| `memory` | **descartado** | `.claude/agent-memory/` es de Claude Code y está en `.gitignore`. No hay equivalente. |
+
+En opencode se gana además una cosa que en Claude Code no se puede: la tabla «Escribe en / Nunca
+toca» de arriba deja de ser prosa dentro del prompt y pasa a ser una regla del runtime, vía
+`permission` por agente. El `implementer` **no puede** escribir en `src/__tests__/`, aunque se lo
+pidas. Dos detalles que deciden si eso funciona o es decorativo, y que el generador ya respeta: gana
+la **última** regla que casa, no la primera, así que el catch-all `"*"` va delante; y si la última
+que casa es `"*": "deny"`, opencode le retira la herramienta entera al agente.
+
+Lo que **no** tiene equivalente: `/feature` no es un slash command en opencode —allí las skills se
+invocan con la herramienta `skill`—, así que `.opencode/command/feature.md` existe justo para que
+`/feature <F-###>` se escriba igual en los dos clientes.
 
 ### Artefactos
 
@@ -277,6 +319,7 @@ coordinador lee entero: no se repiten aquí.
 | `docs/adr/NNNN-*.md` | Decisiones técnicas: contexto, decisión, alternativas, consecuencias. El número lo asigna `node scripts/harness/check-adr.mjs`, no se cuenta a ojo. |
 | `.agents/designs/PATRONES.md` | Catálogo de patrones de pantalla vigentes. Lo lee el `ui-designer` en vez del árbol de componentes entero. |
 | `.agents/archive/` | Informes de un solo uso (qa, tests, implementación) de features ya cerrados. Nadie los relee; se conservan por trazabilidad. |
+| `.opencode/` | **Generado** desde `.claude/` por `npm run harness:sync`, para que opencode cargue los agentes y `/feature`. Se commitea, no se edita. |
 | `.agents/.local-prefix` | Tu prefijo para los identificadores nuevos. **Ignorado por git**: es de tu máquina. Si falta, se pregunta y se crea. |
 
 ### La regla que sostiene todo esto

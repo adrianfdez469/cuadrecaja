@@ -4,12 +4,13 @@
 // and nothing compiles them, so the failure is silent.
 //
 // The gap that let E-001 recur a third time was SCOPE: the check was pointed at the agent
-// definitions but not at the reports the agents write. Everything under .agents/ and .claude/
-// is in scope here, reports included.
+// definitions but not at the reports the agents write. Everything under .agents/, .claude/ and
+// .opencode/ is in scope here, reports included. .opencode/ is generated from .claude/, but it
+// is committed and shared all the same, so a machine path would travel through it too.
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 
-const ROOTS = [".agents", ".claude"];
+const ROOTS = [".agents", ".claude", ".opencode"];
 const EXTS = [".md", ".json", ".mjs", ".js", ".ts"];
 
 // A real home/machine path. The lookbehind is what keeps `src/app/home/page.tsx` out:

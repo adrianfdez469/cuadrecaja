@@ -15,6 +15,7 @@
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "harness:check": "node scripts/harness/check-all.mjs",
+    "harness:sync": "node scripts/harness/sync-opencode.mjs",
     "verify": "npm run lint && npx tsc --noEmit && npm test",
     "postinstall": "prisma generate && prisma migrate deploy",
     "seed": "npx tsx prisma/seed.ts",

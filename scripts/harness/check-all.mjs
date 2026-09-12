@@ -11,11 +11,13 @@ const CHECKS = [
   ["copy de los criterios de diseño (E-016)", "check-design-copy.mjs"],
   ["integridad del backlog", "check-features.mjs"],
   ["índice de errores", "check-errors-index.mjs"],
+  [".opencode/ sincronizado con .claude/", "sync-opencode.mjs --check"],
 ];
 
 const failed = [];
 for (const [label, file] of CHECKS) {
-  const r = spawnSync(process.execPath, [`scripts/harness/${file}`], { stdio: "inherit" });
+  const [script, ...args] = file.split(" ");
+  const r = spawnSync(process.execPath, [`scripts/harness/${script}`, ...args], { stdio: "inherit" });
   if (r.status !== 0) failed.push(label);
 }
 
