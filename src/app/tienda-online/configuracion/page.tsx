@@ -14,6 +14,8 @@ import { LocalSelector } from "@/components/tiendaOnline/LocalSelector";
 import { PanelAccessCard } from "@/components/tiendaOnline/PanelAccessCard";
 import { PublicDataCard } from "@/components/tiendaOnline/PublicDataCard";
 import { PublicationStatusCard } from "@/components/tiendaOnline/PublicationStatusCard";
+import { PurchaseConfigCard } from "@/components/tiendaOnline/PurchaseConfigCard";
+import { PURCHASE_CONFIG_GUARD_TOAST } from "@/components/tiendaOnline/purchaseConfigCopy";
 import { SAVE_BAR_HEIGHT, SaveBar } from "@/components/tiendaOnline/SaveBar";
 import { ScheduleCard } from "@/components/tiendaOnline/ScheduleCard";
 import { StoreAddressCard } from "@/components/tiendaOnline/StoreAddressCard";
@@ -42,6 +44,7 @@ import { TiendaOnlineOpeningHoursRejected } from "@/services/tiendaOnlineService
 import {
   applyMapPointToDraft,
   clearMapPointFromDraft,
+  collectPurchaseConfigIssues,
   draftFromLocal,
   draftToUpdate,
   hasNoContactAtAll,
@@ -130,6 +133,7 @@ function TiendaOnlineConfiguracionScreen() {
   const [pendingLocalId, setPendingLocalId] = useState<string | null>(null);
   const [pendingTab, setPendingTab] = useState<ITiendaOnlineTab | null>(null);
   const [focusFirstIssueNonce, setFocusFirstIssueNonce] = useState(0);
+  const [rejectedSaveNonce, setRejectedSaveNonce] = useState(0);
   const scheduleRef = useRef<HTMLDivElement | null>(null);
 
   const selected = locales.find((local) => local.id === selectedId) ?? null;
@@ -155,6 +159,13 @@ function TiendaOnlineConfiguracionScreen() {
         ? []
         : collectOpeningHoursIssues(draft.horarios),
     [draft?.horarios],
+  );
+
+  // The form's half of acceptance criteria 6, 7 and 8. Derived from the draft on
+  // every render, so an infraction disappears the moment it is corrected.
+  const purchaseIssues = useMemo(
+    () => (draft === null ? [] : collectPurchaseConfigIssues(draft)),
+    [draft],
   );
 
   const dirty = useMemo(() => {
@@ -185,6 +196,16 @@ function TiendaOnlineConfiguracionScreen() {
 
   const persist = async (next: ITiendaOnlineDraft) => {
     if (selected === null) return;
+    // THE guard, and it lives HERE because `persist` is the only door to the
+    // save — «Guardar cambios», the publish switch and the unpublish dialog all
+    // come through it. Criteria 6 and 8 are verified by checking that NO new row
+    // appears in OutboxEvento, so disabling the button would not be enough:
+    // nothing may leave before this returns.
+    if (collectPurchaseConfigIssues(next).length > 0) {
+      setRejectedSaveNonce((current) => current + 1);
+      showMessage(PURCHASE_CONFIG_GUARD_TOAST, "error");
+      return;
+    }
     setSaving(true);
     try {
       const local = await save(selected.id, draftToUpdate(next));
@@ -211,6 +232,14 @@ function TiendaOnlineConfiguracionScreen() {
 
   const handleSave = () => {
     if (draft === null) return;
+    // The purchase card is ABOVE the schedule one, so its problems are answered
+    // first: a screen is fixed top to bottom. `persist` guards the network in
+    // either case.
+    if (purchaseIssues.length > 0) {
+      setRejectedSaveNonce((current) => current + 1);
+      showMessage(PURCHASE_CONFIG_GUARD_TOAST, "error");
+      return;
+    }
     if (issues.length > 0) {
       // Nothing is sent, and pressing takes the merchant to the first problem:
       // the button is never disabled without a reason beside it.
@@ -394,6 +423,18 @@ function TiendaOnlineConfiguracionScreen() {
                 onPointChange={setMapPoint}
               />
 
+              <PurchaseConfigCard
+                draft={draft}
+                issues={purchaseIssues}
+                isMobile={isMobile}
+                rejectedSaveNonce={rejectedSaveNonce}
+                onChange={(patch) =>
+                  setDraft((current) =>
+                    current === null ? current : { ...current, ...patch },
+                  )
+                }
+              />
+
               <Box ref={scheduleRef}>
                 <ScheduleCard
                   value={draft.horarios}
@@ -414,6 +455,7 @@ function TiendaOnlineConfiguracionScreen() {
               {dirty && (
                 <SaveBar
                   issueCount={issues.length}
+                  purchaseIssueCount={purchaseIssues.length}
                   saving={saving}
                   online={online}
                   isMobile={isMobile}

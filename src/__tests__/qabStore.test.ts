@@ -1,6 +1,17 @@
 import { describe, it, expect } from "vitest";
-import { qabSlugSchema, openingHoursSchema, tiendaOnlineSchema } from "@/schemas/qabStore";
-import { QAB_UNPUBLISH_REASON_MAX_LENGTH } from "@/constants/qab";
+import {
+  qabSlugSchema,
+  openingHoursSchema,
+  tiendaOnlineSchema,
+  qabStorePayloadSchema,
+} from "@/schemas/qabStore";
+import {
+  QAB_UNPUBLISH_REASON_MAX_LENGTH,
+  QAB_CHECKOUT_MODE_DEFAULT,
+  QAB_DELIVERY_ENABLED_DEFAULT,
+  QAB_DELIVERY_FEE_MODE_DEFAULT,
+  QAB_ORDER_EXPIRY_HOURS_DEFAULT,
+} from "@/constants/qab";
 
 /**
  * F-001/F-005 — the online-store block of a Tienda.
@@ -37,6 +48,13 @@ const baseTiendaOnline = {
   email: "tienda@example.com",
   horarios: validCalendar,
   motivoDespublicacion: "Cerrado por inventario",
+  // F-016: the five purchase-configuration columns, required in this schema (it mirrors
+  // the Tienda row shape, not the STORE payload's omission rule).
+  checkoutMode: QAB_CHECKOUT_MODE_DEFAULT,
+  deliveryEnabled: QAB_DELIVERY_ENABLED_DEFAULT,
+  deliveryFee: null,
+  deliveryFeeMode: QAB_DELIVERY_FEE_MODE_DEFAULT,
+  orderExpiryHours: QAB_ORDER_EXPIRY_HOURS_DEFAULT,
 };
 
 describe("qabSlugSchema", () => {
@@ -197,5 +215,162 @@ describe("tiendaOnlineSchema", () => {
 
     // The forbidden list of the contract: `existencia` must never travel to QAB.
     expect(parsed).not.toHaveProperty("existencia");
+  });
+});
+
+/**
+ * F-016 (contract § 4) — the five purchase-configuration columns. `tiendaOnlineSchema`
+ * mirrors the `Tienda` row: all five are REQUIRED, and only `deliveryFee` is nullable — the
+ * opposite rule from the STORE `payload` below, where all five are optional.
+ */
+describe("tiendaOnlineSchema — F-016 purchase configuration columns", () => {
+  it("should accept a well formed configuration with a real deliveryFee", () => {
+    expect(
+      tiendaOnlineSchema.safeParse({
+        ...baseTiendaOnline,
+        checkoutMode: "ONSITE",
+        deliveryEnabled: true,
+        deliveryFee: 150,
+        deliveryFeeMode: "QUOTED_PER_ORDER",
+        orderExpiryHours: 48,
+      }).success
+    ).toBe(true);
+  });
+
+  it("should accept deliveryFee: null — the one nullable key of the five", () => {
+    expect(
+      tiendaOnlineSchema.safeParse({ ...baseTiendaOnline, deliveryFee: null }).success
+    ).toBe(true);
+  });
+
+  it.each(["checkoutMode", "deliveryEnabled", "deliveryFeeMode", "orderExpiryHours"] as const)(
+    "should reject null in %s — as a row it is never nullable",
+    (field) => {
+      expect(
+        tiendaOnlineSchema.safeParse({ ...baseTiendaOnline, [field]: null }).success
+      ).toBe(false);
+    }
+  );
+
+  it.each(["checkoutMode", "deliveryEnabled", "deliveryFee", "deliveryFeeMode", "orderExpiryHours"] as const)(
+    "should reject a body missing %s — all five are required here",
+    (field) => {
+      const withoutField = { ...baseTiendaOnline } as Record<string, unknown>;
+      delete withoutField[field];
+      expect(tiendaOnlineSchema.safeParse(withoutField).success).toBe(false);
+    }
+  );
+
+  it("should reject 12.345 as deliveryFee (three decimals, criterion 6)", () => {
+    expect(
+      tiendaOnlineSchema.safeParse({ ...baseTiendaOnline, deliveryFee: 12.345 }).success
+    ).toBe(false);
+  });
+
+  it("should reject 0 and 8761 as orderExpiryHours (criterion 8)", () => {
+    expect(
+      tiendaOnlineSchema.safeParse({ ...baseTiendaOnline, orderExpiryHours: 0 }).success
+    ).toBe(false);
+    expect(
+      tiendaOnlineSchema.safeParse({ ...baseTiendaOnline, orderExpiryHours: 8761 }).success
+    ).toBe(false);
+  });
+
+  it("should reject ZONE_BASED — out of this feature's vocabulary (F-042 scope)", () => {
+    expect(
+      tiendaOnlineSchema.safeParse({ ...baseTiendaOnline, deliveryFeeMode: "ZONE_BASED" }).success
+    ).toBe(false);
+  });
+});
+
+/**
+ * F-016 (contract § 4) — the same five in `qabStorePayloadSchema`, the OPPOSITE omission
+ * rule: every one of the five is `.optional()`, and an absent key must leave the payload
+ * unchanged (criterion 4 lives here at the schema level; the builder-level assertion is in
+ * `qabStorePayload.test.ts`).
+ */
+describe("qabStorePayloadSchema — F-016 purchase configuration keys are OPTIONAL", () => {
+  const basePayload = {
+    storeId: "a3f1a1a1-1111-4111-8111-111111111111",
+    businessId: "8f14e45f-ceea-467e-adc3-b1a4c0ea0a3e",
+    businessName: "Bodega Central",
+    name: "Sucursal Vedado",
+    slug: "sucursal-vedado",
+    description: null,
+    address: null,
+    city: null,
+    province: null,
+    latitude: null,
+    longitude: null,
+    phone: null,
+    whatsapp: null,
+    email: null,
+    publishToStore: true,
+    unpublishReason: null,
+    updatedAt: "2026-09-03T12:00:00.000Z",
+  };
+
+  it("should accept the payload with none of the five keys present at all — a routine event that changes nothing of the purchase configuration", () => {
+    const result = qabStorePayloadSchema.safeParse(basePayload);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      for (const key of [
+        "checkoutMode",
+        "deliveryEnabled",
+        "deliveryFee",
+        "deliveryFeeMode",
+        "orderExpiryHours",
+      ] as const) {
+        expect(key in result.data).toBe(false);
+      }
+    }
+  });
+
+  it("should accept each of the five present on its own, with a valid value", () => {
+    expect(
+      qabStorePayloadSchema.safeParse({ ...basePayload, checkoutMode: "ONSITE" }).success
+    ).toBe(true);
+    expect(
+      qabStorePayloadSchema.safeParse({ ...basePayload, deliveryEnabled: true }).success
+    ).toBe(true);
+    expect(
+      qabStorePayloadSchema.safeParse({ ...basePayload, deliveryFee: 150 }).success
+    ).toBe(true);
+    expect(
+      qabStorePayloadSchema.safeParse({ ...basePayload, deliveryFeeMode: "QUOTED_PER_ORDER" }).success
+    ).toBe(true);
+    expect(
+      qabStorePayloadSchema.safeParse({ ...basePayload, orderExpiryHours: 48 }).success
+    ).toBe(true);
+  });
+
+  it("should accept deliveryFee: null — the only one of the five that is nullable", () => {
+    expect(
+      qabStorePayloadSchema.safeParse({ ...basePayload, deliveryFee: null }).success
+    ).toBe(true);
+  });
+
+  it.each(["checkoutMode", "deliveryEnabled", "deliveryFeeMode", "orderExpiryHours"] as const)(
+    "should reject null in %s (criterion 5: only deliveryFee accepts null)",
+    (field) => {
+      expect(
+        qabStorePayloadSchema.safeParse({ ...basePayload, [field]: null }).success
+      ).toBe(false);
+    }
+  );
+
+  it("should reject 12.345 as deliveryFee (criterion 6)", () => {
+    expect(
+      qabStorePayloadSchema.safeParse({ ...basePayload, deliveryFee: 12.345 }).success
+    ).toBe(false);
+  });
+
+  it("should reject 0 and 8761 as orderExpiryHours (criterion 8)", () => {
+    expect(
+      qabStorePayloadSchema.safeParse({ ...basePayload, orderExpiryHours: 0 }).success
+    ).toBe(false);
+    expect(
+      qabStorePayloadSchema.safeParse({ ...basePayload, orderExpiryHours: 8761 }).success
+    ).toBe(false);
   });
 });

@@ -1,0 +1,6 @@
+-- AlterTable
+ALTER TABLE "Tienda" ADD COLUMN     "checkoutMode" TEXT NOT NULL DEFAULT 'WHATSAPP',
+ADD COLUMN     "deliveryEnabled" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN     "deliveryFee" DECIMAL(14,2),
+ADD COLUMN     "deliveryFeeMode" TEXT NOT NULL DEFAULT 'FLAT_RATE',
+ADD COLUMN     "orderExpiryHours" INTEGER NOT NULL DEFAULT 24;

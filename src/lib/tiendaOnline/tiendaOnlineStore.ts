@@ -9,6 +9,10 @@ import {
   qabPublishedPayloadFilter,
 } from "@/lib/qab/qabStoreOutboxFilters";
 import { buildQabStorePayload } from "@/lib/qab/qabStorePayload";
+import {
+  collectQabStorePurchaseConfigChanges,
+  toQabStorePurchaseConfig,
+} from "@/lib/qab/qabStorePurchaseConfig";
 import { readStoreSyncStates } from "@/lib/qab/qabStoreSyncState";
 import { collectOpeningHoursIssues } from "@/schemas/qabOpeningHours";
 import type {
@@ -42,6 +46,13 @@ export const TIENDA_ONLINE_LOCAL_SELECT = {
   email: true,
   horarios: true,
   motivoDespublicacion: true,
+  // Purchase configuration (F-016). Reading them here is what lets the delta be
+  // computed from `existing` and `updated` with no extra query (ADR ADRIAN-0152).
+  checkoutMode: true,
+  deliveryEnabled: true,
+  deliveryFee: true,
+  deliveryFeeMode: true,
+  orderExpiryHours: true,
 } satisfies Prisma.TiendaSelect;
 
 export type ITiendaOnlineLocalRow = Prisma.TiendaGetPayload<{
@@ -114,6 +125,10 @@ export function toTiendaOnlineLocal(
   const issues = stored === null ? [] : collectOpeningHoursIssues(stored);
   const valid = stored !== null && issues.length === 0;
 
+  // ONE conversion, the same one that feeds the delta: the screen and the
+  // emitter can never read the row differently.
+  const purchaseConfig = toQabStorePurchaseConfig(row);
+
   return {
     id: row.id,
     nombre: row.nombre,
@@ -134,6 +149,7 @@ export function toTiendaOnlineLocal(
     horariosInvalid: stored !== null && !valid,
     horariosIssues: issues,
     motivoDespublicacion: row.motivoDespublicacion,
+    ...purchaseConfig,
     publishable: row.tipo === TipoLocal.TIENDA,
     firstPublishPending,
     syncState,
@@ -325,6 +341,14 @@ export async function saveTiendaOnlineLocal(params: {
         email: input.email,
         horarios: input.horarios ?? null,
         motivoDespublicacion: input.motivoDespublicacion,
+        // The five are written like the rest of the block: the PATCH is a FULL
+        // REPLACEMENT of what the merchant configures (ADR 0032). «Omitir no es
+        // apagar» governs the PAYLOAD, not this column write.
+        checkoutMode: input.checkoutMode,
+        deliveryEnabled: input.deliveryEnabled,
+        deliveryFee: input.deliveryFee,
+        deliveryFeeMode: input.deliveryFeeMode,
+        orderExpiryHours: input.orderExpiryHours,
       },
       select: TIENDA_ONLINE_LOCAL_SELECT,
     });
@@ -341,6 +365,14 @@ export async function saveTiendaOnlineLocal(params: {
     const emittedBefore = everPublishedBefore
       ? true
       : await hasAnyStoreEvent(tx, { negocioId, tiendaId });
+
+    // Inside the transaction, AFTER the update and BEFORE building the payload.
+    // Both operands are PERSISTED states of the same row, never the request
+    // body: ADR 0032 stays true, ADR ADRIAN-0152 (a) says why.
+    const purchaseConfigChanges = collectQabStorePurchaseConfigChanges(
+      toQabStorePurchaseConfig(existing),
+      toQabStorePurchaseConfig(updated),
+    );
 
     const payload = buildQabStorePayload({
       negocioId,
@@ -361,6 +393,7 @@ export async function saveTiendaOnlineLocal(params: {
       email: updated.email,
       horarios: updated.horarios,
       motivoDespublicacion: updated.motivoDespublicacion,
+      purchaseConfigChanges,
       occurredAt,
     });
 

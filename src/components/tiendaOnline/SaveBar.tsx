@@ -4,9 +4,19 @@ import { Box, Button, Stack, Typography } from "@mui/material";
 
 import { touch } from "@/theme/tokens";
 
+import { problemaCount, purchaseConfigBarText } from "./purchaseConfigCopy";
+
 export interface SaveBarProps {
   /** How many rules the calendar draft breaks. 0 when it is fine. */
   issueCount: number;
+  /**
+   * How many rules the purchase configuration breaks (F-016). 0 when it is fine.
+   *
+   * It takes PRECEDENCE over `issueCount`, and the order is not cosmetic: the
+   * purchase card sits ABOVE the schedule one, and sending the merchant down and
+   * then up again is making them walk the screen twice.
+   */
+  purchaseIssueCount: number;
   saving: boolean;
   online: boolean;
   isMobile: boolean;
@@ -28,6 +38,7 @@ const SAVE_BUTTON_MIN_HEIGHT = 48;
  */
 export function SaveBar({
   issueCount,
+  purchaseIssueCount,
   saving,
   online,
   isMobile,
@@ -62,6 +73,14 @@ export function SaveBar({
     </Stack>
   );
 
+  const hasIssues = purchaseIssueCount > 0 || issueCount > 0;
+  const status =
+    purchaseIssueCount > 0
+      ? purchaseConfigBarText(purchaseIssueCount)
+      : issueCount > 0
+        ? `El horario tiene ${problemaCount(issueCount)}`
+        : "Cambios sin guardar";
+
   return (
     <Box
       sx={{
@@ -90,15 +109,12 @@ export function SaveBar({
           <Typography
             variant="body2"
             sx={{
-              color:
-                issueCount > 0
-                  ? "semantic.hue.negative.main"
-                  : "semantic.text.secondary",
+              color: hasIssues
+                ? "semantic.hue.negative.main"
+                : "semantic.text.secondary",
             }}
           >
-            {issueCount > 0
-              ? `El horario tiene ${issueCount} ${issueCount === 1 ? "problema" : "problemas"}`
-              : "Cambios sin guardar"}
+            {status}
           </Typography>
           {!online && (
             <Typography

@@ -41,6 +41,13 @@ import {
   openingHoursSchema,
 } from "@/schemas/qabOpeningHours";
 import { qabSlugSchema } from "@/schemas/qabStore";
+import {
+  isQabPurchaseConfigInconsistent,
+  qabCheckoutModeSchema,
+  qabDeliveryFeeModeSchema,
+  qabDeliveryFeeSchema,
+  qabOrderExpiryHoursSchema,
+} from "@/schemas/qabStorePurchaseConfig";
 import { qabWhatsappUrlSchema } from "@/schemas/qabWhatsappUrl";
 import { TipoLocalEnum } from "@/schemas/tienda";
 
@@ -149,6 +156,16 @@ export const tiendaOnlineLocalSchema = z
       .string()
       .max(QAB_UNPUBLISH_REASON_MAX_LENGTH)
       .nullable(),
+    /**
+     * Purchase configuration (F-016). ALWAYS present: the five columns have a
+     * default, and `toQabStorePurchaseConfig` is tolerant on read, so a row
+     * written by hand shows the default instead of taking the screen down.
+     */
+    checkoutMode: qabCheckoutModeSchema,
+    deliveryEnabled: z.boolean(),
+    deliveryFee: qabDeliveryFeeSchema,
+    deliveryFeeMode: qabDeliveryFeeModeSchema,
+    orderExpiryHours: qabOrderExpiryHoursSchema,
     /** `tipo === "TIENDA"`. An ALMACEN never publishes. */
     publishable: z.boolean(),
     /**
@@ -197,8 +214,29 @@ export const tiendaOnlineLocalUpdateSchema = z
     email: nullableText(QAB_STORE_EMAIL_MAX_LENGTH).refine(isEmailOrNull),
     horarios: openingHoursSchema.nullable(),
     motivoDespublicacion: nullableText(QAB_UNPUBLISH_REASON_MAX_LENGTH),
+    /**
+     * The five of F-016, and the five REQUIRED like the rest of the block: the
+     * body is a full replacement, and the emitter works out what changed by
+     * comparing the row before and after, never the body (ADR ADRIAN-0152).
+     */
+    checkoutMode: qabCheckoutModeSchema,
+    deliveryEnabled: z.boolean(),
+    deliveryFee: qabDeliveryFeeSchema,
+    deliveryFeeMode: qabDeliveryFeeModeSchema,
+    orderExpiryHours: qabOrderExpiryHoursSchema,
   })
-  .strict();
+  .strict()
+  // `.strict()` FIRST and the refinement after it: a body carrying an unknown
+  // key has to fail on the key, not reach a cross-field check.
+  //
+  // The message NEVER travels to the browser: the route collapses this into the
+  // generic 400 (E-031, E-069). The merchant is told what to fix by the form,
+  // before there is a request at all.
+  .superRefine((value, ctx) => {
+    if (isQabPurchaseConfigInconsistent(value)) {
+      ctx.addIssue({ code: "custom", message: "Inconsistent delivery configuration" });
+    }
+  });
 export type ITiendaOnlineLocalUpdate = z.infer<
   typeof tiendaOnlineLocalUpdateSchema
 >;

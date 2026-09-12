@@ -8,6 +8,13 @@ import {
 import { QAB_UNPUBLISH_REASON_MAX_LENGTH } from "@/constants/qab";
 import { openingHoursSchema } from "@/schemas/qabOpeningHours";
 import { qabCurrencyCodeSchema } from "@/schemas/qabCurrency";
+import {
+  qabCheckoutModeSchema,
+  qabDeliveryFeeModeSchema,
+  qabDeliveryFeeSchema,
+  qabOrderExpiryHoursSchema,
+  qabStorePurchaseConfigChangesSchema,
+} from "@/schemas/qabStorePurchaseConfig";
 
 export { openingHoursSchema } from "@/schemas/qabOpeningHours";
 export type {
@@ -59,6 +66,12 @@ export const tiendaOnlineSchema = z.object({
     .string()
     .max(QAB_UNPUBLISH_REASON_MAX_LENGTH)
     .nullable(),
+  /* Purchase configuration (F-016), with the shape of the columns themselves. */
+  checkoutMode: qabCheckoutModeSchema,
+  deliveryEnabled: z.boolean(),
+  deliveryFee: qabDeliveryFeeSchema, // number | null
+  deliveryFeeMode: qabDeliveryFeeModeSchema,
+  orderExpiryHours: qabOrderExpiryHoursSchema,
 });
 export type ITiendaOnline = z.infer<typeof tiendaOnlineSchema>;
 
@@ -99,6 +112,18 @@ export const qabStorePayloadSchema = z
      */
     baseCurrency: qabCurrencyCodeSchema.optional(),
     openingHours: openingHoursSchema.optional(),
+    /**
+     * Purchase configuration, contract v7. The five follow `openingHours` and
+     * NOT the nine contact fields: absent leaves the column on the other side
+     * untouched, so only the ones that CHANGED in this operation travel — «omitir
+     * no es apagar» (ADR ADRIAN-0152). The builder drops the key entirely rather
+     * than sending `undefined`.
+     */
+    checkoutMode: qabCheckoutModeSchema.optional(),
+    deliveryEnabled: z.boolean().optional(),
+    deliveryFee: qabDeliveryFeeSchema.optional(),
+    deliveryFeeMode: qabDeliveryFeeModeSchema.optional(),
+    orderExpiryHours: qabOrderExpiryHoursSchema.optional(),
     publishToStore: z.boolean(),
     unpublishReason: z.string().max(QAB_UNPUBLISH_REASON_MAX_LENGTH).nullable(),
     /** ISO 8601 with milliseconds. Anti-stale guard on the other side. */
@@ -130,6 +155,12 @@ export const qabStorePayloadInputSchema = z
     /** Raw `Tienda.horarios`. Validated by the builder, not by this schema. */
     horarios: z.unknown(),
     motivoDespublicacion: z.string().nullable(),
+    /**
+     * What the purchase configuration of this row ACTUALLY changed to in this
+     * operation. REQUIRED — `{}` when nothing changed, never omitted — so a
+     * future caller cannot forget the question and silently emit no key.
+     */
+    purchaseConfigChanges: qabStorePurchaseConfigChangesSchema,
     /** Instant of the mutation. Also written to OutboxEvento.ocurridoAt. */
     occurredAt: z.date(),
   })

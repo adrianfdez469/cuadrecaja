@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { ITiendaOnlineLocalUpdate, IQabStoreSyncState } from "@/schemas/tiendaOnline";
+import {
+  QAB_CHECKOUT_MODE_DEFAULT,
+  QAB_DELIVERY_ENABLED_DEFAULT,
+  QAB_DELIVERY_FEE_MODE_DEFAULT,
+  QAB_ORDER_EXPIRY_HOURS_DEFAULT,
+} from "@/constants/qab";
 
 /**
  * F-005 — `src/lib/tiendaOnline/tiendaOnlineStore.ts` (contract §5.1). `@/lib/prisma` is
@@ -71,6 +77,14 @@ function baseRow(overrides: Record<string, unknown> = {}) {
     email: null,
     horarios: null,
     motivoDespublicacion: null,
+    // F-016: the five purchase-configuration columns (contract §5.3). Consistent defaults
+    // (delivery disabled) so a fixture that overrides one of the OTHER fields never
+    // accidentally trips the contradiction rule.
+    checkoutMode: QAB_CHECKOUT_MODE_DEFAULT,
+    deliveryEnabled: QAB_DELIVERY_ENABLED_DEFAULT,
+    deliveryFee: null,
+    deliveryFeeMode: QAB_DELIVERY_FEE_MODE_DEFAULT,
+    orderExpiryHours: QAB_ORDER_EXPIRY_HOURS_DEFAULT,
     negocio: { nombre: "Bodega Central" },
     ...overrides,
   };
@@ -91,6 +105,13 @@ function baseUpdateInput(overrides: Partial<ITiendaOnlineLocalUpdate> = {}): ITi
     email: null,
     horarios: null,
     motivoDespublicacion: null,
+    // F-016: full-replacement body, all five required. Matches baseRow()'s defaults so a
+    // plain save (no override on either side) produces an EMPTY delta — the neutral case.
+    checkoutMode: QAB_CHECKOUT_MODE_DEFAULT,
+    deliveryEnabled: QAB_DELIVERY_ENABLED_DEFAULT,
+    deliveryFee: null,
+    deliveryFeeMode: QAB_DELIVERY_FEE_MODE_DEFAULT,
+    orderExpiryHours: QAB_ORDER_EXPIRY_HOURS_DEFAULT,
     ...overrides,
   };
 }
@@ -167,6 +188,12 @@ describe("TIENDA_ONLINE_LOCAL_SELECT", () => {
       email: true,
       horarios: true,
       motivoDespublicacion: true,
+      // F-016: the five purchase-configuration columns (contract §5.3).
+      checkoutMode: true,
+      deliveryEnabled: true,
+      deliveryFee: true,
+      deliveryFeeMode: true,
+      orderExpiryHours: true,
     });
   });
 });
@@ -208,6 +235,38 @@ describe("toTiendaOnlineLocal — pure projection, no I/O", () => {
     const local = toTiendaOnlineLocal(baseRow({ horarios: validCalendar }) as never, syncedState, false);
     expect(local.horarios).toEqual(validCalendar);
     expect(local.horariosInvalid).toBe(false);
+  });
+
+  // F-016 (contract §5.3): the five purchase-configuration columns project through the SAME
+  // conversion the delta uses (toQabStorePurchaseConfig), so the screen and the emitter can
+  // never read the row differently.
+  it("should project the five purchase-configuration columns through unchanged when well formed", () => {
+    const local = toTiendaOnlineLocal(
+      baseRow({
+        checkoutMode: "ONSITE",
+        deliveryEnabled: true,
+        deliveryFee: 150,
+        deliveryFeeMode: "QUOTED_PER_ORDER",
+        orderExpiryHours: 48,
+      }) as never,
+      syncedState,
+      false
+    );
+
+    expect(local.checkoutMode).toBe("ONSITE");
+    expect(local.deliveryEnabled).toBe(true);
+    expect(local.deliveryFee).toBe(150);
+    expect(local.deliveryFeeMode).toBe("QUOTED_PER_ORDER");
+    expect(local.orderExpiryHours).toBe(48);
+  });
+
+  it("should read an out-of-vocabulary checkoutMode as the DEFAULT rather than throw (tolerant on read)", () => {
+    const local = toTiendaOnlineLocal(
+      baseRow({ checkoutMode: "A_HAND_WRITTEN_SQL_VALUE" }) as never,
+      syncedState,
+      false
+    );
+    expect(local.checkoutMode).toBe(QAB_CHECKOUT_MODE_DEFAULT);
   });
 
   it("should pass syncState and firstPublishPending through from its own arguments, not derive them", () => {
@@ -467,5 +526,59 @@ describe("listTiendaOnlineLocales — multi-tenant isolation and ALMACEN inclusi
     expect(almacen?.publishable).toBe(false);
     const tienda = locales.find((l) => l.id === "tienda-1");
     expect(tienda?.publishable).toBe(true);
+  });
+});
+
+/**
+ * F-016 (contract §5.3, criterion 4, ADR ADRIAN-0152) — the delta is computed from the
+ * TRANSACTION's own before/after rows, wired through `saveTiendaOnlineLocal` for real (the
+ * mocked `tx.tienda.update` here returns `{ ...existingRow, ...data }`, exactly like the
+ * production code's `existing`/`updated` pair). Pure-function coverage of
+ * `collectQabStorePurchaseConfigChanges` itself lives in `qabStorePurchaseConfig.test.ts`;
+ * this describes the WIRING: that `saveTiendaOnlineLocal` feeds it the right two rows.
+ */
+describe("saveTiendaOnlineLocal — F-016: purchase-configuration delta on the emitted payload", () => {
+  it("criterion 4: a save that repeats every current value (a routine edit) emits NONE of the five keys", async () => {
+    const { tx, calls } = makeTx({ existingRow: baseRow(), priorOutboxEvent: { id: BigInt(9) } });
+    transactionMock.mockImplementation((cb: (tx: unknown) => unknown) => cb(tx));
+
+    // baseUpdateInput() mirrors baseRow()'s own defaults for the five columns, so this is a
+    // "correct the phone" edit exactly like the existing E-008 test above it, extended to the
+    // five new columns.
+    await saveTiendaOnlineLocal({
+      negocioId: NEGOCIO_ID,
+      tiendaId: TIENDA_ID,
+      input: baseUpdateInput({ telefono: "+5359999999" }),
+      now: () => NOW,
+    });
+
+    const payload = calls.outboxCreate[0].data as { payload: Record<string, unknown> };
+    for (const key of [
+      "checkoutMode",
+      "deliveryEnabled",
+      "deliveryFee",
+      "deliveryFeeMode",
+      "orderExpiryHours",
+    ]) {
+      expect(key in payload.payload).toBe(false);
+    }
+  });
+
+  it("criterion 3: changing ONLY orderExpiryHours emits exactly that one key, with the new value", async () => {
+    const { tx, calls } = makeTx({ existingRow: baseRow(), priorOutboxEvent: { id: BigInt(9) } });
+    transactionMock.mockImplementation((cb: (tx: unknown) => unknown) => cb(tx));
+
+    await saveTiendaOnlineLocal({
+      negocioId: NEGOCIO_ID,
+      tiendaId: TIENDA_ID,
+      input: baseUpdateInput({ orderExpiryHours: 48 }),
+      now: () => NOW,
+    });
+
+    const payload = calls.outboxCreate[0].data as { payload: Record<string, unknown> };
+    expect(payload.payload.orderExpiryHours).toBe(48);
+    for (const key of ["checkoutMode", "deliveryEnabled", "deliveryFee", "deliveryFeeMode"]) {
+      expect(key in payload.payload).toBe(false);
+    }
   });
 });

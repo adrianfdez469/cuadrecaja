@@ -255,6 +255,14 @@ model Tienda {
   /// Json? and does not publish its structure. F-005 fixes it.
   horarios             Json?
   motivoDespublicacion String? @db.VarChar(160)
+  /// Purchase configuration (contract v7). Named after the wire keys on purpose:
+  /// ADR ADRIAN-0151. Absent from a STORE payload means "leave as is", so the
+  /// emitter only sends the ones that changed — ADR ADRIAN-0152.
+  checkoutMode     String   @default("WHATSAPP")
+  deliveryEnabled  Boolean  @default(false)
+  deliveryFee      Decimal? @db.Decimal(14, 2)
+  deliveryFeeMode  String   @default("FLAT_RATE")
+  orderExpiryHours Int      @default(24)
 
   qabReconciliacion QabReconciliacionTienda?
 

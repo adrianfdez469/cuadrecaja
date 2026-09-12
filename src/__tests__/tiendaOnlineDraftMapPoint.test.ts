@@ -16,6 +16,12 @@ import {
   LONGITUDE_MAX,
 } from "@/constants/map";
 import type { IMapPoint } from "@/schemas/map";
+import {
+  QAB_CHECKOUT_MODE_DEFAULT,
+  QAB_DELIVERY_ENABLED_DEFAULT,
+  QAB_DELIVERY_FEE_MODE_DEFAULT,
+  QAB_ORDER_EXPIRY_HOURS_DEFAULT,
+} from "@/constants/qab";
 
 /**
  * F-025 — the four functions the contract (`.agents/specs/F-025.md` § 3.3) adds to
@@ -48,6 +54,12 @@ function baseDraft(overrides: Partial<ITiendaOnlineDraft> = {}): ITiendaOnlineDr
     email: "tienda@example.com",
     horarios: null,
     motivoDespublicacion: "",
+    // F-016: unrelated to the map point, but required by ITiendaOnlineDraft.
+    checkoutMode: QAB_CHECKOUT_MODE_DEFAULT,
+    deliveryEnabled: QAB_DELIVERY_ENABLED_DEFAULT,
+    deliveryFee: "",
+    deliveryFeeMode: QAB_DELIVERY_FEE_MODE_DEFAULT,
+    orderExpiryHours: String(QAB_ORDER_EXPIRY_HOURS_DEFAULT),
     ...overrides,
   };
 }
@@ -81,6 +93,12 @@ function baseLocal(overrides: Partial<ITiendaOnlineLocal> = {}): ITiendaOnlineLo
     publishable: true,
     firstPublishPending: true,
     syncState: { state: "SYNCED", code: null, attempts: 0, since: null },
+    // F-016: unrelated to the map point, but required by ITiendaOnlineLocal.
+    checkoutMode: QAB_CHECKOUT_MODE_DEFAULT,
+    deliveryEnabled: QAB_DELIVERY_ENABLED_DEFAULT,
+    deliveryFee: null,
+    deliveryFeeMode: QAB_DELIVERY_FEE_MODE_DEFAULT,
+    orderExpiryHours: QAB_ORDER_EXPIRY_HOURS_DEFAULT,
     ...overrides,
   };
 }

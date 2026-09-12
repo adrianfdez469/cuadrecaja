@@ -122,6 +122,7 @@ el área correspondiente, léelos antes de escribir código.
 | [E-085](errors/E-085-un-simbolo-nombrado-dentro-de-page-evaluate-bajo-tsx.md) | Un símbolo **con nombre** dentro de un `page.evaluate()` lanzado con `tsx` revienta con `ReferenceError: __name is not defined`: se pasa el cuerpo como **cadena** | tests | 1 |
 | [E-086](errors/E-086-cambiar-de-tienda-por-el-endpoint-muta-el-usuario.md) | `POST /api/auth/cambiar-tienda` escribe el `localActualId` en la base y el efecto **sobrevive a la sesión**: para verificar varias tiendas, un usuario por tienda | auth | 1 |
 | [E-087](errors/E-087-simular-un-fallo-de-red-lo-reintenta-el-interceptor.md) | Inyectar un `ERR_NETWORK` no prueba el manejo de fallos: el interceptor lo reintenta antes de que llegue al `catch`. Se fabrica un **500**, que nadie reintenta | tests | 1 |
+| [ADRIAN-E-088](errors/ADRIAN-E-088-un-500-de-qab-que-no-es-de-qab-ni-nuestro.md) | Un `500` que falla en **todos** los casos de un endpoint y en **ninguno** de sus vecinos no es lógica, es instalación: la traza está en `.next/dev/logs/next-development.log` | qa | 1 |
 
 ---
 

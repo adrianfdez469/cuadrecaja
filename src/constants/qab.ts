@@ -995,3 +995,65 @@ export const QAB_OUTBOX_DEFERRED_ERROR_CODES = ["DEPENDENCY_FAILED_IN_BATCH"] as
 
 /** Log prefix of one deferred event. Ids and the closed code only. */
 export const QAB_OUTBOX_DEFERRED_LOG = "qab.outbox.deferred";
+
+/* -------------------------------------------------------------------------- */
+/* F-016 — Purchase configuration of one store (contract v7)                   */
+/* -------------------------------------------------------------------------- */
+
+/** The two checkout modes of contract v7. A third one is a new contract version. */
+export const QAB_CHECKOUT_MODES = ["WHATSAPP", "ONSITE"] as const;
+
+/**
+ * The two delivery-fee modes this feature emits. The contract also declares
+ * ZONE_BASED (v13); it belongs to another feature and is NOT declared here.
+ */
+export const QAB_DELIVERY_FEE_MODES = ["FLAT_RATE", "QUOTED_PER_ORDER"] as const;
+
+/** Written FROM the vocabularies with `satisfies`, never as loose literals. */
+export const QAB_CHECKOUT_MODE_WHATSAPP = "WHATSAPP" satisfies (typeof QAB_CHECKOUT_MODES)[number];
+export const QAB_DELIVERY_FEE_MODE_FLAT_RATE = "FLAT_RATE" satisfies (typeof QAB_DELIVERY_FEE_MODES)[number];
+
+/** Column defaults. They are duplicated in the Prisma `@default`s: see ADR ADRIAN-0151 (e). */
+export const QAB_CHECKOUT_MODE_DEFAULT = QAB_CHECKOUT_MODE_WHATSAPP;
+export const QAB_DELIVERY_ENABLED_DEFAULT = false;
+export const QAB_DELIVERY_FEE_MODE_DEFAULT = QAB_DELIVERY_FEE_MODE_FLAT_RATE;
+export const QAB_ORDER_EXPIRY_HOURS_DEFAULT = 24;
+
+/** Range of `orderExpiryHours`, both ends included. 8760 = 365 days. */
+export const QAB_ORDER_EXPIRY_HOURS_MIN = 1;
+export const QAB_ORDER_EXPIRY_HOURS_MAX = 8_760;
+
+/**
+ * Upper bound of `deliveryFee`, EXCLUSIVE. Derived, not written by hand: for a
+ * value with at most QAB_AMOUNT_DECIMALS decimals, `< 10 ** 12` is exactly the
+ * contract's `<= 999999999999.99`, and it is the same column width the amounts
+ * of PedidoEntrante already use.
+ */
+export const QAB_DELIVERY_FEE_MAX_EXCLUSIVE = 10 ** QAB_AMOUNT_MAX_INTEGER_DIGITS;
+
+/**
+ * The five keys, in the order the payload and every issue list use them. They
+ * are BOTH the wire keys and the Prisma column names (ADR ADRIAN-0151).
+ */
+export const QAB_STORE_PURCHASE_CONFIG_KEYS = [
+  "checkoutMode",
+  "deliveryEnabled",
+  "deliveryFee",
+  "deliveryFeeMode",
+  "orderExpiryHours",
+] as const;
+
+/**
+ * Every way the purchase configuration can be wrong before it is saved. Closed
+ * vocabulary: the screen maps each one to its own sentence, so the form can name
+ * the broken rule instead of showing a generic message.
+ */
+export const QAB_PURCHASE_CONFIG_ISSUE_CODES = [
+  "DELIVERY_FEE_NOT_A_NUMBER", // blank is not this: blank means "no amount"
+  "DELIVERY_FEE_NEGATIVE",
+  "DELIVERY_FEE_TOO_MANY_DECIMALS", // more than QAB_AMOUNT_DECIMALS decimals
+  "DELIVERY_FEE_TOO_LARGE", // >= QAB_DELIVERY_FEE_MAX_EXCLUSIVE
+  "ORDER_EXPIRY_HOURS_NOT_AN_INTEGER", // blank, not a number, or fractional
+  "ORDER_EXPIRY_HOURS_OUT_OF_RANGE",
+  "DELIVERY_CONFIG_INCONSISTENT", // delivery on + flat rate + no amount
+] as const;

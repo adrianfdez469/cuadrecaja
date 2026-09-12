@@ -4,6 +4,7 @@ import type {
   IOpeningHoursIssue,
 } from "@/schemas/qabOpeningHours";
 import { toQabCurrencyCodeOrNull } from "@/schemas/qabCurrency";
+import { isQabPurchaseConfigInconsistent } from "@/schemas/qabStorePurchaseConfig";
 import { qabStorePayloadSchema } from "@/schemas/qabStore";
 import type {
   IQabStorePayload,
@@ -18,6 +19,23 @@ export class QabStorePayloadError extends Error {
     super("Stored opening hours would be rejected by the online store");
     this.name = "QabStorePayloadError";
     this.issues = issues;
+  }
+}
+
+/**
+ * Raised when the payload about to be emitted would be contradictory on its own:
+ * delivery offered, flat rate, and `deliveryFee: null`, all three in the SAME
+ * event.
+ *
+ * Thrown INSIDE the mutation's transaction, so it rolls the write back — the
+ * same net `QabStorePayloadError` is for an invalid calendar. Unreachable from
+ * the screen, because the PATCH body schema rejects it first; it exists so a
+ * future caller cannot reach it either.
+ */
+export class QabStorePurchaseConfigError extends Error {
+  constructor() {
+    super("Purchase configuration would be rejected by the online store");
+    this.name = "QabStorePurchaseConfigError";
   }
 }
 
@@ -44,6 +62,15 @@ export function buildQabStorePayload(
     const issues = collectOpeningHoursIssues(input.horarios);
     if (issues.length > 0) throw new QabStorePayloadError(issues);
     openingHours = input.horarios as IOpeningHours;
+  }
+
+  // The contradiction is only visible when the three keys travel TOGETHER, which
+  // is exactly what this delta may or may not carry. A key that is absent is
+  // `undefined`, and `undefined === null` is false, so a partial delta never
+  // trips this net — that case is QAB's to detect against its own stored row,
+  // and it comes back as STORE_DELIVERY_CONFIG_INCONSISTENT inside a 207.
+  if (isQabPurchaseConfigInconsistent(input.purchaseConfigChanges)) {
+    throw new QabStorePurchaseConfigError();
   }
 
   // The nine contact fields are spelled out one by one, always, even when null:
@@ -74,6 +101,11 @@ export function buildQabStorePayload(
       ? {}
       : { baseCurrency: input.monedaBase }),
     ...(openingHours === undefined ? {} : { openingHours }),
+    // «Omitir no es apagar»: the five purchase-configuration keys travel ONLY
+    // when they changed in this operation, and a spread of an empty delta adds
+    // nothing — so a routine save emits the very same payload F-005 emitted
+    // (ADR ADRIAN-0152).
+    ...input.purchaseConfigChanges,
     publishToStore: input.publicarEnTienda,
     // The contract ignores `unpublishReason` while the store is published, and
     // sending a stale one back would be noise on the other side's audit trail.
