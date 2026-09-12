@@ -1,6 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { ITiendaOnlineLocalUpdate } from "@/schemas/tiendaOnline";
 import type { PrismaClientLike } from "@/lib/prisma";
+import {
+  QAB_CHECKOUT_MODE_DEFAULT,
+  QAB_DELIVERY_ENABLED_DEFAULT,
+  QAB_DELIVERY_FEE_MODE_DEFAULT,
+  QAB_ORDER_EXPIRY_HOURS_DEFAULT,
+} from "@/constants/qab";
 
 /**
  * F-005, ciclo 2 — `src/lib/tiendaOnline/tiendaOnlineStore.ts` (contract §0.1,
@@ -68,6 +74,12 @@ function baseRow(overrides: Record<string, unknown> = {}) {
     email: null,
     horarios: null,
     motivoDespublicacion: null,
+    // F-016: unrelated to the first-publish signal, but required by the row type.
+    checkoutMode: QAB_CHECKOUT_MODE_DEFAULT,
+    deliveryEnabled: QAB_DELIVERY_ENABLED_DEFAULT,
+    deliveryFee: null,
+    deliveryFeeMode: QAB_DELIVERY_FEE_MODE_DEFAULT,
+    orderExpiryHours: QAB_ORDER_EXPIRY_HOURS_DEFAULT,
     negocio: { nombre: "Bodega Central" },
     ...overrides,
   };
@@ -88,6 +100,12 @@ function baseUpdateInput(overrides: Partial<ITiendaOnlineLocalUpdate> = {}): ITi
     email: null,
     horarios: null,
     motivoDespublicacion: null,
+    // F-016: full-replacement body, all five required.
+    checkoutMode: QAB_CHECKOUT_MODE_DEFAULT,
+    deliveryEnabled: QAB_DELIVERY_ENABLED_DEFAULT,
+    deliveryFee: null,
+    deliveryFeeMode: QAB_DELIVERY_FEE_MODE_DEFAULT,
+    orderExpiryHours: QAB_ORDER_EXPIRY_HOURS_DEFAULT,
     ...overrides,
   };
 }

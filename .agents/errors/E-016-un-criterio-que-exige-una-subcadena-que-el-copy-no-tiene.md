@@ -346,3 +346,23 @@ ambigua» a «borra código muerto que además incumple un criterio». La pantal
 
 Si el motivo no hubiera estado sobredeterminado, el ADR habría quedado justificando una decisión
 correcta con un hecho falso, que es la forma en que estos errores sobreviven a su corrección.
+
+---
+
+## Adenda (F-016): el punto ciego del comprobador, que no es una aparición más
+
+**No incrementa `Apariciones`**: el copy de F-016 estaba bien y sus 18 subcadenas exigidas existen.
+Lo que se descubrió es un límite de la herramienta que comprueba justamente esto.
+
+`scripts/harness/check-design-copy.mjs` examina el documento **línea a línea**. Una aserción de copy
+cuyo verbo de presencia y cuyo code span quedan en **líneas de markdown distintas** —por el ajuste
+de márgenes al redactar, que es lo normal en un criterio largo— **no se comprueba en absoluto**: no
+falla, no avisa, simplemente no entra en la cuenta.
+
+La primera redacción del contrato de diseño de F-016 pasaba en verde con **4 aserciones examinadas
+de unas 20**. Reescribir cada aserción de copy en una sola línea la subió a 18. El verde era el
+mismo en los dos casos.
+
+> **Una aserción de copy se escribe en UNA línea**, por larga que quede. Y el verde de
+> `check-design-copy.mjs` se lee con su número al lado: si dice «N subcadenas comprobadas» y tu
+> documento exige bastantes más, las que faltan no están verificadas — están invisibles.

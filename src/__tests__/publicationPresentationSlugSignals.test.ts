@@ -1,6 +1,12 @@
 import { describe, it, expect } from "vitest";
 import type { ITiendaOnlineLocal } from "@/schemas/tiendaOnline";
-import { QAB_PUBLIC_STORE_URL_PREFIX } from "@/constants/qab";
+import {
+  QAB_PUBLIC_STORE_URL_PREFIX,
+  QAB_CHECKOUT_MODE_DEFAULT,
+  QAB_DELIVERY_ENABLED_DEFAULT,
+  QAB_DELIVERY_FEE_MODE_DEFAULT,
+  QAB_ORDER_EXPIRY_HOURS_DEFAULT,
+} from "@/constants/qab";
 
 /**
  * F-020 — the two new screen signals of `src/components/tiendaOnline/publicationPresentation.ts`
@@ -49,6 +55,12 @@ function baseLocal(overrides: Partial<ITiendaOnlineLocal> = {}): ITiendaOnlineLo
     publishable: true,
     firstPublishPending: true,
     syncState: { state: "SYNCED", code: null, attempts: 0, since: null },
+    // F-016: unrelated to these signals, but required by ITiendaOnlineLocal.
+    checkoutMode: QAB_CHECKOUT_MODE_DEFAULT,
+    deliveryEnabled: QAB_DELIVERY_ENABLED_DEFAULT,
+    deliveryFee: null,
+    deliveryFeeMode: QAB_DELIVERY_FEE_MODE_DEFAULT,
+    orderExpiryHours: QAB_ORDER_EXPIRY_HOURS_DEFAULT,
     ...overrides,
   };
 }

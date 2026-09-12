@@ -9,6 +9,10 @@ import {
   QAB_STORE_EMAIL_MAX_LENGTH,
   QAB_ORDER_STATUS_REPORTABLE,
   QAB_ORDER_STATUS_FAILURE_CODES,
+  QAB_CHECKOUT_MODE_DEFAULT,
+  QAB_DELIVERY_ENABLED_DEFAULT,
+  QAB_DELIVERY_FEE_MODE_DEFAULT,
+  QAB_ORDER_EXPIRY_HOURS_DEFAULT,
 } from "@/constants/qab";
 import { TIENDA_ONLINE_API_ERRORS } from "@/constants/tiendaOnline";
 import {
@@ -536,6 +540,12 @@ const validLocal = {
   publishable: true,
   firstPublishPending: true,
   syncState: { state: "SYNCED", code: null, attempts: 0, since: null },
+  // F-016: the five purchase-configuration columns, required here too.
+  checkoutMode: QAB_CHECKOUT_MODE_DEFAULT,
+  deliveryEnabled: QAB_DELIVERY_ENABLED_DEFAULT,
+  deliveryFee: null,
+  deliveryFeeMode: QAB_DELIVERY_FEE_MODE_DEFAULT,
+  orderExpiryHours: QAB_ORDER_EXPIRY_HOURS_DEFAULT,
 };
 
 describe("tiendaOnlineLocalSchema", () => {
@@ -573,6 +583,24 @@ describe("tiendaOnlineLocalSchema", () => {
   it("should reject a missing syncState", () => {
     const { syncState: _omitted, ...withoutSyncState } = validLocal;
     expect(tiendaOnlineLocalSchema.safeParse(withoutSyncState).success).toBe(false);
+  });
+
+  // F-016 (contract § 4): the five purchase-configuration columns, required like the rest of
+  // the row shape.
+  it("should accept a real deliveryFee and reject a missing purchase-configuration key", () => {
+    expect(
+      tiendaOnlineLocalSchema.safeParse({ ...validLocal, deliveryEnabled: true, deliveryFee: 150 })
+        .success
+    ).toBe(true);
+
+    const { orderExpiryHours: _omitted, ...withoutOrderExpiryHours } = validLocal;
+    expect(tiendaOnlineLocalSchema.safeParse(withoutOrderExpiryHours).success).toBe(false);
+  });
+
+  it("should reject null in checkoutMode — not nullable as a row (only deliveryFee is)", () => {
+    expect(
+      tiendaOnlineLocalSchema.safeParse({ ...validLocal, checkoutMode: null }).success
+    ).toBe(false);
   });
 });
 
@@ -619,6 +647,13 @@ const validUpdate = {
   email: null,
   horarios: null,
   motivoDespublicacion: null,
+  // F-016: the five purchase-configuration keys, required in the full-replacement body too.
+  // Consistent values (delivery disabled) so this fixture never trips the superRefine.
+  checkoutMode: QAB_CHECKOUT_MODE_DEFAULT,
+  deliveryEnabled: QAB_DELIVERY_ENABLED_DEFAULT,
+  deliveryFee: null,
+  deliveryFeeMode: QAB_DELIVERY_FEE_MODE_DEFAULT,
+  orderExpiryHours: QAB_ORDER_EXPIRY_HOURS_DEFAULT,
 };
 
 describe("tiendaOnlineLocalUpdateSchema", () => {
@@ -722,6 +757,127 @@ describe("tiendaOnlineLocalUpdateSchema", () => {
     expect(tiendaOnlineLocalUpdateSchema.safeParse({ ...validUpdate, email: longLocal }).success).toBe(
       false
     );
+  });
+});
+
+/**
+ * F-016 (contract § 6) — the five purchase-configuration keys added to the PATCH body, plus
+ * the ONE cross-field `superRefine` that rejects the contradiction (delivery on + flat rate +
+ * no amount) when all three arrive together in the SAME body. `.strict()` runs first, then
+ * the refinement (contract is explicit about the order).
+ */
+describe("tiendaOnlineLocalUpdateSchema — F-016 purchase configuration", () => {
+  it("should accept a well formed body with a real deliveryFee", () => {
+    expect(
+      tiendaOnlineLocalUpdateSchema.safeParse({
+        ...validUpdate,
+        checkoutMode: "ONSITE",
+        deliveryEnabled: true,
+        deliveryFee: 150,
+        deliveryFeeMode: "QUOTED_PER_ORDER",
+        orderExpiryHours: 48,
+      }).success
+    ).toBe(true);
+  });
+
+  it("should reject a body missing one of the five — full replacement, not a partial", () => {
+    const { orderExpiryHours: _omitted, ...withoutOrderExpiryHours } = validUpdate;
+    expect(tiendaOnlineLocalUpdateSchema.safeParse(withoutOrderExpiryHours).success).toBe(false);
+  });
+
+  it("should accept deliveryFee: null — writes NULL and is valid on its own (criterion 5)", () => {
+    expect(
+      tiendaOnlineLocalUpdateSchema.safeParse({ ...validUpdate, deliveryFee: null }).success
+    ).toBe(true);
+  });
+
+  it.each(["checkoutMode", "deliveryEnabled", "deliveryFeeMode", "orderExpiryHours"] as const)(
+    "should reject null in %s — only deliveryFee is nullable (criterion 5)",
+    (field) => {
+      expect(
+        tiendaOnlineLocalUpdateSchema.safeParse({ ...validUpdate, [field]: null }).success
+      ).toBe(false);
+    }
+  );
+
+  it("should reject 12.345 as deliveryFee — more than two decimals (criterion 6)", () => {
+    expect(
+      tiendaOnlineLocalUpdateSchema.safeParse({ ...validUpdate, deliveryFee: 12.345 }).success
+    ).toBe(false);
+  });
+
+  it("should reject a negative deliveryFee", () => {
+    expect(
+      tiendaOnlineLocalUpdateSchema.safeParse({ ...validUpdate, deliveryFee: -3 }).success
+    ).toBe(false);
+  });
+
+  it("should reject 0 and 8761 as orderExpiryHours — out of [1, 8760] (criterion 8)", () => {
+    expect(
+      tiendaOnlineLocalUpdateSchema.safeParse({ ...validUpdate, orderExpiryHours: 0 }).success
+    ).toBe(false);
+    expect(
+      tiendaOnlineLocalUpdateSchema.safeParse({ ...validUpdate, orderExpiryHours: 8761 }).success
+    ).toBe(false);
+  });
+
+  it("should reject an out-of-vocabulary checkoutMode or deliveryFeeMode", () => {
+    expect(
+      tiendaOnlineLocalUpdateSchema.safeParse({ ...validUpdate, checkoutMode: "PHONE" }).success
+    ).toBe(false);
+    expect(
+      tiendaOnlineLocalUpdateSchema.safeParse({ ...validUpdate, deliveryFeeMode: "ZONE_BASED" }).success
+    ).toBe(false);
+  });
+
+  it("criterion 7(a): should reject the SAME-payload contradiction — delivery on + FLAT_RATE + deliveryFee: null, all three together", () => {
+    expect(
+      tiendaOnlineLocalUpdateSchema.safeParse({
+        ...validUpdate,
+        deliveryEnabled: true,
+        deliveryFeeMode: "FLAT_RATE",
+        deliveryFee: null,
+      }).success
+    ).toBe(false);
+  });
+
+  it("should accept the same three keys when there IS an amount — no contradiction", () => {
+    expect(
+      tiendaOnlineLocalUpdateSchema.safeParse({
+        ...validUpdate,
+        deliveryEnabled: true,
+        deliveryFeeMode: "FLAT_RATE",
+        deliveryFee: 100,
+      }).success
+    ).toBe(true);
+  });
+
+  it("should accept delivery disabled even with FLAT_RATE and no amount — the discriminating control on deliveryEnabled", () => {
+    expect(
+      tiendaOnlineLocalUpdateSchema.safeParse({
+        ...validUpdate,
+        deliveryEnabled: false,
+        deliveryFeeMode: "FLAT_RATE",
+        deliveryFee: null,
+      }).success
+    ).toBe(true);
+  });
+
+  it("should accept QUOTED_PER_ORDER with no amount and delivery on — the discriminating control on deliveryFeeMode", () => {
+    expect(
+      tiendaOnlineLocalUpdateSchema.safeParse({
+        ...validUpdate,
+        deliveryEnabled: true,
+        deliveryFeeMode: "QUOTED_PER_ORDER",
+        deliveryFee: null,
+      }).success
+    ).toBe(true);
+  });
+
+  it("should still reject an extra unknown key (.strict() runs before the superRefine)", () => {
+    expect(
+      tiendaOnlineLocalUpdateSchema.safeParse({ ...validUpdate, zoneCode: "HAVANA" }).success
+    ).toBe(false);
   });
 });
 

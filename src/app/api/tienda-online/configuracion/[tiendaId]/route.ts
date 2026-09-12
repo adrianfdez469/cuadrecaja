@@ -6,7 +6,10 @@ import {
   TIENDA_ONLINE_API_ERRORS,
   TIENDA_ONLINE_PERMISOS,
 } from "@/constants/tiendaOnline";
-import { QabStorePayloadError } from "@/lib/qab/qabStorePayload";
+import {
+  QabStorePayloadError,
+  QabStorePurchaseConfigError,
+} from "@/lib/qab/qabStorePayload";
 import { NO_STORE_HEADERS, logRouteError } from "@/lib/qab/qabRouteHttp";
 import { assertTiendaOnlineAccess } from "@/lib/tiendaOnline/tiendaOnlineAccess";
 import {
@@ -133,6 +136,13 @@ export async function PATCH(
       error instanceof QabStorePayloadError
     ) {
       return openingHoursInvalid(error.issues);
+    }
+    // The generic 400, and NOT a coded body like the calendar's: the five keys
+    // always come from closed controls and from a form that already validates
+    // them, so reaching here means somebody called the API by hand. The refine's
+    // message never travels (E-031, E-069).
+    if (error instanceof QabStorePurchaseConfigError) {
+      return invalidBody();
     }
 
     logRouteError(error);

@@ -1,10 +1,15 @@
 import { describe, it, expect } from "vitest";
-import { buildQabStorePayload, QabStorePayloadError } from "@/lib/qab/qabStorePayload";
+import {
+  buildQabStorePayload,
+  QabStorePayloadError,
+  QabStorePurchaseConfigError,
+} from "@/lib/qab/qabStorePayload";
 import {
   qabStorePayloadSchema,
   qabStorePayloadInputSchema,
   type IQabStorePayloadInput,
 } from "@/schemas/qabStore";
+import { QAB_STORE_PURCHASE_CONFIG_KEYS } from "@/constants/qab";
 
 /**
  * F-005 — `buildQabStorePayload` (`src/lib/qab/qabStorePayload.ts`, ADR 0032) and the wire
@@ -43,6 +48,11 @@ function input(overrides: Partial<IQabStorePayloadInput> = {}): IQabStorePayload
     horarios: null,
     motivoDespublicacion: null,
     occurredAt: OCCURRED_AT,
+    // F-016: what changed in THIS operation, contract §4/§5.1. Required by
+    // qabStorePayloadInputSchema since this feature added it — every fixture in this file
+    // now has to carry it, `{}` ("nothing changed") being the neutral default so every
+    // pre-existing test in this file keeps asserting exactly what it asserted before.
+    purchaseConfigChanges: {},
     ...overrides,
   };
 }
@@ -369,5 +379,129 @@ describe("qabStorePayloadInputSchema", () => {
   it("F-006: monedaBase accepts the RAW column value even when malformed — the builder decides whether it can travel, not this schema", () => {
     expect(qabStorePayloadInputSchema.safeParse(input({ monedaBase: "US" })).success).toBe(true);
     expect(qabStorePayloadInputSchema.safeParse(input({ monedaBase: "" })).success).toBe(true);
+  });
+
+  it("F-016: purchaseConfigChanges is REQUIRED, never omitted — {} is the neutral value, not absence", () => {
+    const { purchaseConfigChanges: _omitted, ...withoutChanges } = input();
+    expect(qabStorePayloadInputSchema.safeParse(withoutChanges).success).toBe(false);
+  });
+
+  it("F-016: purchaseConfigChanges accepts the empty object and a partial delta, rejects an unknown key", () => {
+    expect(qabStorePayloadInputSchema.safeParse(input({ purchaseConfigChanges: {} })).success).toBe(
+      true
+    );
+    expect(
+      qabStorePayloadInputSchema.safeParse(input({ purchaseConfigChanges: { orderExpiryHours: 48 } }))
+        .success
+    ).toBe(true);
+    expect(
+      qabStorePayloadInputSchema.safeParse(
+        input({ purchaseConfigChanges: { zoneCode: "HAVANA" } as never })
+      ).success
+    ).toBe(false);
+  });
+});
+
+/**
+ * F-016 (contract §5.2, §0.1, ADR ADRIAN-0152) — "omitir no es apagar". This is the trap the
+ * dev-tester briefing calls out first: a delta that changed NOTHING must leave the payload
+ * BYTE-IDENTICAL to what F-005 already emits, and that is checked over `Object.keys`, never
+ * over values — a payload that carried the five keys with their CURRENT (unchanged) values
+ * would fail the actual criterion 4 just as badly as one that reset them to the defaults.
+ */
+describe("buildQabStorePayload — F-016 purchaseConfigChanges: omitting is not turning off", () => {
+  it("criterion 4: an empty delta puts NONE of the five keys on the payload", () => {
+    const payload = buildQabStorePayload(input({ purchaseConfigChanges: {} }));
+
+    for (const key of QAB_STORE_PURCHASE_CONFIG_KEYS) {
+      expect(key in payload).toBe(false);
+    }
+    expect(JSON.stringify(payload)).not.toMatch(
+      /checkoutMode|deliveryEnabled|deliveryFeeMode|orderExpiryHours/
+    );
+  });
+
+  it("criterion 3: a delta with exactly one changed key puts EXACTLY that key, flat, at the root", () => {
+    const payload = buildQabStorePayload(
+      input({ purchaseConfigChanges: { orderExpiryHours: 48 } })
+    );
+
+    expect(payload).toHaveProperty("orderExpiryHours", 48);
+    for (const key of QAB_STORE_PURCHASE_CONFIG_KEYS) {
+      if (key === "orderExpiryHours") continue;
+      expect(key in payload).toBe(false);
+    }
+  });
+
+  it("criterion 5: deliveryFee: null in the delta travels AS null, not omitted and not coerced", () => {
+    const payload = buildQabStorePayload(input({ purchaseConfigChanges: { deliveryFee: null } }));
+
+    expect("deliveryFee" in payload).toBe(true);
+    expect(payload.deliveryFee).toBeNull();
+    // Every other one of the five stays absent: this is the exact partial delta that reaches
+    // QAB as a 207/STORE_DELIVERY_CONFIG_INCONSISTENT when the row already had delivery
+    // enabled with a flat rate (contract §8) — our own builder must NOT reject it, since the
+    // contradiction is only visible against the row QAB already has.
+    expect("deliveryEnabled" in payload).toBe(false);
+    expect("deliveryFeeMode" in payload).toBe(false);
+  });
+
+  it("should put every one of the five, each with its own value, when all five changed in the same operation", () => {
+    const payload = buildQabStorePayload(
+      input({
+        purchaseConfigChanges: {
+          checkoutMode: "ONSITE",
+          deliveryEnabled: true,
+          deliveryFee: 200,
+          deliveryFeeMode: "QUOTED_PER_ORDER",
+          orderExpiryHours: 72,
+        },
+      })
+    );
+
+    expect(payload).toMatchObject({
+      checkoutMode: "ONSITE",
+      deliveryEnabled: true,
+      deliveryFee: 200,
+      deliveryFeeMode: "QUOTED_PER_ORDER",
+      orderExpiryHours: 72,
+    });
+  });
+
+  it("a delta that changes purchase configuration keeps the nine contact fields' own rule untouched (present, even when null)", () => {
+    const payload = buildQabStorePayload(
+      input({ descripcion: null, purchaseConfigChanges: { orderExpiryHours: 48 } })
+    );
+
+    expect(payload).toHaveProperty("description");
+    expect(payload.description).toBeNull();
+    expect(payload).toHaveProperty("orderExpiryHours", 48);
+  });
+
+  it("should throw QabStorePurchaseConfigError when the delta itself is contradictory: delivery on + flat rate + no amount, all three in the SAME delta", () => {
+    expect(() =>
+      buildQabStorePayload(
+        input({
+          purchaseConfigChanges: {
+            deliveryEnabled: true,
+            deliveryFeeMode: "FLAT_RATE",
+            deliveryFee: null,
+          },
+        })
+      )
+    ).toThrow(QabStorePurchaseConfigError);
+  });
+
+  it("should NOT throw for the same partial delta that only sets deliveryFee: null — the contradiction is only visible against the row QAB already has, not against this delta alone", () => {
+    expect(() =>
+      buildQabStorePayload(input({ purchaseConfigChanges: { deliveryFee: null } }))
+    ).not.toThrow();
+  });
+
+  it("should still produce a payload that satisfies qabStorePayloadSchema when a delta is present", () => {
+    const payload = buildQabStorePayload(
+      input({ purchaseConfigChanges: { deliveryEnabled: true } })
+    );
+    expect(qabStorePayloadSchema.safeParse(payload).success).toBe(true);
   });
 });

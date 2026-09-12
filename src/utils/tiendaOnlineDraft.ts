@@ -5,8 +5,19 @@ import {
   LONGITUDE_MIN,
   MAP_COORDINATE_DECIMALS,
 } from "@/constants/map";
+import { QAB_AMOUNT_DECIMALS, QAB_DELIVERY_FEE_MAX_EXCLUSIVE } from "@/constants/qab";
 import type { IMapPoint } from "@/schemas/map";
+import { hasQabScale } from "@/schemas/qabDecimals";
 import type { IOpeningHours } from "@/schemas/qabOpeningHours";
+import {
+  isQabOrderExpiryHours,
+  isQabPurchaseConfigInconsistent,
+} from "@/schemas/qabStorePurchaseConfig";
+import type {
+  IQabCheckoutMode,
+  IQabDeliveryFeeMode,
+  IQabPurchaseConfigIssue,
+} from "@/schemas/qabStorePurchaseConfig";
 import type {
   ITiendaOnlineLocal,
   ITiendaOnlineLocalUpdate,
@@ -36,6 +47,14 @@ export interface ITiendaOnlineDraft {
   /** `null` means «no calendar», which is NOT the same as seven closed days. */
   horarios: IOpeningHours | null;
   motivoDespublicacion: string;
+  /* -- Purchase configuration (F-016). --------------------------------- */
+  checkoutMode: IQabCheckoutMode;
+  deliveryEnabled: boolean;
+  /** A STRING, like every other numeric field here: `12.` is not a number yet. */
+  deliveryFee: string;
+  deliveryFeeMode: IQabDeliveryFeeMode;
+  /** A STRING for the same reason. Blank is NOT zero: see `toNumberOrNaN`. */
+  orderExpiryHours: string;
 }
 
 /** The nine fields the buyer sees, in the order the card lays them out. */
@@ -88,6 +107,11 @@ export function draftFromLocal(local: ITiendaOnlineLocal): ITiendaOnlineDraft {
     email: text(local.email),
     horarios: local.horarios,
     motivoDespublicacion: text(local.motivoDespublicacion),
+    checkoutMode: local.checkoutMode,
+    deliveryEnabled: local.deliveryEnabled,
+    deliveryFee: numberText(local.deliveryFee),
+    deliveryFeeMode: local.deliveryFeeMode,
+    orderExpiryHours: String(local.orderExpiryHours),
   };
 }
 
@@ -103,6 +127,20 @@ function toNullableNumber(value: string): number | null {
   if (trimmed.length === 0) return null;
   const parsed = Number(trimmed);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+/**
+ * A number, or `NaN` when the merchant left the field empty.
+ *
+ * NOT `toNullableNumber`, and NOT `Number(value)` either: `Number("")` is `0`,
+ * and `0` is a value `orderExpiryHours` rejects for a reason of its own. Blank
+ * has to reach the schema as something that cannot be mistaken for an hour
+ * count, so the request is refused instead of silently saving zero.
+ */
+function toNumberOrNaN(value: string): number {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) return Number.NaN;
+  return Number(trimmed);
 }
 
 /**
@@ -126,6 +164,14 @@ export function draftToUpdate(
     email: toNullable(draft.email),
     horarios: draft.horarios,
     motivoDespublicacion: toNullable(draft.motivoDespublicacion),
+    checkoutMode: draft.checkoutMode,
+    deliveryEnabled: draft.deliveryEnabled,
+    // ALWAYS sent, whether the screen painted the two controls or not: that is
+    // what makes hiding them harmless — the delta compares two persisted states
+    // of the row, so an untouched value is simply not a change (ADR ADRIAN-0152).
+    deliveryFee: toNullableNumber(draft.deliveryFee),
+    deliveryFeeMode: draft.deliveryFeeMode,
+    orderExpiryHours: toNumberOrNaN(draft.orderExpiryHours),
   };
 }
 
@@ -164,6 +210,81 @@ export function emptyContactFieldsNotice(
       : `${empty.length} datos están vacíos y se van a borrar de tu tienda online`;
 
   return `${lead}: ${names}. ${EMPTY_FIELDS_CLOSING_SENTENCE}`;
+}
+
+/* -------------------------------------------------------------------------- */
+/* F-016 — the form's half of the purchase-configuration invariant             */
+/* -------------------------------------------------------------------------- */
+
+/** The amount the draft currently describes: `null` when the field is blank. */
+function draftDeliveryFee(draft: ITiendaOnlineDraft): number | null {
+  const trimmed = draft.deliveryFee.trim();
+  return trimmed.length === 0 ? null : Number(trimmed);
+}
+
+/** At most ONE broken rule of `deliveryFee`, in the fixed order, or `null`. */
+function deliveryFeeIssueCode(
+  value: number | null,
+): IQabPurchaseConfigIssue["code"] | null {
+  // Blank is NOT an infraction: it means «no amount», which is legitimate while
+  // delivery is off or the mode is quoted.
+  if (value === null) return null;
+  if (!Number.isFinite(value)) return "DELIVERY_FEE_NOT_A_NUMBER";
+  if (value < 0) return "DELIVERY_FEE_NEGATIVE";
+  if (!hasQabScale(value, QAB_AMOUNT_DECIMALS)) {
+    return "DELIVERY_FEE_TOO_MANY_DECIMALS";
+  }
+  if (value >= QAB_DELIVERY_FEE_MAX_EXCLUSIVE) return "DELIVERY_FEE_TOO_LARGE";
+  return null;
+}
+
+/** At most ONE broken rule of `orderExpiryHours`, or `null`. */
+function orderExpiryHoursIssueCode(
+  value: number,
+): IQabPurchaseConfigIssue["code"] | null {
+  // Blank arrives here as NaN (`toNumberOrNaN`), so it falls in with «not an
+  // integer» instead of passing as the zero `Number("")` would produce.
+  if (!Number.isInteger(value)) return "ORDER_EXPIRY_HOURS_NOT_AN_INTEGER";
+  if (!isQabOrderExpiryHours(value)) return "ORDER_EXPIRY_HOURS_OUT_OF_RANGE";
+  return null;
+}
+
+/**
+ * PURE. Every rule the purchase configuration breaks, in a fixed order, empty
+ * when there is none. The form's half of acceptance criteria 6, 7 and 8: the
+ * screen calls it BEFORE the save, so a rejected draft never becomes a request.
+ */
+export function collectPurchaseConfigIssues(
+  draft: ITiendaOnlineDraft,
+): IQabPurchaseConfigIssue[] {
+  const issues: IQabPurchaseConfigIssue[] = [];
+
+  const fee = draftDeliveryFee(draft);
+  const feeCode = deliveryFeeIssueCode(fee);
+  if (feeCode !== null) issues.push({ code: feeCode, field: "deliveryFee" });
+
+  const hoursCode = orderExpiryHoursIssueCode(
+    toNumberOrNaN(draft.orderExpiryHours),
+  );
+  if (hoursCode !== null) {
+    issues.push({ code: hoursCode, field: "orderExpiryHours" });
+  }
+
+  // ONLY when the amount itself is fine: an unreadable amount is already being
+  // reported under that same field, and two sentences in one place say less than
+  // one. Anchored to `deliveryFee` because that is where the merchant acts.
+  if (
+    feeCode === null &&
+    isQabPurchaseConfigInconsistent({
+      deliveryEnabled: draft.deliveryEnabled,
+      deliveryFeeMode: draft.deliveryFeeMode,
+      deliveryFee: fee,
+    })
+  ) {
+    issues.push({ code: "DELIVERY_CONFIG_INCONSISTENT", field: "deliveryFee" });
+  }
+
+  return issues;
 }
 
 /** One coordinate without the other draws no point on any map. */
