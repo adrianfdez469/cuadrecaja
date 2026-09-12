@@ -81,6 +81,21 @@ export function resolveVentaCreditoEstado(
   return saldo > MIN_OPEN_BALANCE_BASE ? "CON_SALDO" : "SALDADA";
 }
 
+/**
+ * PURE. The figure the credit chip of a sale shows, in base currency: the server's live balance
+ * when the block travelled, and the credit the POS just charged (`creditoBase`) when it did not
+ * — a sale queued offline has no account yet, but its debt is known to the cent. `undefined`
+ * for a sale that is not on credit: a cash sale carries no mark at all.
+ */
+export function ventaChipSaldo(
+  venta: IVentaCreditoEstadoInput,
+): number | undefined {
+  const creditoBase = Number(venta?.creditoBase ?? 0) || 0;
+  if (!(creditoBase > 0)) return undefined;
+  if (venta?.credito == null) return creditoBase;
+  return Number(venta.credito.saldoPendiente ?? 0) || 0;
+}
+
 /** The minimum a ledger row needs for the summary. Same figure as ICuentaPorCobrarMovimientoSaldo. */
 export interface IVentaCobroRow {
   tipo: ITipoMovimientoCuentaPorCobrar;

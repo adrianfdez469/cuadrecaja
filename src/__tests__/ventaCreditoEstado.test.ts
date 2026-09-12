@@ -136,6 +136,40 @@ describe("resolveVentaCreditoEstado — read from EXPLICIT fields, never deduced
   });
 });
 
+describe("ventaChipSaldo — the figure the credit chip paints, server balance first, charged credit as fallback", () => {
+  it("is undefined for a cash sale — the chip of a sale with no credit shows nothing at all", () => {
+    expect(
+      ventaCreditoEstado.ventaChipSaldo({ creditoBase: 0, credito: null }),
+    ).toBeUndefined();
+    expect(ventaCreditoEstado.ventaChipSaldo({})).toBeUndefined();
+  });
+
+  it("is the server's live balance when the credit block travelled", () => {
+    expect(
+      ventaCreditoEstado.ventaChipSaldo({
+        creditoBase: 400,
+        credito: { saldoPendiente: 150, settledAt: null },
+      }),
+    ).toBe(150);
+  });
+
+  it("is the charged credit (creditoBase) for a sale still unsynced, whose block did not travel — the POS knows its debt to the cent", () => {
+    expect(
+      ventaCreditoEstado.ventaChipSaldo({ creditoBase: 1000, credito: null }),
+    ).toBe(1000);
+    expect(ventaCreditoEstado.ventaChipSaldo({ creditoBase: 1000 })).toBe(1000);
+  });
+
+  it("is 0 for a settled sale — harmless: CreditoEstadoChip hides the figure unless the state is CON_SALDO", () => {
+    expect(
+      ventaCreditoEstado.ventaChipSaldo({
+        creditoBase: 300,
+        credito: { saldoPendiente: 0, settledAt: new Date("2026-01-01") },
+      }),
+    ).toBe(0);
+  });
+});
+
 describe("summarizeVentaCobros — how much this debt has taken in, and how many times (criterion 6)", () => {
   it("counts two ABONO rows as 2 collections and sums them in base currency", () => {
     expect(
