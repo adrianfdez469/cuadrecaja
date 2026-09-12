@@ -5,6 +5,11 @@ import { Stack, TextField } from "@mui/material";
 import { AppDialog } from "@/components/AppDialog";
 import { CLIENTES_COPY } from "@/constants/clientes";
 import { normalizeClienteNombre } from "@/lib/clientes/clienteNombre";
+import {
+  hasClienteTelefonoError,
+  normalizeClienteTelefono,
+  sanitizeClienteTelefono,
+} from "@/lib/clientes/clienteTelefono";
 import type { ICreateCliente } from "@/schemas/cliente";
 import type { IClienteConSaldo } from "@/schemas/clienteSaldo";
 
@@ -41,7 +46,9 @@ export function ClienteFormDialog({
       cliente
         ? {
             nombre: cliente.nombre ?? "",
-            telefono: cliente.telefono ?? "",
+            // Legacy rows were written before the comma-separated rule existed; showing
+            // them through the sanitizer is what lets the row be saved again.
+            telefono: sanitizeClienteTelefono(cliente.telefono ?? ""),
             direccion: cliente.direccion ?? "",
             descripcion: cliente.descripcion ?? "",
           }
@@ -53,6 +60,9 @@ export function ClienteFormDialog({
     setValues((current) => ({ ...current, [field]: value }));
 
   const nombreLimpio = normalizeClienteNombre(values.nombre);
+  // Field-level validation: a + with no digits behind it stays as an error on the field,
+  // not as a silently dropped character.
+  const telefonoInvalido = hasClienteTelefonoError(values.telefono);
 
   return (
     <AppDialog
@@ -67,11 +77,11 @@ export function ClienteFormDialog({
         onClick: () =>
           onSubmit({
             nombre: nombreLimpio,
-            telefono: values.telefono,
+            telefono: normalizeClienteTelefono(values.telefono),
             direccion: values.direccion,
             descripcion: values.descripcion,
           }),
-        disabled: nombreLimpio === "",
+        disabled: nombreLimpio === "" || telefonoInvalido,
         loading: saving,
       }}
     >
@@ -89,8 +99,16 @@ export function ClienteFormDialog({
           fullWidth
           label={CLIENTES_COPY.formTelefono}
           placeholder={CLIENTES_COPY.formTelefonoPlaceholder}
+          error={telefonoInvalido}
+          helperText={
+            telefonoInvalido
+              ? CLIENTES_COPY.formTelefonoError
+              : CLIENTES_COPY.formTelefonoAyuda
+          }
           value={values.telefono}
-          onChange={(event) => set("telefono")(event.target.value)}
+          onChange={(event) =>
+            set("telefono")(sanitizeClienteTelefono(event.target.value))
+          }
         />
         <TextField
           fullWidth
