@@ -30,10 +30,14 @@ const SKIP_FILES = [
 // Lines that contain the pattern because they ARE this check, written out.
 const ALLOW_LINE = /grep -rn|--include=|\(\/Users\/\||check-paths/;
 
+// node_modules is gitignored wherever it appears (e.g. .opencode/node_modules from plugin
+// installs): those files are machine-local and never travel through git, so scanning them
+// turns third-party docs into false E-001 hits.
 function walk(dir, out = []) {
   let entries;
   try { entries = readdirSync(dir); } catch { return out; }
   for (const e of entries) {
+    if (e === "node_modules" || e === ".git") continue;
     const p = join(dir, e);
     if (statSync(p).isDirectory()) walk(p, out);
     else if (EXTS.some((x) => p.endsWith(x))) out.push(p);
