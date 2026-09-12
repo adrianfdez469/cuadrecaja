@@ -140,7 +140,7 @@ el servidor exactamente igual que antes de este feature.
   del cliente ni cambia entre las dos pasadas, y sus resultados siguen siendo válidos. Es un coste
   acotado a dos consultas y una transacción, sobre un caso raro por construcción.
 
-  > **Enmienda del 2026-09-09** (M1 de `.agents/F-034-seguridad.md`). Este párrafo decía antes «se
+  > **Enmienda del 2026-09-09** (M1 de `.agents/security/F-034.md`). Este párrafo decía antes «se
   > vuelven a hacer las lecturas de productos, tasas y descuentos», que describía un bucle más
   > ancho que el del § 5.6 del contrato. Como el propio contrato dice que en caso de contradicción
   > gana el ADR, la frase habría prevalecido sobre la sección que el `implementer` iba a seguir

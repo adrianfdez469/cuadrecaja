@@ -31,6 +31,8 @@ npm run dev:https    # Desarrollo con HTTPS vía servidor propio (server.mjs)
 npm run build        # Build de producción
 npm start            # Levanta la aplicación compilada
 npm run lint         # ESLint — ejecutar antes de cada commit
+npm run verify       # lint + tsc --noEmit + test, en serie y sin pipes (E-045)
+npm run harness:check # integridad del harness: rutas, ADR, copy de diseño, backlog, índice
 ```
 
 ```bash
@@ -234,12 +236,15 @@ que cualquier trabajo a medias pueda retomarse en otra sesión. Ver [ADR 0001](d
 
 ### Antes de tocar código — siempre
 
-1. Lee **[`.agents/COMMON_ERRORS.md`](.agents/COMMON_ERRORS.md)**. Es un índice corto de errores ya
-   resueltos; abre solo la ficha de tu área. Es bibliografía, no burocracia: evita repetir fallos
-   que ya costaron tiempo.
+1. Lee **[`.agents/COMMON_ERRORS.md`](.agents/COMMON_ERRORS.md)**. Es un índice de una línea por
+   error; abre solo la ficha de tu área. Es bibliografía, no burocracia: evita repetir fallos que
+   ya costaron tiempo. Las lecciones que se pueden comprobar solas ya no dependen de que las leas:
+   `npm run harness:check` las ejecuta.
 2. Comprueba si hay un progreso abierto en `.agents/progress/`. Si existe, **retómalo desde su
    sección "Próximo paso concreto"** en vez de empezar de cero.
-3. Consulta `.agents/features.json` para saber qué está hecho y qué falta.
+3. Consulta `.agents/features.json` para saber qué falta. Solo contiene los features **abiertos**;
+   los cerrados están en `.agents/features-archive.json`, que no se lee salvo para resolver un
+   `depends_on` ausente del activo.
 
 ### El pipeline
 
@@ -248,18 +253,20 @@ arrastrar seis agentes. La skill coordinadora vive en `.claude/skills/feature/SK
 
 ```
 /feature
-  └─ 1. spec           → .agents/specs/F-###.md   (el QUÉ)
-     2. arch-guardian  → contrato de interfaces + docs/adr/  (el CÓMO técnico)
-     3. ui-designer    → .agents/designs/F-###.md (el CÓMO visual; solo si hay pantalla)
+  └─ 1. spec              → .agents/specs/F-###.md      (el QUÉ: alcance y criterios)
+     2. arch-guardian ─┐ EN PARALELO → .agents/contracts/F-###.md + docs/adr/
+        security-guard ─┘ (solo si toca auth/permisos/tenants) → .agents/security/F-###.md
+     3. ui-designer       → .agents/designs/F-###.md    (el CÓMO visual; solo si hay pantalla)
      4. implementer ─┐ EN PARALELO
-        dev-tester  ─┘
-     5. qa            → verifica ejecutando; único que autoriza passes:true
+        dev-tester  ─┘ (ambos contra el contrato, sin verse)
+     5. qa               → verifica ejecutando; único que autoriza passes:true
 ```
 
 | Rol | Agente | Escribe en | Nunca toca |
 |-----|--------|-----------|------------|
-| Especificación | `spec` | `.agents/specs/` | código |
-| Arquitectura | `arch-guardian` | contrato + `docs/adr/` | código |
+| Especificación | `spec` | `.agents/specs/` | código, `.agents/contracts/` |
+| Arquitectura | `arch-guardian` | `.agents/contracts/` + `docs/adr/` | código, `.agents/specs/` |
+| Seguridad | `security-guardian` | `.agents/security/` | código y tests |
 | Diseño de pantallas | `ui-designer` | `.agents/designs/` | código y `src/theme/` |
 | Implementación | `implementer` | `src/**` | `src/__tests__/**` |
 | Tests | `dev-tester` | `src/__tests__/**` | `src/**` |
@@ -324,24 +331,27 @@ Y lo que hay que tener presente: **un salto de versión de ese contrato no es ad
 un feature ya cerrado. `"passes": true` vale para la versión con la que se verificó, anotada en
 `contrato_version`. Cuando un salto lo afecta, no se edita ese feature: se abre uno de migración.
 
-**Revisa esto cada vez que crees o regeneres un agente, o que toques `.agents/`.** El agente `qa`
-lo verifica; a mano es un comando:
-
-```bash
-grep -rnE '(/Users/|/home/|~/|[A-Z]:\\)' .agents/ .claude/ --include='*.md' --include='*.json'
-```
+**Esto ya no se revisa a ojo:** lo comprueba `npm run harness:check`, y su alcance incluye los
+**informes que los propios agentes escriben** — la tercera aparición de E-001 entró justamente por
+ahí, en un informe cuyo `grep` de verificación no se apuntaba a sí mismo. Un chequeo fuera de su
+propio alcance siempre pasa.
 
 ### Artefactos
 
 | Archivo | Qué es |
 |---------|--------|
-| `.agents/features.json` | Backlog y fuente de verdad de qué está hecho. **Lo define el humano**, no los agentes. |
+| `.agents/features.json` | Backlog **abierto**: solo lo pendiente. **Lo define el humano**, no los agentes. |
+| `.agents/features-archive.json` | Los features cerrados y deprecados. El pipeline no lo lee: al cerrar un feature, su entrada se mueve aquí. |
 | `.agents/progress/F-###.md` | Trabajo en curso. Uno por feature; en paralelo, archivos separados. Se borra al cerrar. |
-| `.agents/specs/F-###.md` | Spec del feature + contrato de interfaces. |
+| `.agents/specs/F-###.md` | Spec del feature: problema, alcance y criterios de aceptación. |
+| `.agents/contracts/F-###.md` | Contrato de interfaces, en su propio fichero. Lo escribe el `arch-guardian`; `implementer` y `dev-tester` programan contra él sin verse. Refleja el estado final, no su historial. |
+| `.agents/security/F-###.md` | Informe del `security-guardian`. Destino único: nunca en la raíz de `.agents/`. |
 | `.agents/designs/F-###.md` | Contrato de diseño de las pantallas. Solo si el feature toca UI. |
 | `.agents/COMMON_ERRORS.md` | Índice de errores conocidos. Los que llegan a 3 apariciones suben con su fix resumido. |
 | `.agents/errors/E-###-*.md` | Ficha por error: síntoma, causa raíz, solución, cómo evitarlo. |
-| `docs/adr/NNNN-*.md` | Decisiones técnicas: contexto, decisión, alternativas, consecuencias. |
+| `docs/adr/NNNN-*.md` | Decisiones técnicas: contexto, decisión, alternativas, consecuencias. El número lo asigna `node scripts/harness/check-adr.mjs`, no se cuenta a ojo. |
+| `.agents/designs/PATRONES.md` | Catálogo de patrones de pantalla vigentes. Lo lee el `ui-designer` en vez del árbol de componentes entero. |
+| `.agents/archive/` | Informes de un solo uso (qa, tests, implementación) de features ya cerrados. Nadie los relee; se conservan por trazabilidad. |
 
 ### La regla que sostiene todo esto
 
@@ -381,7 +391,11 @@ Next 15, metadata, error handling, hydration, Suspense y bundling. Los más rele
 ### `vercel-react-best-practices`
 
 62 reglas en 8 categorías priorizadas por impacto. Cada regla es un archivo suelto en
-`rules/<nombre>.md`; se leen individualmente, no de corrido. Las de mayor impacto son las
+`rules/<nombre>.md`; se leen individualmente, no de corrido.
+
+⚠️ **No abras `vercel-react-best-practices/AGENTS.md`.** Son 3.254 líneas y, según su propio
+`README.md`, es *salida generada*: la concatenación de esas mismas 62 reglas. Abrirlo «para tener
+contexto» cuesta ~9.700 tokens y no aporta nada que no esté en la regla concreta que necesitas. Las de mayor impacto son las
 de waterfalls y bundle size (ambas CRITICAL). Directamente aplicables a este POS:
 
 - [`client-localstorage-schema`](.agents/skills/vercel-react-best-practices/rules/client-localstorage-schema.md) — versionar y minimizar lo que persiste `cartStore`.

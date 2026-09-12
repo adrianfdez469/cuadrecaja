@@ -82,7 +82,7 @@ plantilla; no cambia los de ningún usuario existente y se revierte editando dos
 
 ## Adenda del 2026-09-09 — el alcance exacto de «una vista de dueño de negocio»
 
-Levantado por `.agents/F-033-seguridad.md`, hallazgo 🔴-1. La frase de la sección **Decisión**
+Levantado por `.agents/security/F-033.md`, hallazgo 🔴-1. La frase de la sección **Decisión**
 
 > «Quién debe dinero es una vista de dueño de negocio.»
 

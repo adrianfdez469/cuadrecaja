@@ -267,7 +267,7 @@ dos páginas: es la única forma de cumplir esos tres criterios.
 
 # Ronda 2 — corrección del rechazo del `qa` (2026-09-10)
 
-Los dos bloqueantes del § 10 de `.agents/F-035-qa.md`, más la discrepancia de localizadores del
+Los dos bloqueantes del § 10 de `.agents/archive/F-035-qa.md`, más la discrepancia de localizadores del
 criterio 47(b).
 
 ## Verificación tras la corrección

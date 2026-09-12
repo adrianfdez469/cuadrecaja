@@ -64,7 +64,7 @@ El agente `qa` ya comprueba esto para `.claude/agents/`; el mismo grep cubre `.a
 ## Adenda F-041 — la tercera, y la escribió un agente que TENÍA la regla en su encargo
 
 Las dos primeras fueron rutas de **otra** máquina heredadas al generar archivos. La tercera es
-distinta y por eso vale: el agente `qa` de F-041 abrió su informe `.agents/F-041-qa.md` con una
+distinta y por eso vale: el agente `qa` de F-041 abrió su informe `.agents/archive/F-041-qa.md` con una
 línea de contexto perfectamente razonable —**Verificado en:** más la ruta del worktree— y esa ruta
 era la de la máquina donde corría.
 
