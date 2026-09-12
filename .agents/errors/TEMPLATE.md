@@ -1,5 +1,7 @@
 # E-###: <título corto del error>
 
+> El identificador lo emite `node scripts/harness/next-id.mjs error`, con tu prefijo delante.
+
 **Área:** <pos | api | prisma | auth | tests | ui | build>
 **Apariciones:** 1 — F-###
 

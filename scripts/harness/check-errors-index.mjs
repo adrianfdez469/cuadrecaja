@@ -11,9 +11,11 @@ const INDEX = ".agents/COMMON_ERRORS.md";
 const ERRORS_DIR = ".agents/errors";
 const ROW_BUDGET = 420;   // chars: el enlace ya gasta ~90, la síntesis cabe en el resto
 
+// Una ficha es `E-###-slug.md` (heredada) o `PREFIJO-E-###-slug.md` (a partir del prefijo local).
+const FICHA_RE = /^((?:[A-Za-z][A-Za-z0-9]*-)?E-\d+)-.*\.md$/;
 const lines = readFileSync(INDEX, "utf8").split("\n");
 const fichas = new Set(
-  readdirSync(ERRORS_DIR).filter((f) => /^E-\d+-.*\.md$/.test(f)).map((f) => f.slice(0, 5)),
+  readdirSync(ERRORS_DIR).map((f) => f.match(FICHA_RE)?.[1]).filter(Boolean),
 );
 
 let section = null;
@@ -26,8 +28,8 @@ lines.forEach((line, i) => {
   else if (/^## Registrados/.test(line)) section = "reg";
   else if (/^## /.test(line)) section = null;
 
-  if (!line.startsWith("| [E-")) return;
-  const id = line.match(/^\| \[(E-\d+)\]/)?.[1];
+  if (!/^\| \[(?:[A-Za-z][A-Za-z0-9]*-)?E-\d+\]/.test(line)) return;
+  const id = line.match(/^\| \[((?:[A-Za-z][A-Za-z0-9]*-)?E-\d+)\]/)?.[1];
   if (!id) return;
   if (!section) { orphans.push(`${INDEX}:${i + 1}  ${id} — fila fuera de las tablas`); return; }
   rows[section].push(id);

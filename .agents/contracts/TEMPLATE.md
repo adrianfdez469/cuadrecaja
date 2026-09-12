@@ -1,5 +1,7 @@
 # F-###: contrato de interfaces
 
+> El identificador lo emite `node scripts/harness/next-id.mjs feature`, con tu prefijo delante.
+
 > Escrito por el agente `arch-guardian`. El agente `spec` nunca escribe aquí; el arquitecto nunca
 > reescribe `.agents/specs/F-###.md`.
 > `implementer` y `dev-tester` programan contra este fichero **sin verse entre ellos**: es lo único

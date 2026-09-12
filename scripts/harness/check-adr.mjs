@@ -6,29 +6,37 @@
 import { readdirSync } from "node:fs";
 
 const DIR = "docs/adr";
-const files = readdirSync(DIR).filter((f) => /^\d{4}-.*\.md$/.test(f));
+// Un ADR es `NNNN-slug.md` (heredado) o `PREFIJO-NNNN-slug.md` (a partir del prefijo local).
+// La IDENTIDAD es prefijo+número: `ADRIAN-0151` y `KM-0151` son dos ADR distintos y correctos;
+// dos ficheros con el MISMO prefijo y número son la colisión que este check existe para cazar.
+const RE = /^(?:([A-Za-z][A-Za-z0-9]*)-)?(\d{4})-.*\.md$/;
+const files = readdirSync(DIR).filter((f) => RE.test(f));
 
-const byNumber = new Map();
+const byId = new Map();
+const numeros = [];
 for (const f of files.sort()) {
-  const n = f.slice(0, 4);
-  if (!byNumber.has(n)) byNumber.set(n, []);
-  byNumber.get(n).push(f);
+  const [, prefijo, num] = f.match(RE);
+  const id = prefijo ? `${prefijo}-${num}` : num;
+  if (!byId.has(id)) byId.set(id, []);
+  byId.get(id).push(f);
+  numeros.push(Number(num));
 }
 
-const dupes = [...byNumber.entries()].filter(([, fs]) => fs.length > 1);
-const max = Math.max(...byNumber.keys().map(Number));
+const dupes = [...byId.entries()].filter(([, fs]) => fs.length > 1);
+const max = Math.max(...numeros);
 const next = String(max + 1).padStart(4, "0");
 
 if (dupes.length) {
-  console.error(`✗ números de ADR duplicados (${dupes.length}):\n`);
-  for (const [n, fs] of dupes) {
-    console.error(`  ${n}:`);
+  console.error(`✗ identificadores de ADR duplicados (${dupes.length}):\n`);
+  for (const [id, fs] of dupes) {
+    console.error(`  ${id}:`);
     fs.forEach((f) => console.error(`     ${f}`));
   }
-  console.error(`\nRenumera el que se creó después al siguiente libre: ${next}`);
+  console.error(`\nRenumera el que se creó después con:  node scripts/harness/next-id.mjs adr`);
   console.error("Corrige también las referencias entrantes:");
-  console.error(`  grep -rn "adr/${dupes[0][0]}" .agents/ docs/ src/ .claude/`);
+  console.error(`  grep -rn "${dupes[0][0]}" .agents/ docs/ src/ .claude/`);
   process.exit(1);
 }
 
-console.log(`✓ ${files.length} ADR sin colisiones de número — el siguiente libre es ${next}`);
+const conPrefijo = files.filter((f) => f.match(RE)[1]).length;
+console.log(`✓ ${files.length} ADR sin colisiones (${conPrefijo} con prefijo, ${files.length - conPrefijo} heredados) — el siguiente número libre es ${next}`);

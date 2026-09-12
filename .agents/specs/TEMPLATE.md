@@ -1,5 +1,7 @@
 # F-###: <título>
 
+> El identificador lo emite `node scripts/harness/next-id.mjs feature`, con tu prefijo delante.
+
 > Escrito por el agente `spec`. **Solo lo esencial que otros agentes necesiten.**
 > Sin diseño técnico ni pseudocódigo (eso es del arquitecto), y sin decisiones de UI, layout
 > ni responsive (eso es del `ui-designer`, en `.agents/designs/F-###.md`).

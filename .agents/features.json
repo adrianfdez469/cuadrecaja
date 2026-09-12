@@ -16,7 +16,8 @@
     "Ningún archivo de .agents/ puede contener una ruta del sistema de archivos de una máquina concreta: se comparten por git y la ruta de un dev no existe en la máquina de otro. La documentación externa se declara en references.external_docs con una variable de entorno y la URL de su repositorio; si la variable no está definida, PARAR y preguntarle al humano dónde está esa documentación — nunca adivinar una ruta ni continuar sin leerla.",
     "Antes de empezar un feature, leer la documentación externa que declare en 'requires_docs'. Para el contrato de QAB el chequeo es la VERSIÓN, no el contenido: comparar la versión vigente del documento con references.external_docs.qab.contrato.version_verificada siguiendo los pasos de 'como_detectar_cambios'. Si difiere, PARAR y avisar al humano antes de tocar código.",
     "'passes': true es relativo a la versión del contrato con la que se verificó, que queda anotada en el campo 'contrato_version' del feature. Cuando el contrato sube de versión y el cambio afecta a un feature ya cerrado, ese feature deja de estar verificado: no se edita su 'passes' a mano ni se tocan sus acceptance_criteria — se abre un feature nuevo de migración que los reemplace, y se explica en 'notes' del viejo. Solo QA, ejecutando, cierra el nuevo.",
-    "Al cerrar un feature, su entrada se MUEVE de features.json a .agents/features-archive.json. Este archivo solo contiene trabajo pendiente: así el Paso 0 del pipeline no paga el histórico completo en cada corrida."
+    "Al cerrar un feature, su entrada se MUEVE de features.json a .agents/features-archive.json. Este archivo solo contiene trabajo pendiente: así el Paso 0 del pipeline no paga el histórico completo en cada corrida.",
+    "Un identificador nuevo (feature, ADR, ficha de error) no se compone a mano: lo emite 'node scripts/harness/next-id.mjs feature|adr|error' con el prefijo local delante. Ver AGENTS.md."
   ],
   "references": {
     "external_docs": {

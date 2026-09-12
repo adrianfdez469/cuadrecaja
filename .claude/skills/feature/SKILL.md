@@ -23,7 +23,9 @@ tu cuenta si el usuario decide seguir.
 
 Lee, en este orden:
 
-1. `AGENTS.md` — convenciones del proyecto.
+1. `AGENTS.md` — convenciones del proyecto. Presta atención a **«Todo identificador nuevo lleva
+   tu prefijo delante»**: en este documento `F-###` significa el identificador COMPLETO del
+   feature, que para uno nuevo incluye ese prefijo.
 2. `.agents/features.json` — **completo**, incluidas las `rules`. Son vinculantes para ti.
    Solo contiene los features **abiertos**: los cerrados están en `.agents/features-archive.json`,
    que **no se lee** salvo para resolver un `depends_on` que no aparezca en el activo.
@@ -43,6 +45,9 @@ Lee, en este orden:
   backlog de producto lo define el humano. Un agente no agrega features por iniciativa propia."*
   Redacta la entrada propuesta (`id`, `category`, `description`, `depends_on`,
   `acceptance_criteria`) y **pídele aprobación al usuario** antes de escribirla en `features.json`.
+  El `id` no lo compones tú: `node scripts/harness/next-id.mjs feature` lo emite con el prefijo
+  local delante (`ADRIAN-F-051`), y de ahí salen también las rutas de `specs/`, `contracts/`,
+  `designs/`, `security/` y `progress/`.
 - **Sin argumento** → muestra los features con `passes: false` y los progresos abiertos, y pregunta.
 
 Antes de seguir, verifica los `depends_on`. Una dependencia **ausente de `features.json`** está
@@ -142,7 +147,8 @@ Solo si QA aprobó:
 2. **Mueve la entrada** de `.agents/features.json` a `.agents/features-archive.json` y actualiza el
    `updated_at` de los dos ficheros. `features.json` solo contiene trabajo pendiente: si el
    histórico se queda ahí, el Paso 0 vuelve a pagarlo entero en cada corrida.
-3. Vuelca los errores que costaron más de un intento a `.agents/errors/` y añade **una fila de una
+3. Vuelca los errores que costaron más de un intento a `.agents/errors/` —el identificador lo da
+   `node scripts/harness/next-id.mjs error`, con tu prefijo delante— y añade **una fila de una
    línea** al índice `COMMON_ERRORS.md`, **dentro de la tabla «Registrados»** — las tres últimas
    registradas se colaron al final del archivo, tras la prosa, y no indexaban nada. Si un error ya
    existía, **incrementa `Veces`** en vez de duplicar ficha, y la adenda va **a la ficha, no al

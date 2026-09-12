@@ -78,9 +78,19 @@ en un solo lado desincroniza el trabajo que ya está en marcha.
 Toda decisión técnica no evidente va a `docs/adr/NNNN-<slug>.md`, siguiendo
 `docs/adr/TEMPLATE.md`: contexto → decisión → alternativas descartadas → consecuencias.
 
-**No adivines el número.** Pídelo: `node scripts/harness/check-adr.mjs` imprime el siguiente
-libre. Contar «el último existente» a ojo ya produjo una colisión — dos ADR con el número 0036,
-porque dos corridas calcularon el mismo «último» a la vez.
+**No compongas el identificador a mano.** Pídelo:
+
+```bash
+node scripts/harness/next-id.mjs adr
+```
+
+Devuelve el identificador completo **con el prefijo local delante** (`ADRIAN-0151`) y la ruta que
+le toca. Contar «el último existente» a ojo ya produjo una colisión —dos ADR con el número 0036,
+porque dos corridas calcularon el mismo «último» a la vez— y el prefijo es lo que la hace
+imposible entre desarrolladores distintos.
+
+Si el comando te dice que falta `.agents/.local-prefix`, **para y pregunta el prefijo**: no te lo
+inventes ni lo deduzcas del autor de los commits.
 
 Registra el **porqué**, no solo el qué: un ADR sirve cuando dentro de seis meses alguien se
 pregunte por qué no se hizo de la forma obvia.

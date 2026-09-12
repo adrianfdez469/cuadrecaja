@@ -1,5 +1,7 @@
 # ADR ####: <título de la decisión>
 
+> El identificador lo emite `node scripts/harness/next-id.mjs adr`, con tu prefijo delante.
+
 **Estado:** propuesto | aceptado | reemplazado por ADR #### | obsoleto
 **Fecha:** <YYYY-MM-DD>
 **Feature:** F-### (o "transversal")

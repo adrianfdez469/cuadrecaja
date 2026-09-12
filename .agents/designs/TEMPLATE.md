@@ -1,5 +1,7 @@
 # F-###: diseño de <título>
 
+> El identificador lo emite `node scripts/harness/next-id.mjs feature`, con tu prefijo delante.
+
 > Escrito por el agente `ui-designer`. **Mobile-first: primero 320 px.**
 > Sin código, sin `sx`, sin JSX: el `implementer` ejecuta este contrato.
 > Todo color se nombra con su ruta `semantic.*`; ningún `#RRGGBB` entra aquí.

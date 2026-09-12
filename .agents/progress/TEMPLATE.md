@@ -1,5 +1,7 @@
 # F-###: <título>
 
+> El identificador lo emite `node scripts/harness/next-id.mjs feature`, con tu prefijo delante.
+
 **Estado:** spec | arquitectura | implementación | qa | bloqueado
 **Actualizado:** <YYYY-MM-DD>
 **Spec:** `.agents/specs/F-###.md`

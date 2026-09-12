@@ -53,3 +53,8 @@ next-env.d.ts
 
 # Artefactos temporales de los agentes de QA (capturas, fixtures, informes)
 .qa-tmp/
+
+# Prefijo local del desarrollador para los identificadores del harness (ADR, fichas de
+# error, features). Es de esta máquina y NO se comparte: si viajara por git, dos
+# desarrolladores acabarían con el mismo prefijo y volverían a colisionar los números.
+.agents/.local-prefix

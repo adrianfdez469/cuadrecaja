@@ -5,6 +5,7 @@
 import { spawnSync } from "node:child_process";
 
 const CHECKS = [
+  ["prefijo local del desarrollador", "check-prefix.mjs"],
   ["rutas de máquina (E-001)", "check-paths.mjs"],
   ["numeración de ADR", "check-adr.mjs"],
   ["copy de los criterios de diseño (E-016)", "check-design-copy.mjs"],
