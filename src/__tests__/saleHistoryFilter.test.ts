@@ -32,7 +32,7 @@ import { toSaleTimestamps } from "@/lib/venta/ventaTimestamps";
  * `.tsx`). Its whole content is a precedence among five inputs, spelled out in
  * the contract's own table, reproduced here.
  *
- * Trap this suite exists to catch (E-016, adenda F-047, 6th appearance):
+ * Trap this suite exists to catch (E-016, adenda F-047, 8th appearance):
  * `formatDateTime` returns `dd/mm/yyyy` + `" • "` + `HH:mm:ss` — its own JSDoc
  * says `HH:mm` and LIES. Every expected date/time value below is built by
  * CALLING formatDate/formatDateTime, never by writing a literal like "14:30".

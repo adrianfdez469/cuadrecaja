@@ -323,7 +323,7 @@ pasarlo. No se buscaba: salió porque el mandato obligaba a describir lo que la 
 Es el mismo mecanismo de siempre —**una comprobación textual que casa con algo parecido a lo que se
 quería comprobar**— un escalón más arriba: no es una subcadena dentro de otra palabra, es un
 **símbolo dentro del ámbito equivocado**. `formatSaleInfo` aparece, sí, pero en la línea que la
-llama, no en la que pinta. El resultado es idéntico al de las otras seis apariciones: el documento
+llama, no en la que pinta. El resultado es idéntico al de las otras ocho apariciones: el documento
 afirma algo del DOM que el DOM no sostiene.
 
 ### Cómo evitarlo, en un comando

@@ -200,7 +200,7 @@ heredada, no una verificación hecha en este repositorio, y su excepción está 
   > *«pintaba `(N intentos)`»*. Es falso: confundía el **call site** de `formatSaleInfo` (`:595`,
   > `:797`) con el **consumo de su campo**. Lo halló el `ui-designer` y lo verificó el coordinador;
   > queda corregido en sitio, con la decisión intacta y el motivo reforzado. Es **E-016 en su
-  > séptima aparición**, y el chequeo que lo destapa cuesta un comando:
+  > novena aparición**, y el chequeo que lo destapa cuesta un comando:
   > `grep -n "<campo>" <archivo>` — si solo sale la línea que lo **compone**, no se pinta.
 - **Esto no vuelve fiable el número, solo lo vuelve interpretable.** Sigue siendo lo que un cliente
   dice de sí mismo, sin corroboración del servidor, exactamente igual que antes.
